@@ -1,6 +1,7 @@
 import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
 import Header from '@/components/Header';
+import Location from '@/components/LocationMap';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -25,6 +26,7 @@ export default function RootLayout({ children }) {
     >
       <body className="flex min-h-full flex-col">
         <Header />
+        <Location />
         {children}
       </body>
     </html>
