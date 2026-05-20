@@ -1,0 +1,21 @@
+name: Branch Policy Validation
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  validate-source-branch:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Validate PR source branch
+        run: |
+          echo "Source branch: ${{ github.head_ref }}"
+          echo "Target branch: ${{ github.base_ref }}"
+
+          if [[ "${{ github.head_ref }}" != "develop" ]]; then
+            echo "Only develop branch can be merged into main"
+            exit 1
+          fi
