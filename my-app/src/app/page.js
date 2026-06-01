@@ -3,7 +3,7 @@ import Planity from '@/components/Planity';
 
 export default function Home() {
   return (
-    <main>
+    <main className="flex flex-1 flex-col">
       <Location />
       <Planity />
     </main>
