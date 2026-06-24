@@ -1,14 +1,19 @@
-/**
- * Planity ne s'affiche pas en mode sombre par défaut (bug connu côté widget).
- * Cette page force le thème clair.
- */
+export const metadata = {
+  title: 'Réserver massage Bordeaux | Tuina, drainage & Endosphères',
+
+  description:
+    'Prenez rendez-vous à Bordeaux pour un massage du dos, massage Tuina chinois, drainage lymphatique ou soin anti-cellulite Endosphères.',
+
+  keywords: [
+    'réserver massage Bordeaux',
+    'massage du dos Bordeaux',
+    'massage Tuina Bordeaux',
+    'drainage lymphatique Bordeaux',
+    'Endosphères Bordeaux',
+    'anti cellulite Bordeaux',
+  ],
+};
+
 export default function ReserverLayout({ children }) {
-  return (
-    <div
-      className="planity-page min-h-full bg-white text-neutral-900"
-      style={{ colorScheme: 'light' }}
-    >
-      {children}
-    </div>
-  );
+  return children;
 }

@@ -1,4 +1,4 @@
-import PlanityIntegration from '@/components/PlanityIntegration';
+import PlanityIntegration from '@/components/integrations/PlanityIntegration';
 
 export const metadata = {
   title: 'Réservation — Stefania',
