@@ -1,4 +1,47 @@
-@import "tailwindcss";
+@import 'tailwindcss';
+
+/* Scan only src/ — avoids scanning node_modules (slow / high RAM in dev). */
+@source '../**/*.{js,jsx}';
+
+/*
+ * ==========================================================================
+ * DESIGN TOKENS — Stefka Massage (desktop)
+ * ==========================================================================
+ *
+ * Tailwind v4 генерує utility-класи з @theme автоматично:
+ *
+ *   --color-gold        →  bg-gold, text-gold, border-gold …
+ *   --spacing-section-x →  px-section-x, p-section-x, gap-section-x …
+ *   --text-hero         →  text-hero  (+ line-height, letter-spacing)
+ *   --radius-pill       →  rounded-pill
+ *   --height-hero       →  h-hero
+ *   --max-width-hero    →  max-w-hero
+ *   --background-image-hero → bg-hero
+ *
+ * Приклад заміни (коли будете готові застосовувати):
+ *
+ *   bg-[#CD984F]           →  bg-gold
+ *   text-[#FBFBFB]         →  text-cream
+ *   text-[#FBFBFB]/70      →  text-cream/70
+ *   px-20                  →  px-section-x
+ *   text-[84px] leading-[104%] tracking-[-0.84px]  →  text-hero
+ *   rounded-[100px]        →  rounded-pill
+ *   h-[960px]              →  h-hero
+ *   max-w-[662px]          →  max-w-hero
+ *   pb-[136px]             →  pb-hero-bottom
+ *   pt-14                  →  pt-header-top
+ *   gap-11                 →  gap-nav
+ *   px-10 py-4             →  px-btn-x py-btn-y
+ *   px-8                   →  px-btn-outline-x
+ *   text-[14px]            →  text-link
+ *   z-20                   →  z-header
+ *   bg-[url('/images/hero-br.jpg')]  →  bg-hero
+ *
+ * Стандартна шкала Tailwind (gap-4, gap-2, w-3, mt-10 …) уже є
+ * в дефолтній темі — їх не дублюємо, поки не з'явиться сенс
+ * у семантичних іменах.
+ * ==========================================================================
+ */
 
 :root {
   --background: #ffffff;
@@ -6,10 +49,80 @@
 }
 
 @theme inline {
+  /* --- Base (layout.js) --- */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-montserrat: var(--font-montserrat);
+  --font-faustina: var(--font-faustina);
+
+  /* --- Brand colors --- */
+  /* Hero primary button, Header accent */
+  --color-gold: #cd984f;
+  /* Hero h1, cream white */
+  --color-cream: #fbfbfb;
+  /* arrow.svg fill */
+  --color-muted: #626262;
+  /* Hero & Header text on dark background */
+  --color-on-dark: #ffffff;
+  /* Primary button label */
+  --color-on-gold: #000000;
+
+  /* --- Typography (desktop) --- */
+  /* Hero h1: text-[84px] leading-[104%] tracking-[-0.84px] */
+  --text-hero: 84px;
+  --text-hero--line-height: 1.04;
+  --text-hero--letter-spacing: -0.84px;
+  /* Hero secondary CTA: text-[14px] */
+  --text-link: 0.875rem;
+  --text-link--line-height: 1;
+
+  /* --- Spacing (desktop) --- */
+  /* px-20 — Hero, Header, page.js horizontal section padding */
+  --spacing-section-x: 5rem;
+  /* pt-14 — Header top offset */
+  --spacing-header-top: 3rem;
+  /* pb-[136px] — Hero bottom padding */
+  --spacing-hero-bottom: 8.5rem;
+  /* gap-11 — Header nav item gap */
+  --spacing-nav: 2.75rem;
+  /* px-10 — Hero primary button horizontal padding */
+  --spacing-btn-x: 2.5rem;
+  /* py-4 — Hero & Header button vertical padding */
+  --spacing-btn-y: 1rem;
+  /* px-8 — Header outline button horizontal padding */
+  --spacing-btn-outline-x: 2rem;
+  /* pb-5 — Hero label row bottom spacing */
+  --spacing-label-bottom: 1.25rem;
+  /* mt-10 — Hero actions block top margin */
+  --spacing-actions-top: 2.5rem;
+  /* ml-10 — gap between Hero primary & secondary CTA */
+  --spacing-actions-inline: 2.5rem;
+
+  /* --- Layout sizes (desktop) --- */
+  /* h-[960px] — Hero block height */
+  --height-hero: 960px;
+  /* max-w-[662px] — Hero content column width */
+  --max-width-hero: 662px;
+  /* w-3 — decorative arrow icons */
+  --width-icon-arrow: 0.75rem;
+
+  /* --- Border radius --- */
+  /* rounded-[100px] — pill buttons (Hero, Header) */
+  --radius-pill: 100px;
+
+  /* --- Underline (Hero secondary CTA) --- */
+  /* decoration-[1px] */
+  --decoration-thickness-link: 1px;
+  /* underline-offset-[6px] */
+  --underline-offset-link: 6px;
+
+  /* --- Stacking --- */
+  /* z-20 — Header */
+  --z-index-header: 20;
+
+  /* --- Backgrounds --- */
+  /* HeroSection: bg-[url('/images/hero-br.jpg')] */
+  --background-image-hero: url('/images/hero-br.jpg');
 }
 
 @media (prefers-color-scheme: dark) {
@@ -22,5 +135,13 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Planity widget — forced light page (dark OS theme breaks the embed). */
+.planity-page {
+  --background: #ffffff;
+  --foreground: #171717;
+  background-color: #ffffff;
+  color: #171717;
+  color-scheme: light;
 }

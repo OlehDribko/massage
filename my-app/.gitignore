@@ -20,6 +20,9 @@
 # production
 /build
 
+# playwright (heavy; not needed for day-to-day dev)
+.pw-browsers/
+
 # misc
 .DS_Store
 *.pem
