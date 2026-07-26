@@ -12,8 +12,11 @@ export default function HeroSection() {
             <span className="font-light text-cream/70 italic">to Restore</span>
           </h1>
           <div className="mt-actions-top font-montserrat font-medium">
-            <PillButton>Prendre rendez-vous</PillButton>
-            <button className="ml-actions-inline font-montserrat text-link font-medium text-on-dark uppercase underline decoration-link underline-offset-link">
+            <PillButton href="/reserver">Prendre rendez-vous</PillButton>
+            <button
+              type="button"
+              className="ml-actions-inline font-montserrat text-link font-medium text-on-dark uppercase underline decoration-link underline-offset-link"
+            >
               Découvrir les services
             </button>
           </div>

@@ -1,4 +1,4 @@
-import PlanityIntegration from '@/components/integrations/PlanityIntegration';
+import PlanityBooking from '@/components/integrations/planity/PlanityBooking';
 
 export const metadata = {
   title: 'Réservation — Stefania',
@@ -7,14 +7,14 @@ export const metadata = {
 
 export default function ReserverPage() {
   return (
-    <main className="mx-auto w-full max-w-4xl px-4 py-6">
+    <main className="planity-page mx-auto w-full max-w-4xl px-4 py-6">
       <h1 className="mb-2 text-center text-2xl font-semibold text-neutral-900">
         Réservation
       </h1>
       <p className="mb-6 text-center text-sm text-neutral-600">
         Stefania — 23 Rue Castéja, 33000 Bordeaux
       </p>
-      <PlanityIntegration />
+      <PlanityBooking />
     </main>
   );
 }
