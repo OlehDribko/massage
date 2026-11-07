@@ -5,90 +5,152 @@
 
 /*
  * ==========================================================================
- * DESIGN TOKENS — Stefka Massage (desktop)
+ * DESIGN TOKENS — Massage by Stefania Ben
  * ==========================================================================
  *
+ * Єдине джерело кольорів, типографіки, відступів, радіусів і z-index.
  * Tailwind v4 генерує utility-класи з @theme автоматично:
  *
- *   --color-gold        →  bg-gold, text-gold, border-gold …
- *   --spacing-section-x →  px-section-x, p-section-x, gap-section-x …
- *   --text-hero         →  text-hero  (+ line-height, letter-spacing)
- *   --radius-pill       →  rounded-pill
- *   --height-hero       →  h-hero
- *   --max-width-hero    →  max-w-hero
- *   --background-image-hero → bg-hero
+ *   --color-gold              →  bg-gold, text-gold, border-gold …
+ *   --text-h4                 →  text-h4 (+ line-height, letter-spacing)
+ *   --spacing-section-x       →  px-section-x, gap-section-x …
+ *   --container-content       →  max-w-content
+ *   --radius-pill             →  rounded-pill
+ *   --z-index-header          →  z-header
  *
- * Приклад заміни (коли будете готові застосовувати):
+ * Джерело: Figma UI kit (Colors 680:384, Typography 680:582,
+ * Components 691:4877) і макети 1440 / 1024 / 390 px.
  *
- *   bg-[#CD984F]           →  bg-gold
- *   text-[#FBFBFB]         →  text-cream
- *   text-[#FBFBFB]/70      →  text-cream/70
- *   px-20                  →  px-section-x
- *   text-[84px] leading-[104%] tracking-[-0.84px]  →  text-hero
- *   rounded-[100px]        →  rounded-pill
- *   h-[960px]              →  h-hero
- *   max-w-[662px]          →  max-w-hero
- *   pb-[136px]             →  pb-hero-bottom
- *   pt-14                  →  pt-header-top
- *   gap-11                 →  gap-nav
- *   px-10 py-4             →  px-btn-x py-btn-y
- *   px-8                   →  px-btn-outline-x
- *   text-[14px]            →  text-link
- *   z-20                   →  z-header
- *   bg-[url('/images/hero-br.jpg')]  →  bg-hero
+ * Правила для подальшої роботи із секціями:
+ *   - нові кольори беремо зі шкали UI-kit (primary/secondary/third/gray);
+ *     довільні значення text-[#…] не додаємо — спершу токен тут;
+ *   - відповідність макетам: mobile 390 → base, tablet 1024 → sm…xl,
+ *     desktop 1440 → xl (1280+). Розкладку колонок секція вирішує сама;
+ *   - сторінкова сітка: секція з фоном отримує px-page, вміст усередині —
+ *     mx-auto max-w-content (1280 px, як у макеті 1440 з полями 80 px);
+ *   - заголовок секції: text-section-title + колір (text-third-900 або
+ *     text-gray-50 на темному фоні); курсивна частина — heading-accent;
+ *     семантичний рівень (h1/h2…) обирається окремо від візуального стилю;
+ *   - текст: text-body (16), text-body-sm (14), text-body-lg (18),
+ *     підписи капсом: text-label (14-caps), text-label-sm (12-caps);
+ *   - видаляти токен лише після перевірки, що utility ніде не використовується.
  *
- * Стандартна шкала Tailwind (gap-4, gap-2, w-3, mt-10 …) уже є
- * в дефолтній темі — їх не дублюємо, поки не з'явиться сенс
- * у семантичних іменах.
+ * Стандартна шкала Tailwind (gap-4, mt-10 …) уже є в темі — не дублюємо.
  * ==========================================================================
  */
 
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  /* Макет лише світлий: native-контроли та віджети теж у світлій схемі. */
+  color-scheme: light;
 }
 
 @theme inline {
   /* --- Base (layout.js) --- */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-montserrat: var(--font-montserrat);
-  --font-faustina: var(--font-faustina);
+  /* next/font змінні + системні fallback-и, якщо веб-шрифт не завантажився */
+  --font-montserrat:
+    var(--font-montserrat), ui-sans-serif, system-ui, sans-serif;
+  --font-faustina: var(--font-faustina), ui-serif, Georgia, serif;
 
   /* --- Brand colors --- */
-  /* Hero primary button, Header accent */
+  /* Hero primary button, Header accent (= primary-200 зі шкали UI-kit) */
   --color-gold: #cd984f;
   /* Hero h1, cream white */
   --color-cream: #fbfbfb;
-  /* arrow.svg fill */
-  --color-muted: #626262;
-  /* Hero & Header text on dark background */
-  --color-on-dark: #ffffff;
-  /* Primary button label */
-  --color-on-gold: #000000;
+  /* Hero & Header text on dark background (= white UI-kit) */
+  --color-on-dark: #fdfdfd;
+  /* Primary button label (= black UI-kit) */
+  --color-on-gold: #131212;
 
-  /* --- Typography (desktop) --- */
-  /* Hero h1: text-[84px] leading-[104%] tracking-[-0.84px] */
+  /* --- Figma UI-kit color scale --- */
+  --color-base-white: #fdfdfd;
+  --color-base-black: #131212;
+  --color-base-extra: #dbbd14;
+
+  --color-primary-300: #9f753b;
+  --color-primary-200: #cd984f;
+  --color-primary-100: #f4bf80;
+  --color-primary-50: #fceee3;
+
+  --color-secondary-50: #f9f7f5;
+  --color-secondary-100: #f4efe8;
+  --color-secondary-200: #d7c5aa;
+  --color-secondary-900: #1c1914;
+
+  --color-third-900: #1a0f08;
+  --color-third-200: #cc7753;
+  --color-third-100: #e0a287;
+
+  --color-gray-900: #414141;
+  --color-gray-800: #636363;
+  --color-gray-200: #868686;
+  --color-gray-100: #b7b4b0;
+  --color-gray-50: #fcfcfc;
+
+  /* Field error (UI kit «Inputs base», state Error 797:1700) */
+  --color-error: #d14f4f;
+
+  /* --- Typography: Faustina display (UI kit H1–H6) --- */
+  /* H1 84 / 105% / -1% */
   --text-hero: 84px;
-  --text-hero--line-height: 1.04;
+  --text-hero--line-height: 1.05;
   --text-hero--letter-spacing: -0.84px;
-  /* Hero secondary CTA: text-[14px] */
-  --text-link: 0.875rem;
-  --text-link--line-height: 1;
+  --text-h2: 64px;
+  --text-h2--line-height: 1.08;
+  --text-h2--letter-spacing: -0.64px;
+  --text-h3: 54px;
+  --text-h3--line-height: 1.1;
+  --text-h3--letter-spacing: -0.27px;
+  --text-h4: 44px;
+  --text-h4--line-height: 1.12;
+  --text-h4--letter-spacing: -0.22px;
+  --text-h5: 36px;
+  --text-h5--line-height: 1.15;
+  --text-h6: 28px;
+  --text-h6--line-height: 1.2;
+
+  /* --- Typography: Montserrat (UI kit) --- */
+  /* 32 / 130% — заголовок пункту акордеону */
+  --text-service-title: 32px;
+  --text-service-title--line-height: 1.3;
+  /* 24 / 140% */
+  --text-title-sm: 24px;
+  --text-title-sm--line-height: 1.4;
+  /* 18 / 140% / 1% */
+  --text-body-lg: 1.125rem;
+  --text-body-lg--line-height: 1.4;
+  --text-body-lg--letter-spacing: 0.01em;
+  /* 16 / 150% / 1% — основний текст */
+  --text-body: 1rem;
+  --text-body--line-height: 1.5;
+  --text-body--letter-spacing: 0.01em;
+  /* 14 / 150% / 1% */
+  --text-body-sm: 0.875rem;
+  --text-body-sm--line-height: 1.5;
+  --text-body-sm--letter-spacing: 0.01em;
+  /* Label 14-caps: Medium, 150%, 5% (кнопки) */
+  --text-label: 0.875rem;
+  --text-label--line-height: 1.5;
+  --text-label--letter-spacing: 0.05em;
+  /* Label 12-caps: Medium, 150%, 8% */
+  --text-label-sm: 0.75rem;
+  --text-label-sm--line-height: 1.5;
+  --text-label-sm--letter-spacing: 0.08em;
 
   /* --- Spacing (desktop) --- */
   /* px-20 — Hero, Header, page.js horizontal section padding */
   --spacing-section-x: 5rem;
-  /* pt-14 — Header top offset */
-  --spacing-header-top: 3rem;
   /* pb-[136px] — Hero bottom padding */
   --spacing-hero-bottom: 8.5rem;
   /* gap-11 — Header nav item gap */
   --spacing-nav: 2.75rem;
   /* px-10 — Hero primary button horizontal padding */
   --spacing-btn-x: 2.5rem;
-  /* py-4 — Hero & Header button vertical padding */
-  --spacing-btn-y: 1rem;
+  /* Кнопки 54 px: 16 px за макетом мінус 1 px рамки (рамка в Figma всередині) */
+  --spacing-btn-y: 15px;
   /* px-8 — Header outline button horizontal padding */
   --spacing-btn-outline-x: 2rem;
   /* pb-5 — Hero label row bottom spacing */
@@ -97,8 +159,12 @@
   --spacing-actions-top: 2.5rem;
   /* ml-10 — gap between Hero primary & secondary CTA */
   --spacing-actions-inline: 2.5rem;
+  /* Tablet header/section horizontal padding (Figma 1024 frame) */
+  --spacing-section-x-tablet: 3.75rem;
 
-  /* --- Layout sizes (desktop) --- */
+  /* --- Layout --- */
+  /* Ширина вмісту: макет 1440 − 2 × 80 px полів */
+  --container-content: 80rem;
   /* h-[960px] — Hero block height */
   --height-hero: 960px;
   /* max-w-[662px] — Hero content column width */
@@ -109,27 +175,21 @@
   /* --- Border radius --- */
   /* rounded-[100px] — pill buttons (Hero, Header) */
   --radius-pill: 100px;
+  /* Hero stat card / inputs */
+  --radius-card: 4px;
+  /* Services photo panel */
+  --radius-panel: 20px;
 
-  /* --- Underline (Hero secondary CTA) --- */
-  /* decoration-[1px] */
-  --decoration-thickness-link: 1px;
-  /* underline-offset-[6px] */
-  --underline-offset-link: 6px;
+  /* --- Shadows: primary button (UI kit 546:152, 546:180) --- */
+  --shadow-button-hover:
+    0 4px 3.5px rgb(147 102 41 / 0.25), inset 0 2px 2px #fbd19d,
+    inset 0 5px 11px #f5bf7f;
+  --shadow-button-active:
+    0 4px 3.5px rgb(147 102 41 / 0.25), inset 0 4px 6px #fec270;
 
   /* --- Stacking --- */
   /* z-20 — Header */
   --z-index-header: 20;
-
-  /* --- Backgrounds --- */
-  /* HeroSection: bg-[url('/images/hero-br.jpg')] */
-  --background-image-hero: url('/images/hero-br.jpg');
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 body {
@@ -137,11 +197,31 @@ body {
   color: var(--foreground);
 }
 
-/* Planity widget — forced light page (dark OS theme breaks the embed). */
-.planity-page {
-  --background: #ffffff;
-  --foreground: #171717;
-  background-color: #ffffff;
-  color: #171717;
-  color-scheme: light;
+/*
+ * Спільні складені утиліти. Breakpoints: base = mobile 390,
+ * sm = tablet (макет 1024 з полями 60 px), xl = desktop 1440.
+ */
+
+/* Горизонтальні поля сторінки: 16 → 60 → 80 px */
+@utility px-page {
+  @apply sm:px-section-x-tablet xl:px-section-x px-4;
+}
+
+/* Заголовок секції: Faustina Regular, H5 → H3 → H2 */
+@utility text-section-title {
+  @apply font-faustina text-h5 sm:text-h3 xl:text-h2 font-normal;
+}
+
+/* Курсивна частина заголовка: Light Italic, third-200 */
+@utility heading-accent {
+  @apply text-third-200 font-light italic;
+}
+
+/*
+ * Header account label before the session is restored (AccountControl,
+ * status 'loading'): <html data-account> comes from lib/auth/accountHint.js.
+ */
+html[data-account='member'] .account-hint-guest,
+html:not([data-account='member']) .account-hint-member {
+  display: none;
 }
