@@ -4,7 +4,7 @@ const MAP_EMBED_SRC =
 export default function LocationSection() {
   return (
     <section className="flex flex-col items-center gap-4 px-4 py-8">
-      <h3 className="text-lg font-medium text-foreground">My Location</h3>
+      <h3 className="text-foreground text-lg font-medium">My Location</h3>
       <iframe
         title="Stefania — 23 Rue Castéja, Bordeaux"
         src={MAP_EMBED_SRC}

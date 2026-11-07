@@ -1,37 +1,44 @@
+import Header from '@/components/layout/Header';
+import AboutMeSection from '@/components/sections/AboutMeSection';
+import ApproachSection from '@/components/sections/ApproachSection';
+import EndosphereSection from '@/components/sections/EndosphereSection';
+import GiftCardSection from '@/components/sections/GiftCardSection';
 import HeroSection from '@/components/sections/HeroSection';
-import LocationSection from '@/components/sections/LocationSection';
-import PlanitySection from '@/components/sections/PlanitySection';
+import NewsletterSection from '@/components/sections/NewsletterSection';
+import ServicesSection from '@/components/sections/ServicesSection';
+import TestimonialsSection from '@/components/sections/TestimonialsSection';
+import JsonLd from '@/components/seo/JsonLd';
+import { loadCatalog } from '@/lib/booking/loadCatalog';
+import { localBusinessJsonLd, pageMetadata } from '@/lib/seo';
 
-export const metadata = {
-  title: 'Massage Bordeaux | Dos, Tuina, drainage & Endosphères',
-
+export const metadata = pageMetadata({
+  title: 'Massage à Bordeaux | Massage by Stefania Ben',
+  absoluteTitle: true,
   description:
-    'Cabinet de massage à Bordeaux spécialisé dans le mal de dos, le massage Tuina chinois, le drainage lymphatique et les soins anti-cellulite Endosphères sur appareil spécialisé.',
+    'Cabinet de massage à Bordeaux, rue Castéja : massage thérapeutique et relaxant, Tuina, drainage lymphatique, anti-cellulite et Endosphères. Réservez en ligne.',
+  path: '/',
+});
 
-  keywords: [
-    'massage Bordeaux',
-    'massage thérapeutique Bordeaux',
-    'massage du dos Bordeaux',
-    'mal de dos Bordeaux',
-    'massage Tuina Bordeaux',
-    'massage chinois Bordeaux',
-    'drainage lymphatique Bordeaux',
-    'massage anti-cellulite Bordeaux',
-    'Endosphères Bordeaux',
-    'Endosphera Bordeaux',
-    'cabinet massage Bordeaux',
-    'prendre rendez-vous massage Bordeaux',
-  ],
-};
+export default async function Home() {
+  // Real prices for « Nos soins populaires »; the page renders without them
+  // if the API is slow or down.
+  const { catalog } = await loadCatalog({ timeoutMs: 2500 });
+  const featured = catalog?.filter((prestation) => prestation.featured) ?? null;
 
-export default function Home() {
   return (
-    <main>
-      <HeroSection />
-      <div className="px-section-x">
-        <LocationSection />
-        <PlanitySection />
-      </div>
-    </main>
+    <>
+      <Header variant="overlay" />
+      <main>
+        <JsonLd data={localBusinessJsonLd()} />
+        <HeroSection />
+        <AboutMeSection id="about" />
+        <ServicesSection id="services" prestations={featured} />
+        <ApproachSection id="approach" />
+        <EndosphereSection />
+        <GiftCardSection />
+        <TestimonialsSection id="testimonials" />
+        <NewsletterSection />
+      </main>
+    </>
   );
 }

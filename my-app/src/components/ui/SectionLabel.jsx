@@ -1,8 +1,10 @@
 import Image from 'next/image';
 
-export default function SectionLabel({ children }) {
+export default function SectionLabel({ children, className = '' }) {
   return (
-    <div className="flex gap-4 pb-label-bottom">
+    <div
+      className={`pb-label-bottom flex items-center gap-4 ${className}`.trim()}
+    >
       <Image
         src="/arrow.svg"
         alt=""
@@ -11,7 +13,9 @@ export default function SectionLabel({ children }) {
         aria-hidden
         className="w-icon-arrow rotate-180"
       />
-      <p className="flex items-center gap-2">{children}</p>
+      <p className="font-montserrat flex items-center gap-2 text-[16px] tracking-[0.16px]">
+        {children}
+      </p>
       <Image
         src="/arrow.svg"
         alt=""

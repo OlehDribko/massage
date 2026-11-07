@@ -10,6 +10,18 @@ const nextConfig = {
   turbopack: {
     root: __dirname,
   },
+  // The catalogue briefly lived at /prestations; /reserver is the single
+  // booking entry now.
+  async redirects() {
+    return [
+      { source: '/prestations', destination: '/reserver', permanent: true },
+      {
+        source: '/prestations/:serviceId',
+        destination: '/reserver/:serviceId',
+        permanent: true,
+      },
+    ];
+  },
 };
 
 export default nextConfig;

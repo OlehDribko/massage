@@ -1,13 +1,11 @@
+import { INDEXABLE_ROUTES, IS_INDEXABLE, SITE_URL } from '@/config/site';
+
 export default function sitemap() {
-  //MUST WRITE DOMAIN HERE
-  return [
-    {
-      url: 'https://домен.fr',
-      lastModified: new Date(),
-    },
-    {
-      url: 'https://домен.fr/reserver',
-      lastModified: new Date(),
-    },
-  ];
+  // No sitemap entries for preview builds or while the domain is unknown.
+  if (!IS_INDEXABLE) return [];
+
+  // lastModified is omitted on purpose: build time is not a real content date.
+  return INDEXABLE_ROUTES.map((path) => ({
+    url: path === '/' ? SITE_URL : `${SITE_URL}${path}`,
+  }));
 }

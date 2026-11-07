@@ -1,10 +1,13 @@
+import { IS_INDEXABLE, SITE_URL } from '@/config/site';
+
 export default function robots() {
-  //MUST WRITE DOMAIN HERE
+  // Crawling stays allowed everywhere: non-production builds are excluded via
+  // the noindex meta tag, which robots can only read if they may fetch pages.
   return {
     rules: {
       userAgent: '*',
       allow: '/',
     },
-    sitemap: 'https://домен.fr/sitemap.xml',
+    ...(IS_INDEXABLE && { sitemap: `${SITE_URL}/sitemap.xml` }),
   };
 }
