@@ -44,8 +44,9 @@ export default function TestimonialsSection({ id }) {
   const total = items.length;
   const featured = items[current];
   const following = [1, 2]
-    .map((offset) => items[(current + offset) % total])
-    .filter((review) => review !== featured);
+    .map((offset) => (current + offset) % total)
+    .filter((index) => index !== current)
+    .map((index) => ({ index, review: items[index] }));
   const go = (delta) => setCurrent((index) => (index + delta + total) % total);
 
   return (
@@ -110,9 +111,9 @@ export default function TestimonialsSection({ id }) {
 
         {/* Mobile mock-up: only the featured review. */}
         <ul className="hidden flex-col gap-10 lg:flex lg:w-[554px] lg:shrink-0">
-          {following.map((review, index) => (
+          {following.map(({ index: key, review }, index) => (
             <li
-              key={`${review.date}-${review.quote.slice(0, 20)}`}
+              key={key}
               className={`flex flex-col gap-8 ${index ? 'border-t border-black/7 pt-10' : ''}`}
             >
               <RatingStars count={Math.round(review.rating)} />

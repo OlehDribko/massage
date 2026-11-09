@@ -9,6 +9,11 @@ import { subscribeNewsletter } from '@/lib/api/public';
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function message(error) {
+  // The API mounts /api/marketing only with ENABLE_MARKETING_SUBSCRIPTION=true
+  // (switched off on staging): otherwise every request is 404 NOT_FOUND.
+  if (error?.status === 404) {
+    return 'L’inscription à la newsletter n’est pas encore ouverte.';
+  }
   switch (error?.code) {
     case 'VALIDATION_FAILED':
       return 'Adresse e-mail invalide.';
@@ -17,7 +22,6 @@ function message(error) {
     case 'CONSENT_TEXT_OUTDATED':
       return 'Le texte de consentement a changé. Rechargez la page puis réessayez.';
     case 'NOT_CONFIGURED':
-    case 'HTTP_404':
       return 'L’inscription à la newsletter n’est pas encore ouverte.';
     case 'NETWORK_ERROR':
       return 'Impossible de joindre le service. Vérifiez votre connexion et réessayez.';
@@ -93,7 +97,7 @@ export default function NewsletterSection() {
       <div className="px-page pt-[60px] lg:pt-20">
         <div className="mx-auto flex max-w-[664px] flex-col items-center gap-10 text-center lg:gap-[60px]">
           <div className="flex flex-col gap-6">
-            <h2 className="font-faustina text-h5 sm:text-h3 xl:text-h2 font-normal tracking-[-0.64px] text-gray-900">
+            <h2 className="font-faustina sm:text-h3 xl:text-h2 text-[32px] leading-[1.08] font-normal tracking-[-0.64px] text-gray-900">
               Ne manquez aucune offre
             </h2>
             <p className="font-montserrat text-body-lg text-gray-200">

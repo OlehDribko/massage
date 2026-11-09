@@ -45,14 +45,11 @@ export default function HeroSection() {
             >
               Prendre rendez-vous
             </PillButton>
-            <PillButton
-              variant="text"
-              href="#services"
-              tone="light"
-              className="hidden md:inline-flex"
-            >
-              Découvrir les services
-            </PillButton>
+            <div className="hidden md:block">
+              <PillButton variant="text" href="#services" tone="light">
+                Découvrir les services
+              </PillButton>
+            </div>
           </div>
         </div>
 
