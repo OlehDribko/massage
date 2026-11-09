@@ -19,7 +19,7 @@ export default function EndosphereSection() {
             alt=""
             fill
             sizes="(min-width: 1024px) 156vw, 100vw"
-            className="-scale-x-100 object-cover object-[60%_20%] lg:object-center"
+            className="-scale-x-100 object-cover object-[22%_40%] lg:object-center"
           />
         </div>
         <div className="absolute inset-0 bg-black/20" />
