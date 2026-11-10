@@ -97,4 +97,10 @@ export const BUSINESS = {
     closes: '19:00',
   },
   bookingUrl: process.env.NEXT_PUBLIC_PLANITY_BOOKING_URL || null,
+  // Public profiles (footer icons, structured data `sameAs`).
+  socials: {
+    instagram: 'https://www.instagram.com/sb_stefania_/',
+    facebook: 'https://www.facebook.com/share/1FuYM8u41x/',
+    planity: 'https://www.planity.com/stefania-33000-bordeaux',
+  },
 };

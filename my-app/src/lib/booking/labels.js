@@ -176,5 +176,4 @@ export function adminNotificationLabel(result) {
 export const SIGN_IN_PROVIDERS = {
   'google.com': 'Google',
   password: 'E-mail et mot de passe',
-  anonymous: 'Invité',
 };

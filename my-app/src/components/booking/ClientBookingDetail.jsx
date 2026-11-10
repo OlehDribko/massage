@@ -12,6 +12,7 @@ import BookingSteps from '@/components/booking/BookingSteps';
 import BookingStatus from '@/components/booking/BookingStatus';
 import SlotPicker from '@/components/booking/SlotPicker';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import GoogleLogo from '@/components/ui/GoogleLogo';
 import Notice from '@/components/ui/Notice';
 import PillButton from '@/components/ui/PillButton';
 import { BUSINESS, SITE } from '@/config/site';
@@ -20,7 +21,6 @@ import {
   addressLine,
   directionsUrl,
   googleCalendarUrl,
-  icsContent,
 } from '@/lib/booking/calendar';
 import {
   bookingErrorMessage,
@@ -54,47 +54,25 @@ const ICONS = {
   cancel: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM9 9l6 6M15 9l-6 6',
 };
 
-/** "Ajouter à mon agenda": Google link + .ics file (Apple, Outlook…). */
-function AddToCalendar({ booking }) {
-  const ics = `data:text/calendar;charset=utf-8,${encodeURIComponent(icsContent(booking, STUDIO))}`;
+/**
+ * "Ajouter à Google Agenda": opens a prefilled Google Calendar event in a
+ * new tab (no file download). `size="sm"` for the detail actions row.
+ */
+function AddToCalendar({ booking, size = 'md' }) {
+  const small = size === 'sm';
   return (
-    <details className="group relative">
-      <summary className="rounded-pill bg-primary-200 text-on-gold font-montserrat text-label hover:shadow-button-hover focus-visible:outline-primary-200 flex min-h-[54px] cursor-pointer list-none items-center justify-center gap-2.5 px-7 font-medium uppercase focus-visible:outline-2 focus-visible:outline-offset-2 [&::-webkit-details-marker]:hidden">
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.8"
-          aria-hidden
-          className="size-[18px]"
-        >
-          <path d="M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM3 10h18M8 3v4M16 3v4M12 13v5M9.5 15.5h5" />
-        </svg>
-        Ajouter à mon agenda
-      </summary>
-      <ul className="rounded-card font-montserrat text-body absolute top-full left-0 z-10 mt-2 flex w-64 flex-col border border-black/10 bg-white py-2 shadow-lg">
-        <li>
-          <a
-            href={googleCalendarUrl(booking, STUDIO)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:bg-secondary-50 flex min-h-11 items-center px-4 text-gray-900"
-          >
-            Google Agenda
-            <span className="sr-only"> (nouvelle fenêtre)</span>
-          </a>
-        </li>
-        <li>
-          <a
-            href={ics}
-            download="rendez-vous.ics"
-            className="hover:bg-secondary-50 flex min-h-11 items-center px-4 text-gray-900"
-          >
-            Apple Calendrier, Outlook (.ics)
-          </a>
-        </li>
-      </ul>
-    </details>
+    <a
+      href={googleCalendarUrl(booking, STUDIO)}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={`rounded-pill font-montserrat focus-visible:outline-third-200 hover:border-third-200 flex items-center justify-center gap-3 border border-black/20 bg-white font-medium text-gray-900 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 motion-reduce:transition-none ${
+        small ? 'text-body-sm min-h-11 px-5' : 'text-body min-h-[54px] px-7'
+      }`}
+    >
+      <GoogleLogo className={small ? 'size-[18px]' : 'size-5'} />
+      Ajouter à Google Agenda
+      <span className="sr-only"> (nouvelle fenêtre)</span>
+    </a>
   );
 }
 
@@ -309,7 +287,7 @@ function Detail({ bookingId, controller, enabled, firstName }) {
             Annuler le rendez-vous
           </PillButton>
         ) : null}
-        {active ? <AddToCalendarLink booking={booking} /> : null}
+        {active ? <AddToCalendar booking={booking} size="sm" /> : null}
       </div>
     ) : null;
 
@@ -490,21 +468,6 @@ function Detail({ bookingId, controller, enabled, firstName }) {
           : '.'}
       </ConfirmDialog>
     </div>
-  );
-}
-
-/** Small "Ajouter à l’agenda" text link for the detail view. */
-function AddToCalendarLink({ booking }) {
-  return (
-    <a
-      href={googleCalendarUrl(booking, STUDIO)}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="font-montserrat text-body-sm text-third-900 hover:text-third-200 flex min-h-11 items-center px-2 font-medium underline underline-offset-4"
-    >
-      Ajouter à Google Agenda
-      <span className="sr-only"> (nouvelle fenêtre)</span>
-    </a>
   );
 }
 
