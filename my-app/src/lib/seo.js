@@ -84,6 +84,12 @@ export function localBusinessJsonLd() {
         closes: openingHours.closes,
       },
     ],
-    ...(BUSINESS.bookingUrl && { sameAs: [BUSINESS.bookingUrl] }),
+    sameAs: [
+      ...new Set(
+        [...Object.values(BUSINESS.socials), BUSINESS.bookingUrl].filter(
+          Boolean
+        )
+      ),
+    ],
   };
 }

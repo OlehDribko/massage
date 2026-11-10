@@ -2,7 +2,6 @@ import Image from 'next/image';
 
 import NavLink from '@/components/ui/NavLink';
 import { BUSINESS, SITE } from '@/config/site';
-import { REVIEWS } from '@/content/reviews';
 
 const NAVIGATION = [
   { href: '/#services', label: 'Ce que nous faisons' },
@@ -12,10 +11,49 @@ const NAVIGATION = [
   { href: '/#testimonials', label: 'Avis' },
 ];
 
-// TODO: replace with the real social profile URLs
+const ICON = 'size-[22px]';
+
 const SOCIALS = [
-  { href: '#', label: 'Instagram' },
-  { href: '#', label: 'Facebook' },
+  {
+    href: BUSINESS.socials.instagram,
+    label: 'Instagram',
+    icon: (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        aria-hidden
+        className={ICON}
+      >
+        <rect x="3" y="3" width="18" height="18" rx="5" />
+        <circle cx="12" cy="12" r="4" />
+        <circle cx="17.5" cy="6.5" r="0.6" fill="currentColor" />
+      </svg>
+    ),
+  },
+  {
+    href: BUSINESS.socials.facebook,
+    label: 'Facebook',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden className={ICON}>
+        <path d="M13.5 21v-7.5h2.6l.4-3h-3V8.6c0-.9.3-1.5 1.5-1.5h1.6V4.4c-.3 0-1.2-.1-2.3-.1-2.3 0-3.8 1.4-3.8 3.9v2.3H7.9v3h2.6V21z" />
+      </svg>
+    ),
+  },
+  {
+    href: BUSINESS.socials.planity,
+    label: 'Planity',
+    icon: (
+      <svg viewBox="0 0 24 24" aria-hidden className={ICON}>
+        <path
+          fill="currentColor"
+          fillRule="evenodd"
+          d="M12 2c7.4 0 10 2.6 10 10s-2.6 10-10 10S2 19.4 2 12 4.6 2 12 2zM8.6 6.8v10.4h2.2v-3.4h2.4a3.5 3.5 0 0 0 0-7zm2.2 2h2.3a1.5 1.5 0 0 1 0 3h-2.3z"
+        />
+      </svg>
+    ),
+  },
 ];
 
 export default function Footer() {
@@ -88,35 +126,21 @@ export default function Footer() {
               <p className="font-montserrat text-base-white text-[18px] font-medium">
                 SUIVEZ-NOUS
               </p>
-              <ul className="flex flex-col gap-3">
+              <ul className="flex items-center gap-3">
                 {SOCIALS.map((social) => (
                   <li key={social.label}>
-                    <NavLink
-                      href={social.href}
-                      tone="footer"
-                      className="underline"
-                    >
-                      {social.label}
-                    </NavLink>
-                  </li>
-                ))}
-                {/* Planity profile (reviews); booking itself is /reserver. */}
-                {REVIEWS.url ? (
-                  <li>
                     <a
-                      href={REVIEWS.url}
+                      href={social.href}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="font-montserrat hover:text-base-white text-[16px] tracking-[0.16px] text-gray-100 underline transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-current motion-reduce:transition-none"
+                      aria-label={`${social.label} (nouvel onglet)`}
+                      title={social.label}
+                      className="hover:border-base-white hover:text-base-white flex size-11 items-center justify-center rounded-full border border-white/20 text-gray-100 transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-current motion-reduce:transition-none"
                     >
-                      Planity
-                      <span className="sr-only">
-                        {' '}
-                        — profil du cabinet (nouvel onglet)
-                      </span>
+                      {social.icon}
                     </a>
                   </li>
-                ) : null}
+                ))}
               </ul>
             </div>
           </div>
