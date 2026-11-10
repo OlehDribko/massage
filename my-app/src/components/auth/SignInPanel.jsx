@@ -5,13 +5,13 @@ import { useRouter, useSearchParams } from 'next/navigation';
 
 import { useAuth } from '@/components/auth/AuthProvider';
 import Notice from '@/components/ui/Notice';
+import GoogleLogo from '@/components/ui/GoogleLogo';
 import PillButton from '@/components/ui/PillButton';
 import TextField from '@/components/ui/TextField';
 import { AUTH_ROUTES } from '@/config/auth';
 import {
   SILENT_AUTH_ERRORS,
   authErrorMessage,
-  currentProfile,
   safeReturnPath,
 } from '@/lib/auth/session';
 
@@ -46,8 +46,9 @@ function validate({ email, password }, mode) {
 /**
  * Sign-in and sign-up (docs: Massage-backend docs/auth-and-profiles.md §5).
  * A guest who creates an account is linked (same UID, same profile). Signing
- * in to an EXISTING account replaces the guest session; when the guest has
- * profile data, that is explained and confirmed first. No merge is done.
+ * in to an EXISTING account replaces the guest session at once: the guest
+ * session is an internal mechanism the visitor never sees, so nothing is
+ * asked or explained about it. No merge is done.
  */
 export default function SignInPanel({
   returnTo: returnToProp,
@@ -75,31 +76,20 @@ export default function SignInPanel({
   const [fieldErrors, setFieldErrors] = useState({});
   const [error, setError] = useState(null);
   const [info, setInfo] = useState(null);
-  const [pending, setPending] = useState(null); // 'email' | 'google' | 'reset' | 'confirm'
-  const [confirm, setConfirm] = useState(null); // { kind: 'email' } | { kind: 'google', credential }
+  const [pending, setPending] = useState(null); // 'email' | 'google' | 'reset'
   const [done, setDone] = useState(false);
   // Synchronous guard: a double click must not start two requests.
   const busyRef = useRef(false);
-  const confirmRef = useRef(null);
   const ids = { email: useId(), password: useId(), heading: useId() };
 
-  useEffect(() => {
-    if (confirm) confirmRef.current?.focus();
-  }, [confirm]);
-
-  // After a failed check (or a cancelled switch), focus the field once it is
-  // rendered, so an error is announced with the field.
+  // After a failed check, focus the field once it is rendered, so an error
+  // is announced with the field.
   const focusFieldRef = useRef(null);
   useEffect(() => {
     if (!focusFieldRef.current) return;
     document.getElementById(focusFieldRef.current)?.focus();
     focusFieldRef.current = null;
-  }, [fieldErrors, confirm]);
-
-  const guestProfile = currentProfile(state)?.profile;
-  // Unknown (profile not loaded) counts as "may have data": ask first.
-  const guestHasData =
-    !guestProfile || Boolean(guestProfile.name || guestProfile.phone);
+  }, [fieldErrors]);
 
   const run = async (kind, task) => {
     if (busyRef.current) return;
@@ -147,41 +137,18 @@ export default function SignInPanel({
       });
       return;
     }
-    if (guestHasData) {
-      setConfirm({ kind: 'email' });
-      return;
-    }
     signInWithEmail();
   };
 
   const handleGoogle = () =>
     run('google', async () => {
       const result = await controller.continueWithGoogle();
+      // This Google account already has its own account: switch to it.
       if (result?.conflict) {
-        if (guestHasData) {
-          setConfirm({
-            kind: 'google',
-            credential: result.conflict.credential,
-          });
-          return;
-        }
         await controller.confirmExistingGoogle(result.conflict.credential);
       }
       finish();
     });
-
-  const handleConfirm = () => {
-    const current = confirm;
-    setConfirm(null);
-    if (current.kind === 'email') {
-      signInWithEmail();
-      return;
-    }
-    run('confirm', async () => {
-      await controller.confirmExistingGoogle(current.credential);
-      finish();
-    });
-  };
 
   const handleReset = () => {
     if (!email.trim()) {
@@ -204,7 +171,6 @@ export default function SignInPanel({
     setError(null);
     setInfo(null);
     setFieldErrors({});
-    setConfirm(null);
   };
 
   if (!enabled) {
@@ -300,164 +266,124 @@ export default function SignInPanel({
         </p>
       ) : null}
 
-      {confirm ? (
-        <div
-          ref={confirmRef}
-          tabIndex={-1}
-          role="alertdialog"
-          aria-labelledby={`${ids.heading}-confirm`}
-          aria-describedby={`${ids.heading}-confirm-text`}
-          className="rounded-card flex flex-col gap-4 border border-black/10 bg-white p-6 focus:outline-none"
+      <>
+        <PillButton
+          variant="outline"
+          tone="dark"
+          onClick={handleGoogle}
+          disabled={!ready || busy}
+          aria-busy={pending === 'google'}
+          className="w-full disabled:opacity-60"
         >
-          <h2
-            id={`${ids.heading}-confirm`}
-            className="font-montserrat text-body-lg font-semibold text-gray-900"
-          >
-            Se connecter à votre compte existant ?
-          </h2>
-          <p
-            id={`${ids.heading}-confirm-text`}
-            className="font-montserrat text-body text-gray-800"
-          >
-            {confirm.kind === 'google'
-              ? 'Ce compte Google est déjà associé à un compte. '
-              : ''}
-            En vous connectant, vous quittez la session invitée de cet appareil
-            : les informations saisies en tant qu’invité (nom, téléphone) ne
-            seront pas transférées vers ce compte.
-          </p>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <PillButton onClick={handleConfirm}>Me connecter</PillButton>
-            <PillButton
-              variant="outline"
-              tone="dark"
-              onClick={() => {
-                // Nothing switched: the guest session stays as it was.
-                focusFieldRef.current = ids.email;
-                setConfirm(null);
-              }}
-            >
-              Annuler
-            </PillButton>
-          </div>
-        </div>
-      ) : (
-        <>
-          <PillButton
-            variant="outline"
-            tone="dark"
-            onClick={handleGoogle}
-            disabled={!ready || busy}
-            aria-busy={pending === 'google'}
-            className="w-full disabled:opacity-60"
-          >
+          <span className="flex items-center gap-3">
+            <GoogleLogo />
             {pending === 'google'
               ? 'Connexion avec Google…'
               : 'Continuer avec Google'}
+          </span>
+        </PillButton>
+
+        <p className="font-montserrat text-label-sm flex items-center gap-4 text-gray-800 uppercase">
+          <span aria-hidden className="h-px flex-1 bg-black/10" />
+          ou par e-mail
+          <span aria-hidden className="h-px flex-1 bg-black/10" />
+        </p>
+
+        <form
+          noValidate
+          onSubmit={handleSubmit}
+          className="flex flex-col gap-6"
+        >
+          <TextField
+            id={ids.email}
+            label="Adresse e-mail"
+            type="email"
+            name="email"
+            autoComplete="email"
+            inputMode="email"
+            required
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            error={fieldErrors.email}
+          />
+          <TextField
+            id={ids.password}
+            label="Mot de passe"
+            type={showPassword ? 'text' : 'password'}
+            name="password"
+            autoComplete={
+              mode === 'signup' ? 'new-password' : 'current-password'
+            }
+            required
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            error={fieldErrors.password}
+            hint={
+              mode === 'signup'
+                ? `${MIN_PASSWORD_LENGTH} caractères minimum.`
+                : undefined
+            }
+            action={
+              <button
+                type="button"
+                aria-pressed={showPassword}
+                aria-controls={ids.password}
+                aria-label={
+                  showPassword
+                    ? 'Masquer le mot de passe'
+                    : 'Afficher le mot de passe'
+                }
+                onClick={() => setShowPassword((value) => !value)}
+                className="font-montserrat text-label-sm hover:text-third-200 focus-visible:outline-third-200 shrink-0 px-1 py-2 font-medium text-gray-800 uppercase focus-visible:outline-2"
+              >
+                {showPassword ? 'Masquer' : 'Afficher'}
+              </button>
+            }
+          />
+
+          {error ? (
+            <div role="alert">
+              <Notice tone="error">
+                {error.text}
+                {mode === 'signup' &&
+                error.code === 'auth/email-already-in-use' ? (
+                  <>
+                    {' '}
+                    <button
+                      type="button"
+                      onClick={() => switchMode('signin')}
+                      className="text-third-900 font-medium underline"
+                    >
+                      Se connecter
+                    </button>
+                  </>
+                ) : null}
+              </Notice>
+            </div>
+          ) : null}
+          <div role="status">{info ? <Notice>{info}</Notice> : null}</div>
+
+          <PillButton
+            type="submit"
+            disabled={!ready || busy}
+            aria-busy={pending === 'email'}
+            className="w-full disabled:opacity-60"
+          >
+            {pending === 'email' || done ? 'Un instant…' : modeCopy.submit}
           </PillButton>
 
-          <p className="font-montserrat text-label-sm flex items-center gap-4 text-gray-800 uppercase">
-            <span aria-hidden className="h-px flex-1 bg-black/10" />
-            ou par e-mail
-            <span aria-hidden className="h-px flex-1 bg-black/10" />
-          </p>
-
-          <form
-            noValidate
-            onSubmit={handleSubmit}
-            className="flex flex-col gap-6"
-          >
-            <TextField
-              id={ids.email}
-              label="Adresse e-mail"
-              type="email"
-              name="email"
-              autoComplete="email"
-              inputMode="email"
-              required
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              error={fieldErrors.email}
-            />
-            <TextField
-              id={ids.password}
-              label="Mot de passe"
-              type={showPassword ? 'text' : 'password'}
-              name="password"
-              autoComplete={
-                mode === 'signup' ? 'new-password' : 'current-password'
-              }
-              required
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              error={fieldErrors.password}
-              hint={
-                mode === 'signup'
-                  ? `${MIN_PASSWORD_LENGTH} caractères minimum.`
-                  : undefined
-              }
-              action={
-                <button
-                  type="button"
-                  aria-pressed={showPassword}
-                  aria-controls={ids.password}
-                  aria-label={
-                    showPassword
-                      ? 'Masquer le mot de passe'
-                      : 'Afficher le mot de passe'
-                  }
-                  onClick={() => setShowPassword((value) => !value)}
-                  className="font-montserrat text-label-sm hover:text-third-200 focus-visible:outline-third-200 shrink-0 px-1 py-2 font-medium text-gray-800 uppercase focus-visible:outline-2"
-                >
-                  {showPassword ? 'Masquer' : 'Afficher'}
-                </button>
-              }
-            />
-
-            {error ? (
-              <div role="alert">
-                <Notice tone="error">
-                  {error.text}
-                  {mode === 'signup' &&
-                  error.code === 'auth/email-already-in-use' ? (
-                    <>
-                      {' '}
-                      <button
-                        type="button"
-                        onClick={() => switchMode('signin')}
-                        className="text-third-900 font-medium underline"
-                      >
-                        Se connecter
-                      </button>
-                    </>
-                  ) : null}
-                </Notice>
-              </div>
-            ) : null}
-            <div role="status">{info ? <Notice>{info}</Notice> : null}</div>
-
+          {mode === 'signin' ? (
             <PillButton
-              type="submit"
+              variant="text"
+              onClick={handleReset}
               disabled={!ready || busy}
-              aria-busy={pending === 'email'}
-              className="w-full disabled:opacity-60"
+              className="self-center disabled:opacity-60"
             >
-              {pending === 'email' || done ? 'Un instant…' : modeCopy.submit}
+              {pending === 'reset' ? 'Envoi…' : 'Mot de passe oublié ?'}
             </PillButton>
-
-            {mode === 'signin' ? (
-              <PillButton
-                variant="text"
-                onClick={handleReset}
-                disabled={!ready || busy}
-                className="self-center disabled:opacity-60"
-              >
-                {pending === 'reset' ? 'Envoi…' : 'Mot de passe oublié ?'}
-              </PillButton>
-            ) : null}
-          </form>
-        </>
-      )}
+          ) : null}
+        </form>
+      </>
 
       {!ready && !done ? (
         <p role="status" className="font-montserrat text-body-sm text-gray-800">

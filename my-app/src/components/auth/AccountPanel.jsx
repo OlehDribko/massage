@@ -170,14 +170,16 @@ export default function AccountPanel() {
                         </span>
                       </dd>
                     </div>
-                    <div className="flex flex-col gap-1 sm:flex-row sm:gap-6">
-                      <dt className="text-label-sm font-medium text-gray-800 uppercase sm:w-44 sm:shrink-0 sm:pt-0.5">
-                        Mode de connexion
-                      </dt>
-                      <dd className="text-gray-900">
-                        {SIGN_IN_PROVIDERS[profile.signInProvider] ?? 'Autre'}
-                      </dd>
-                    </div>
+                    {SIGN_IN_PROVIDERS[profile.signInProvider] ? (
+                      <div className="flex flex-col gap-1 sm:flex-row sm:gap-6">
+                        <dt className="text-label-sm font-medium text-gray-800 uppercase sm:w-44 sm:shrink-0 sm:pt-0.5">
+                          Mode de connexion
+                        </dt>
+                        <dd className="text-gray-900">
+                          {SIGN_IN_PROVIDERS[profile.signInProvider]}
+                        </dd>
+                      </div>
+                    ) : null}
                   </dl>
 
                   {needsVerification ? (
