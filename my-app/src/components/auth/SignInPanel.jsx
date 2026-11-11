@@ -296,57 +296,7 @@ export default function SignInPanel({
         </p>
       ) : null}
 
-      {mode === 'signup' && offerNewsletter ? (
-        <div className="flex items-start gap-3">
-          <input
-            id={ids.newsletter}
-            type="checkbox"
-            checked={newsletter}
-            onChange={(event) => setNewsletter(event.target.checked)}
-            disabled={busy}
-            aria-describedby={ids.consent}
-            className="accent-third-200 mt-1 size-5 shrink-0"
-          />
-          <div className="flex flex-col gap-1">
-            <label
-              htmlFor={ids.newsletter}
-              className="font-montserrat text-body font-medium text-gray-900"
-            >
-              Recevoir la newsletter du cabinet (facultatif)
-            </label>
-            <p
-              id={ids.consent}
-              className="font-montserrat text-body-sm text-gray-800"
-            >
-              {MARKETING_CONSENT.text}
-            </p>
-          </div>
-        </div>
-      ) : null}
-
       <>
-        <PillButton
-          variant="outline"
-          tone="dark"
-          onClick={handleGoogle}
-          disabled={!ready || busy}
-          aria-busy={pending === 'google'}
-          className="w-full disabled:opacity-60"
-        >
-          <span className="flex items-center gap-3">
-            <GoogleLogo />
-            {pending === 'google'
-              ? 'Connexion avec Google…'
-              : 'Continuer avec Google'}
-          </span>
-        </PillButton>
-
-        <p className="font-montserrat text-label-sm flex items-center gap-4 text-gray-800 uppercase">
-          <span aria-hidden className="h-px flex-1 bg-black/10" />
-          ou par e-mail
-          <span aria-hidden className="h-px flex-1 bg-black/10" />
-        </p>
-
         <form
           noValidate
           onSubmit={handleSubmit}
@@ -399,6 +349,34 @@ export default function SignInPanel({
             }
           />
 
+          {mode === 'signup' && offerNewsletter ? (
+            <div className="flex items-start gap-3">
+              <input
+                id={ids.newsletter}
+                type="checkbox"
+                checked={newsletter}
+                onChange={(event) => setNewsletter(event.target.checked)}
+                disabled={busy}
+                aria-describedby={ids.consent}
+                className="accent-third-200 mt-1 size-5 shrink-0"
+              />
+              <div className="flex flex-col gap-1">
+                <label
+                  htmlFor={ids.newsletter}
+                  className="font-montserrat text-body font-medium text-gray-900"
+                >
+                  Recevoir la newsletter du cabinet (facultatif)
+                </label>
+                <p
+                  id={ids.consent}
+                  className="font-montserrat text-body-sm text-gray-800"
+                >
+                  {MARKETING_CONSENT.text}
+                </p>
+              </div>
+            </div>
+          ) : null}
+
           {error ? (
             <div role="alert">
               <Notice tone="error">
@@ -441,6 +419,28 @@ export default function SignInPanel({
             </PillButton>
           ) : null}
         </form>
+
+        <p className="font-montserrat text-label-sm flex items-center gap-4 text-gray-800 uppercase">
+          <span aria-hidden className="h-px flex-1 bg-black/10" />
+          ou
+          <span aria-hidden className="h-px flex-1 bg-black/10" />
+        </p>
+
+        <PillButton
+          variant="outline"
+          tone="dark"
+          onClick={handleGoogle}
+          disabled={!ready || busy}
+          aria-busy={pending === 'google'}
+          className="w-full disabled:opacity-60"
+        >
+          <span className="flex items-center gap-3">
+            <GoogleLogo />
+            {pending === 'google'
+              ? 'Connexion avec Google…'
+              : 'Continuer avec Google'}
+          </span>
+        </PillButton>
       </>
 
       {!ready && !done ? (
