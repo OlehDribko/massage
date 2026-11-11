@@ -9,11 +9,14 @@ import GoogleLogo from '@/components/ui/GoogleLogo';
 import PillButton from '@/components/ui/PillButton';
 import TextField from '@/components/ui/TextField';
 import { AUTH_ROUTES } from '@/config/auth';
+import { MARKETING_CONSENT } from '@/config/marketing';
 import {
   SILENT_AUTH_ERRORS,
   authErrorMessage,
+  currentProfile,
   safeReturnPath,
 } from '@/lib/auth/session';
+import { marketingAvailability } from '@/lib/marketing';
 
 const MODES = {
   signin: { title: 'Se connecter', submit: 'Se connecter' },
@@ -78,9 +81,25 @@ export default function SignInPanel({
   const [info, setInfo] = useState(null);
   const [pending, setPending] = useState(null); // 'email' | 'google' | 'reset'
   const [done, setDone] = useState(false);
+  // Newsletter at sign-up: optional, unticked by default.
+  const [newsletter, setNewsletter] = useState(false);
   // Synchronous guard: a double click must not start two requests.
   const busyRef = useRef(false);
-  const ids = { email: useId(), password: useId(), heading: useId() };
+  const ids = {
+    email: useId(),
+    password: useId(),
+    heading: useId(),
+    newsletter: useId(),
+    consent: useId(),
+  };
+
+  // The checkbox needs the loaded profile saying newsletters are on.
+  const profileView = currentProfile(state);
+  const offerNewsletter =
+    marketingAvailability({
+      status: state.profile.status,
+      data: profileView,
+    }) === 'on';
 
   // After a failed check, focus the field once it is rendered, so an error
   // is announced with the field.
@@ -110,6 +129,12 @@ export default function SignInPanel({
     }
   };
 
+  // Sent only when the visitor ticked the box on the sign-up tab.
+  const optInVersion = () =>
+    mode === 'signup' && newsletter && offerNewsletter
+      ? MARKETING_CONSENT.version
+      : undefined;
+
   const finish = () => {
     setDone(true);
     router.replace(returnTo);
@@ -132,7 +157,9 @@ export default function SignInPanel({
 
     if (mode === 'signup') {
       run('email', async () => {
-        await controller.signUpWithEmail(email.trim(), password);
+        await controller.signUpWithEmail(email.trim(), password, {
+          marketingConsent: optInVersion(),
+        });
         finish();
       });
       return;
@@ -142,10 +169,14 @@ export default function SignInPanel({
 
   const handleGoogle = () =>
     run('google', async () => {
-      const result = await controller.continueWithGoogle();
+      const options = { marketingConsent: optInVersion() };
+      const result = await controller.continueWithGoogle(options);
       // This Google account already has its own account: switch to it.
       if (result?.conflict) {
-        await controller.confirmExistingGoogle(result.conflict.credential);
+        await controller.confirmExistingGoogle(
+          result.conflict.credential,
+          options
+        );
       }
       finish();
     });
@@ -261,9 +292,36 @@ export default function SignInPanel({
 
       {mode === 'signup' ? (
         <p className="font-montserrat text-body text-gray-800">
-          Votre compte vous permettra de retrouver vos informations. Aucune
-          inscription à la newsletter n’est faite automatiquement.
+          Votre compte vous permettra de retrouver vos informations.
         </p>
+      ) : null}
+
+      {mode === 'signup' && offerNewsletter ? (
+        <div className="flex items-start gap-3">
+          <input
+            id={ids.newsletter}
+            type="checkbox"
+            checked={newsletter}
+            onChange={(event) => setNewsletter(event.target.checked)}
+            disabled={busy}
+            aria-describedby={ids.consent}
+            className="accent-third-200 mt-1 size-5 shrink-0"
+          />
+          <div className="flex flex-col gap-1">
+            <label
+              htmlFor={ids.newsletter}
+              className="font-montserrat text-body font-medium text-gray-900"
+            >
+              Recevoir la newsletter du cabinet (facultatif)
+            </label>
+            <p
+              id={ids.consent}
+              className="font-montserrat text-body-sm text-gray-800"
+            >
+              {MARKETING_CONSENT.text}
+            </p>
+          </div>
+        </div>
       ) : null}
 
       <>

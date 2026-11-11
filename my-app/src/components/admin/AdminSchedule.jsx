@@ -1,12 +1,16 @@
 'use client';
 
-import { useId, useRef, useState, useSyncExternalStore } from 'react';
+import { useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 
 import AdminShell, { AdminError } from '@/components/admin/AdminShell';
-import IntervalsEditor from '@/components/admin/IntervalsEditor';
+import IntervalsEditor, {
+  DEFAULT_INTERVAL,
+} from '@/components/admin/IntervalsEditor';
 import { useAccountData } from '@/components/auth/useAccountData';
+import { DateTile } from '@/components/booking/BookingCard';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import DatePicker from '@/components/ui/DatePicker';
 import Notice from '@/components/ui/Notice';
 import PillButton from '@/components/ui/PillButton';
 import { bookingErrorMessage } from '@/lib/booking/labels';
@@ -33,6 +37,8 @@ function Conflicts({ conflicts }) {
       <Notice tone="error">
         Des rendez-vous confirmés seraient en dehors des horaires. Annulez-les
         ou gardez des horaires qui les incluent, puis enregistrez à nouveau.
+        Pour seulement bloquer de nouvelles réservations, fermez la date dans le
+        Calendrier : les rendez-vous existants y restent valables.
       </Notice>
       <ul className="font-montserrat text-body-sm flex list-disc flex-col gap-1 pl-5 text-gray-900">
         {conflicts.map((conflict) => (
@@ -72,6 +78,20 @@ function useWrite(controller) {
   return { pending, error, setError, run };
 }
 
+function SectionHead({ title, children }) {
+  return (
+    <div className="flex flex-col gap-2">
+      <h2 className="font-faustina text-third-900 text-[1.75rem] leading-tight">
+        {title}
+      </h2>
+      <p className="font-montserrat text-body-sm max-w-2xl text-gray-800">
+        {children}
+      </p>
+    </div>
+  );
+}
+
+/** "Semaine type": one panel, one row per weekday. */
 function WeeklyEditor({ weekly, controller }) {
   const [days, setDays] = useState(() => weeklyByDay(weekly));
   const [dirty, setDirty] = useState(false);
@@ -82,6 +102,27 @@ function WeeklyEditor({ weekly, controller }) {
     WEEKDAYS.map(({ value }) => [value, validateDay(days[value])])
   );
   const invalid = hasErrors(errors);
+
+  const change = (next) => {
+    setDays(next);
+    setDirty(true);
+    setSaved(false);
+  };
+
+  // Monday's hours on every open day (days off stay off).
+  const copyMonday = () => {
+    const monday = days[1].length ? days[1] : [DEFAULT_INTERVAL];
+    change(
+      Object.fromEntries(
+        WEEKDAYS.map(({ value }) => [
+          value,
+          value === 1 || !days[value].length
+            ? days[value]
+            : monday.map((item) => ({ ...item })),
+        ])
+      )
+    );
+  };
 
   const save = async (event) => {
     event.preventDefault();
@@ -98,25 +139,35 @@ function WeeklyEditor({ weekly, controller }) {
   };
 
   return (
-    <form noValidate onSubmit={save} className="flex flex-col gap-6">
-      <div className="grid gap-8 md:grid-cols-2">
-        {WEEKDAYS.map(({ value, label }) => (
-          <IntervalsEditor
-            key={value}
-            label={label}
-            intervals={days[value]}
-            errors={dirty ? errors[value] : {}}
-            onChange={(next) => {
-              setDays((current) => ({ ...current, [value]: next }));
-              setDirty(true);
-              setSaved(false);
-            }}
-          />
-        ))}
+    <form noValidate onSubmit={save} className="flex flex-col gap-5">
+      <div className="rounded-panel border border-black/10 bg-white px-5 sm:px-7">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-black/10 py-4">
+          <p className="font-montserrat text-label-sm font-medium text-gray-800 uppercase">
+            Heure de Paris
+          </p>
+          <button
+            type="button"
+            onClick={copyMonday}
+            className="font-montserrat text-body-sm hover:text-third-200 focus-visible:outline-third-200 min-h-10 text-left text-gray-900 underline underline-offset-4 focus-visible:outline-2"
+          >
+            Copier les horaires du lundi sur les jours ouverts
+          </button>
+        </div>
+        <div className="divide-y divide-black/10">
+          {WEEKDAYS.map(({ value, label }) => (
+            <IntervalsEditor
+              key={value}
+              label={label}
+              intervals={days[value]}
+              errors={dirty ? errors[value] : {}}
+              onChange={(next) => change({ ...days, [value]: next })}
+            />
+          ))}
+        </div>
       </div>
       <p className="font-montserrat text-body-sm text-gray-800">
-        Heure de Paris. Le dernier début de séance reste fixé à 19:00 ; une
-        pause de 15 minutes sépare deux séances.
+        Le dernier début de séance reste fixé à 19:00 ; une pause de 15 minutes
+        sépare deux séances.
       </p>
       {write.error?.code === 'SCHEDULE_CONFLICT' ? (
         <Conflicts conflicts={write.error.details.conflicts ?? []} />
@@ -156,26 +207,48 @@ function WeeklyEditor({ weekly, controller }) {
   );
 }
 
-function ExceptionForm({ controller, today, onSaved }) {
-  const [date, setDate] = useState('');
-  const [closed, setClosed] = useState(true);
-  const [intervals, setIntervals] = useState([{ start: '', end: '' }]);
+/** Choice between two options, as a segmented pill. */
+function Segmented({ value, onChange, options, label }) {
+  return (
+    <div
+      role="radiogroup"
+      aria-label={label}
+      className="bg-secondary-50 grid w-full grid-cols-2 rounded-full border border-black/10 p-1 sm:w-fit"
+    >
+      {options.map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          role="radio"
+          aria-checked={value === option.value}
+          onClick={() => onChange(option.value)}
+          className={`font-montserrat text-body-sm focus-visible:outline-third-200 min-h-10 rounded-full px-4 font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 ${
+            value === option.value
+              ? 'bg-third-900 text-cream'
+              : 'hover:text-third-200 text-gray-800'
+          }`}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** Add or replace the hours of one date: calendar on the left, hours on the right. */
+function ExceptionForm({ controller, today, existing, onSaved }) {
+  const [date, setDate] = useState(null);
+  const [mode, setMode] = useState('hours'); // 'hours' | 'off'
+  const [intervals, setIntervals] = useState([{ ...DEFAULT_INTERVAL }]);
   const [touched, setTouched] = useState(false);
   const [saved, setSaved] = useState(null);
   const write = useWrite(controller);
-  const dateId = useId();
 
-  const dateError = !/^\d{4}-\d{2}-\d{2}$/.test(date)
-    ? 'Choisissez une date.'
-    : today && date < today
-      ? 'La date doit être aujourd’hui ou plus tard.'
-      : null;
-  const intervalErrors = closed ? {} : validateDay(intervals);
-  const emptyIntervals = !closed && intervals.length === 0;
+  const intervalErrors = mode === 'off' ? {} : validateDay(intervals);
+  const emptyIntervals = mode === 'hours' && intervals.length === 0;
   const invalid =
-    Boolean(dateError) ||
-    emptyIntervals ||
-    Object.keys(intervalErrors).length > 0;
+    !date || emptyIntervals || Object.keys(intervalErrors).length > 0;
+  const replacing = date ? existing.get(date) : null;
 
   const save = async (event) => {
     event.preventDefault();
@@ -183,13 +256,11 @@ function ExceptionForm({ controller, today, onSaved }) {
     if (invalid) return;
     const result = await write.run(`/api/admin/schedule/exceptions/${date}`, {
       method: 'PUT',
-      body: closed ? { closed: true } : { intervals },
+      body: mode === 'off' ? { closed: true } : { intervals },
     });
     if (result) {
-      setSaved(
-        `Exception du ${formatLocalDate(date, { year: true })} enregistrée.`
-      );
-      setDate('');
+      setSaved(`${formatLocalDate(date, { year: true })} : enregistré.`);
+      setDate(null);
       setTouched(false);
       onSaved();
     }
@@ -199,92 +270,115 @@ function ExceptionForm({ controller, today, onSaved }) {
     <form
       noValidate
       onSubmit={save}
-      className="rounded-card flex flex-col gap-5 border border-black/10 bg-white p-6"
+      className="rounded-panel grid gap-6 border border-black/10 bg-white p-5 sm:p-7 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] lg:gap-8"
     >
-      <h3 className="font-montserrat text-body-lg font-semibold text-gray-900">
-        Ajouter ou remplacer une date
-      </h3>
-      <div className="flex flex-col gap-1">
-        <label
-          htmlFor={dateId}
-          className="font-montserrat text-label-sm font-medium text-gray-800 uppercase"
-        >
-          Date
-        </label>
-        <input
-          id={dateId}
-          type="date"
-          min={today ?? undefined}
+      <div className="flex flex-col gap-3">
+        <h3 className="font-montserrat text-body-lg font-semibold text-gray-900">
+          1. Choisissez la date
+        </h3>
+        <DatePicker
           value={date}
-          onChange={(event) => {
-            setDate(event.target.value);
+          today={today}
+          min={today ?? undefined}
+          marked={new Set(existing.keys())}
+          label="Date particulière"
+          onChange={(next) => {
+            setDate(next);
             setSaved(null);
           }}
-          aria-invalid={touched && dateError ? true : undefined}
-          className="font-montserrat text-body focus:border-third-200 w-fit border-b border-black/20 bg-transparent py-2 text-gray-900 focus:outline-none"
         />
-        {touched && dateError ? (
-          <p className="font-montserrat text-body-sm text-error">{dateError}</p>
+        {touched && !date ? (
+          <p className="font-montserrat text-body-sm text-error">
+            Choisissez une date dans le calendrier.
+          </p>
         ) : null}
       </div>
-      <fieldset className="font-montserrat text-body flex flex-col gap-2 text-gray-900">
-        <legend className="text-label-sm mb-1 font-medium text-gray-800 uppercase">
-          Ce jour-là
-        </legend>
-        <label className="flex items-center gap-2">
-          <input
-            type="radio"
-            name="exception-mode"
-            checked={closed}
-            onChange={() => setClosed(true)}
-            className="accent-third-200"
-          />
-          Cabinet fermé
-        </label>
-        <label className="flex items-center gap-2">
-          <input
-            type="radio"
-            name="exception-mode"
-            checked={!closed}
-            onChange={() => setClosed(false)}
-            className="accent-third-200"
-          />
-          Horaires particuliers
-        </label>
-      </fieldset>
-      {!closed ? (
-        <IntervalsEditor
-          label="Plages horaires"
-          intervals={intervals}
-          errors={touched ? intervalErrors : {}}
-          onChange={setIntervals}
+
+      <div className="flex flex-col gap-5">
+        <h3 className="font-montserrat text-body-lg font-semibold text-gray-900">
+          2. Horaires de ce jour
+        </h3>
+        <div className="bg-secondary-50 flex items-center gap-4 rounded-2xl p-4">
+          {date ? (
+            <DateTile startsAt={`${date}T12:00:00Z`} />
+          ) : (
+            <span
+              aria-hidden
+              className="flex h-[3.75rem] w-14 items-center justify-center rounded-xl border border-dashed border-black/20 text-gray-800"
+            >
+              ?
+            </span>
+          )}
+          <div className="font-montserrat flex flex-col">
+            <span className="text-body font-medium text-gray-900 first-letter:uppercase">
+              {date
+                ? formatLocalDate(date, { year: true })
+                : 'Aucune date choisie'}
+            </span>
+            <span className="text-body-sm text-gray-800">
+              {replacing
+                ? 'Déjà personnalisée : elle sera remplacée.'
+                : 'Remplace les horaires de la semaine type pour ce jour.'}
+            </span>
+          </div>
+        </div>
+
+        <Segmented
+          label="Ce jour-là"
+          value={mode}
+          onChange={setMode}
+          options={[
+            { value: 'hours', label: 'Horaires spéciaux' },
+            { value: 'off', label: 'Jour de repos' },
+          ]}
         />
-      ) : null}
-      {touched && emptyIntervals ? (
-        <p className="font-montserrat text-body-sm text-error">
-          Ajoutez au moins une plage, ou choisissez « Cabinet fermé ».
-        </p>
-      ) : null}
-      <p className="font-montserrat text-body-sm text-gray-800">
-        Une date déjà personnalisée est remplacée.
-      </p>
-      {write.error?.code === 'SCHEDULE_CONFLICT' ? (
-        <Conflicts conflicts={write.error.details.conflicts ?? []} />
-      ) : write.error ? (
-        <AdminError
-          error={write.error}
-          message={bookingErrorMessage(write.error)}
-        />
-      ) : null}
-      <div role="status">{saved ? <Notice>{saved}</Notice> : null}</div>
-      <PillButton
-        type="submit"
-        disabled={write.pending}
-        aria-busy={write.pending}
-        className="self-start disabled:opacity-60"
-      >
-        {write.pending ? 'Enregistrement…' : 'Enregistrer la date'}
-      </PillButton>
+
+        {mode === 'hours' ? (
+          <IntervalsEditor
+            layout="stack"
+            label="Ce jour"
+            intervals={intervals}
+            errors={touched ? intervalErrors : {}}
+            onChange={setIntervals}
+          />
+        ) : (
+          <p className="font-montserrat text-body-sm text-gray-800">
+            Aucun horaire ce jour-là. Refusé s’il y a déjà des rendez-vous :
+            pour bloquer seulement les nouvelles réservations, fermez la date
+            dans le{' '}
+            <Link
+              href="/admin/calendrier"
+              className="hover:text-third-200 underline underline-offset-2"
+            >
+              Calendrier
+            </Link>
+            .
+          </p>
+        )}
+        {touched && emptyIntervals ? (
+          <p className="font-montserrat text-body-sm text-error">
+            Ajoutez au moins une plage, ou choisissez « Jour de repos ».
+          </p>
+        ) : null}
+
+        {write.error?.code === 'SCHEDULE_CONFLICT' ? (
+          <Conflicts conflicts={write.error.details.conflicts ?? []} />
+        ) : write.error ? (
+          <AdminError
+            error={write.error}
+            message={bookingErrorMessage(write.error)}
+          />
+        ) : null}
+        <div role="status">{saved ? <Notice>{saved}</Notice> : null}</div>
+        <PillButton
+          type="submit"
+          disabled={write.pending}
+          aria-busy={write.pending}
+          className="mt-auto self-start disabled:opacity-60"
+        >
+          {write.pending ? 'Enregistrement…' : 'Enregistrer la date'}
+        </PillButton>
+      </div>
     </form>
   );
 }
@@ -296,9 +390,7 @@ function ExceptionsList({ exceptions, controller, onChanged }) {
   const remove = async () => {
     const result = await write.run(
       `/api/admin/schedule/exceptions/${removing}`,
-      {
-        method: 'DELETE',
-      }
+      { method: 'DELETE' }
     );
     if (result) {
       setRemoving(null);
@@ -308,52 +400,61 @@ function ExceptionsList({ exceptions, controller, onChanged }) {
 
   if (!exceptions.length) {
     return (
-      <p className="font-montserrat text-body text-gray-800">
-        Aucune date particulière à venir : les horaires de la semaine
-        s’appliquent.
+      <p className="rounded-panel font-montserrat text-body-sm bg-secondary-50 border border-dashed border-black/15 px-5 py-6 text-center text-gray-800">
+        Aucune date particulière à venir : la semaine type s’applique.
       </p>
     );
   }
 
   return (
     <>
-      <ul className="rounded-card divide-y divide-black/10 border border-black/10 bg-white">
+      <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {exceptions.map((exception) => (
           <li
             key={exception.date}
-            className="flex flex-col gap-2 px-4 py-4 sm:flex-row sm:items-center sm:justify-between"
+            className="rounded-panel flex items-center gap-4 border border-black/10 bg-white p-4"
           >
-            <div className="font-montserrat flex flex-col gap-1">
+            <DateTile startsAt={`${exception.date}T12:00:00Z`} />
+            <div className="font-montserrat flex min-w-0 flex-1 flex-col gap-0.5">
               <span className="text-body font-medium text-gray-900 first-letter:uppercase">
-                {formatLocalDate(exception.date, { year: true })}
+                {formatLocalDate(exception.date)}
               </span>
               <span className="text-body-sm text-gray-800">
                 {exception.closed
-                  ? 'Cabinet fermé'
+                  ? 'Jour de repos'
                   : exception.intervals
                       .map((item) => `${item.start}–${item.end}`)
                       .join(', ')}
               </span>
             </div>
-            <PillButton
-              variant="text"
-              underline={false}
+            <button
+              type="button"
               onClick={() => {
                 write.setError(null);
                 setRemoving(exception.date);
               }}
-              className="self-start sm:self-auto"
+              aria-label={`Revenir à la semaine type le ${formatLocalDate(exception.date, { year: true })}`}
+              title="Revenir à la semaine type"
+              className="hover:bg-secondary-100 hover:text-third-900 focus-visible:outline-third-200 flex size-10 shrink-0 items-center justify-center rounded-full text-gray-800 transition-colors focus-visible:outline-2"
             >
-              Supprimer
-              <span className="sr-only"> l’exception du {exception.date}</span>
-            </PillButton>
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                aria-hidden
+                className="size-5"
+              >
+                <path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" />
+              </svg>
+            </button>
           </li>
         ))}
       </ul>
       <ConfirmDialog
         open={removing !== null}
-        title="Revenir aux horaires de la semaine ?"
-        confirmLabel="Supprimer l’exception"
+        title="Revenir à la semaine type ?"
+        confirmLabel="Supprimer la date particulière"
         pending={write.pending}
         error={
           write.error && write.error.code !== 'SCHEDULE_CONFLICT'
@@ -366,7 +467,7 @@ function ExceptionsList({ exceptions, controller, onChanged }) {
         {removing ? (
           <>
             Le {formatLocalDate(removing, { year: true })} suivra de nouveau les
-            horaires habituels.
+            horaires de la semaine type.
             {write.error?.code === 'SCHEDULE_CONFLICT' ? (
               <div className="mt-4">
                 <Conflicts conflicts={write.error.details.conflicts ?? []} />
@@ -383,9 +484,11 @@ function ScheduleContent({ controller, enabled }) {
   const today = useSyncExternalStore(noopSubscribe, studioToday, () => null);
   const { status, data, error, reload } = useAccountData(
     '/api/admin/schedule',
-    {
-      enabled,
-    }
+    { enabled }
+  );
+  const existing = useMemo(
+    () => new Map((data?.exceptions ?? []).map((item) => [item.date, item])),
+    [data]
   );
 
   if (status === 'loading' || status === 'idle') {
@@ -406,11 +509,12 @@ function ScheduleContent({ controller, enabled }) {
   }
 
   return (
-    <div className="flex flex-col gap-12">
+    <div className="flex flex-col gap-14">
       <section className="flex flex-col gap-6">
-        <h2 className="font-faustina text-third-900 text-[1.75rem] leading-tight">
-          Semaine type
-        </h2>
+        <SectionHead title="Semaine type">
+          Les horaires habituels de chaque jour. Désactivez un jour pour en
+          faire un jour de repos.
+        </SectionHead>
         <WeeklyEditor
           key={JSON.stringify(data.weekly)}
           weekly={data.weekly}
@@ -418,15 +522,22 @@ function ScheduleContent({ controller, enabled }) {
         />
       </section>
       <section className="flex flex-col gap-6">
-        <h2 className="font-faustina text-third-900 text-[1.75rem] leading-tight">
-          Dates particulières
-        </h2>
+        <SectionHead title="Dates particulières">
+          Des horaires différents pour un jour précis (jour férié, horaires
+          réduits…). Pour bloquer des dates sans toucher aux rendez-vous,
+          utilisez le Calendrier.
+        </SectionHead>
         <ExceptionsList
           exceptions={data.exceptions}
           controller={controller}
           onChanged={reload}
         />
-        <ExceptionForm controller={controller} today={today} onSaved={reload} />
+        <ExceptionForm
+          controller={controller}
+          today={today}
+          existing={existing}
+          onSaved={reload}
+        />
       </section>
     </div>
   );

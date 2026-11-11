@@ -2,6 +2,7 @@ import { Faustina, Montserrat } from 'next/font/google';
 
 import './globals.css';
 import AuthProvider from '@/components/auth/AuthProvider';
+import OptInNotice from '@/components/marketing/OptInNotice';
 import Footer from '@/components/layout/Footer';
 import { IS_INDEXABLE, SITE, SITE_URL } from '@/config/site';
 import { ACCOUNT_HINT_SCRIPT } from '@/lib/auth/accountHint';
@@ -54,6 +55,7 @@ export default function RootLayout({ children }) {
         <AuthProvider>
           <div className="flex flex-1 flex-col">{children}</div>
           <Footer />
+          <OptInNotice />
         </AuthProvider>
       </body>
     </html>

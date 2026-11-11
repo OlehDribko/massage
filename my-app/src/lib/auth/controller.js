@@ -25,6 +25,13 @@ const EMPTY_PROFILE = {
 
 const MAX_AUTO_RETRY_SECONDS = 30;
 
+/** Sync body for an explicitly ticked sign-up checkbox, else nothing. */
+function optInBody(consentTextVersion) {
+  return consentTextVersion
+    ? { marketingOptIn: true, marketingConsentTextVersion: consentTextVersion }
+    : undefined;
+}
+
 function toUser(user) {
   if (!user) return null;
   return {
@@ -52,6 +59,9 @@ export function createAuthController({
     user: null,
     profile: EMPTY_PROFILE,
     notice: null, // 'session_revoked' | 'account_disabled'
+    // `marketingOptIn` of the sign-up sync that carried the checkbox (shown
+    // once, then cleared by the UI).
+    optIn: null,
   };
   const listeners = new Set();
 
@@ -147,7 +157,7 @@ export function createAuthController({
    * still the current one, so a slow answer never overwrites another
    * account's profile.
    */
-  function syncProfile(user, { force = false } = {}) {
+  function syncProfile(user, { force = false, body } = {}) {
     if (!apiBaseUrl) {
       set({
         profile: {
@@ -170,11 +180,14 @@ export function createAuthController({
     });
 
     const isStale = () => seq !== syncSeq || currentUid() !== user.uid;
-    const promise = request(user, '/api/me/sync', { method: 'POST' })
-      .then((view) => {
+    const promise = request(user, '/api/me/sync', { method: 'POST', body })
+      .then((response) => {
         if (isStale()) return;
+        // The opt-in result belongs to this one sync, not to the profile.
+        const { marketingOptIn, ...view } = response ?? {};
         set({
           profile: { uid: user.uid, status: 'ready', data: view, error: null },
+          ...(marketingOptIn ? { optIn: marketingOptIn } : {}),
         });
       })
       .catch((error) => {
@@ -287,15 +300,16 @@ export function createAuthController({
 
   /**
    * Runs a sign-in/link flow, then refreshes the user and forces one sync
-   * with the new token.
+   * with the new token. `syncBody` goes with that one sync only (the
+   * sign-up newsletter checkbox): later syncs never repeat it.
    */
-  async function runFlow(flow) {
+  async function runFlow(flow, syncBody) {
     flowDepth += 1;
     try {
       const result = await flow();
       const user = fb.currentUser();
       handleAuthChange(user);
-      if (user) await syncProfile(user, { force: true });
+      if (user) await syncProfile(user, { force: true, body: syncBody });
       return result;
     } finally {
       flowDepth -= 1;
@@ -317,7 +331,7 @@ export function createAuthController({
    * signed in again: adding a password revokes the guest's earlier tokens.
    * A verification email is sent (standard Firebase email).
    */
-  function signUpWithEmail(email, password) {
+  function signUpWithEmail(email, password, { marketingConsent } = {}) {
     return runFlow(async () => {
       const current = fb.currentUser();
       if (current?.isAnonymous) {
@@ -331,7 +345,7 @@ export function createAuthController({
       } catch {
         // The account exists; the email can be sent again from /compte.
       }
-    });
+    }, optInBody(marketingConsent));
   }
 
   /** Existing account with email + password (replaces the guest session). */
@@ -344,13 +358,14 @@ export function createAuthController({
    * Firebase account, nothing is switched yet: the caller gets
    * `{ conflict }` and must ask for confirmation (guest data is not moved).
    */
-  async function continueWithGoogle() {
+  async function continueWithGoogle({ marketingConsent } = {}) {
+    const syncBody = optInBody(marketingConsent);
     const current = fb.currentUser();
     if (!current?.isAnonymous) {
-      return runFlow(() => fb.signInWithGoogle());
+      return runFlow(() => fb.signInWithGoogle(), syncBody);
     }
     try {
-      await runFlow(() => fb.linkWithGoogle(current));
+      await runFlow(() => fb.linkWithGoogle(current), syncBody);
       return { linked: true };
     } catch (error) {
       if (error?.code === 'auth/credential-already-in-use') {
@@ -361,9 +376,16 @@ export function createAuthController({
     }
   }
 
-  /** After the user confirmed: switch to the existing Google account. */
-  function confirmExistingGoogle(credential) {
-    return runFlow(() => fb.signInWithCredential(credential));
+  /**
+   * Switch to the existing Google account. The sign-up checkbox goes along
+   * (the visitor ticked it for this sign-up); the server applies it at most
+   * once per address and never after an unsubscribe.
+   */
+  function confirmExistingGoogle(credential, { marketingConsent } = {}) {
+    return runFlow(
+      () => fb.signInWithCredential(credential),
+      optInBody(marketingConsent)
+    );
   }
 
   function sendPasswordReset(email) {
@@ -413,6 +435,10 @@ export function createAuthController({
     }
   }
 
+  /** Loaded profile view of the current user, or null. */
+  const currentProfile = () =>
+    state.profile.uid === currentUid() ? state.profile.data : null;
+
   /** A fresh profile view from the API, kept only if the user is unchanged. */
   function applyProfileView(uid, view) {
     if (currentUid() !== uid) return;
@@ -425,6 +451,24 @@ export function createAuthController({
     const view = await api('/api/me', { method: 'PATCH', body: changes });
     applyProfileView(uid, view);
     return view;
+  }
+
+  /**
+   * POST /api/me/marketing/subscription — the signed-in user's own address
+   * (from the token; nothing in the body but the consent version). A
+   * verified email is active at once and the answer carries `marketing`.
+   */
+  async function subscribeMarketing(consentTextVersion) {
+    const uid = currentUid();
+    const result = await api('/api/me/marketing/subscription', {
+      method: 'POST',
+      body: { consentTextVersion },
+    });
+    if (result?.marketing && currentUid() === uid) {
+      const view = currentProfile();
+      if (view) applyProfileView(uid, { ...view, marketing: result.marketing });
+    }
+    return result;
   }
 
   /** DELETE /api/me/marketing/subscription — returns the profile view. */
@@ -459,9 +503,11 @@ export function createAuthController({
     refreshVerification,
     api,
     updateProfile,
+    subscribeMarketing,
     unsubscribeMarketing,
     changeEmail,
     clearNotice: () => set({ notice: null }),
+    clearOptIn: () => set({ optIn: null }),
     getSnapshot: () => state,
     subscribe(listener) {
       listeners.add(listener);
