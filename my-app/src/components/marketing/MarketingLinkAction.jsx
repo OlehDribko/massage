@@ -66,7 +66,12 @@ export default function MarketingLinkAction({ action }) {
         text = 'La newsletter n’est pas disponible pour le moment.';
         final = true;
       }
-      setState({ status: 'error', text, final });
+      setState({
+        status: 'error',
+        text,
+        final,
+        notFound: error?.status === 404,
+      });
     } finally {
       busyRef.current = false;
     }
@@ -95,6 +100,20 @@ export default function MarketingLinkAction({ action }) {
         <div role="alert">
           <Notice tone="error">{state.text}</Notice>
         </div>
+      ) : null}
+      {state.status === 'error' &&
+      state.final &&
+      action === 'confirm' &&
+      !state.notFound ? (
+        // Expired or replaced link: a new one is an explicit request.
+        <PillButton
+          href="/#newsletter"
+          variant="outline"
+          tone="dark"
+          className="self-start"
+        >
+          Demander un nouveau lien
+        </PillButton>
       ) : null}
       {state.status !== 'error' || !state.final ? (
         <PillButton

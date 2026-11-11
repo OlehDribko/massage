@@ -98,6 +98,8 @@ function fakeApi() {
     new Promise((resolve) => {
       pending.push({
         url,
+        method: init.method,
+        body: init.body === undefined ? undefined : JSON.parse(init.body),
         token: init.headers.Authorization.replace('Bearer ', ''),
         respond(status, body) {
           resolve({
@@ -398,4 +400,84 @@ test('restored account: exactly one sync even with the first notification', asyn
   controller.start();
   await flush(10);
   assert.equal(api.pending.length, 1);
+});
+
+test('sign-up newsletter checkbox: opt-in sent with that one sync only', async () => {
+  const { api, controller } = setup();
+  controller.start();
+  await flush();
+  assert.equal(api.pending[0].body, undefined); // the guest sync: no opt-in
+  api.pending[0].respond(200, profileView('client', 'anonymous'));
+  await flush();
+
+  const flow = controller.signUpWithEmail('new@example.com', 'secret12', {
+    marketingConsent: '2026-10-28.fr.1',
+  });
+  await flush();
+  assert.deepEqual(api.pending[1].body, {
+    marketingOptIn: true,
+    marketingConsentTextVersion: '2026-10-28.fr.1',
+  });
+  api.pending[1].respond(200, {
+    ...profileView('client', 'registered'),
+    marketingOptIn: { outcome: 'confirmation_sent' },
+  });
+  await flow;
+
+  const snapshot = controller.getSnapshot();
+  assert.deepEqual(snapshot.optIn, { outcome: 'confirmation_sent' });
+  // The opt-in result is not part of the stored profile.
+  assert.equal(snapshot.profile.data.marketingOptIn, undefined);
+
+  // A later sync (retry, verification) never repeats the opt-in.
+  controller.retry();
+  await flush();
+  assert.equal(api.pending[2].body, undefined);
+  controller.clearOptIn();
+  assert.equal(controller.getSnapshot().optIn, null);
+});
+
+test('sign-up without the checkbox: no opt-in in the body', async () => {
+  const { api, controller } = setup();
+  controller.start();
+  await flush();
+  api.pending[0].respond(200, profileView('client', 'anonymous'));
+  await flush();
+  const flow = controller.signUpWithEmail('new@example.com', 'secret12');
+  await flush();
+  assert.equal(api.pending[1].body, undefined);
+  api.pending[1].respond(200, profileView());
+  await flow;
+  assert.equal(controller.getSnapshot().optIn, null);
+});
+
+test('subscribeMarketing: own address, answer status applied to the profile', async () => {
+  const { api, controller } = setup({
+    persisted: makeUser('u1', { email: 'me@example.com' }),
+  });
+  controller.start();
+  await flush();
+  api.pending[0].respond(200, {
+    ...profileView(),
+    marketing: { subscribed: false, pendingConfirmation: false },
+    marketingAvailable: true,
+  });
+  await flush();
+
+  const call = controller.subscribeMarketing('2026-10-28.fr.1');
+  await flush();
+  const request = api.pending[1];
+  assert.match(request.url, /\/api\/me\/marketing\/subscription$/);
+  assert.equal(request.method, 'POST');
+  assert.deepEqual(request.body, { consentTextVersion: '2026-10-28.fr.1' });
+  request.respond(200, {
+    outcome: 'subscribed',
+    welcomeEmail: 'not_sent',
+    marketing: { subscribed: true, pendingConfirmation: false },
+  });
+  const result = await call;
+  assert.equal(result.outcome, 'subscribed');
+  const view = controller.getSnapshot().profile.data;
+  assert.equal(view.marketing.subscribed, true);
+  assert.equal(view.marketingAvailable, true);
 });

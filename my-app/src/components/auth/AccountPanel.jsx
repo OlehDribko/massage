@@ -17,6 +17,7 @@ import {
   safeReturnPath,
 } from '@/lib/auth/session';
 import { SIGN_IN_PROVIDERS, readinessSteps } from '@/lib/booking/labels';
+import { marketingAvailability } from '@/lib/marketing';
 
 function Section({ id, title, children }) {
   return (
@@ -240,6 +241,14 @@ export default function AccountPanel() {
                 <Section id="newsletter" title="Newsletter">
                   <MarketingStatus
                     marketing={view.marketing}
+                    available={marketingAvailability({
+                      status: state.profile.status,
+                      data: view,
+                    })}
+                    emailVerified={profile.emailVerified === true}
+                    onSubscribe={(version) =>
+                      controller.subscribeMarketing(version)
+                    }
                     onUnsubscribe={() => controller.unsubscribeMarketing()}
                   />
                 </Section>

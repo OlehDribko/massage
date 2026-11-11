@@ -114,15 +114,32 @@ export function isRetryable(error) {
 }
 
 /** Client email about the latest change (`notification`) → text or null. */
+const DONE_BY_EVENT = {
+  created: 'Le rendez-vous est bien enregistré',
+  rescheduled: 'Le nouvel horaire est bien enregistré',
+  cancelled: 'L’annulation est bien enregistrée',
+};
+
+/**
+ * The client's own email about the latest change (`booking.notification`).
+ * The booking's state never depends on it: `null` (emails off on this
+ * server) and `skipped` show nothing, `accepted` means accepted by the
+ * email service, not delivered.
+ */
 export function clientNotificationText(notification) {
+  const event = notification?.event;
   switch (notification?.status) {
     case 'pending':
     case 'sending':
-      return 'Un e-mail de confirmation est en cours d’envoi.';
+      return event === 'cancelled'
+        ? 'Un e-mail confirmant l’annulation est en cours d’envoi.'
+        : 'Un e-mail avec les détails est en cours d’envoi.';
     case 'accepted':
-      return 'Un e-mail avec les détails vous a été envoyé.';
+      return event === 'cancelled'
+        ? 'Un e-mail confirmant l’annulation vous a été envoyé.'
+        : 'Un e-mail avec les détails vous a été envoyé.';
     case 'failed':
-      return 'Le rendez-vous est bien enregistré, mais l’e-mail n’a pas pu être envoyé. Les détails restent disponibles ici.';
+      return `${DONE_BY_EVENT[event] ?? DONE_BY_EVENT.created}, mais l’e-mail n’a pas pu être envoyé. Les détails restent disponibles ici.`;
     case 'interrupted':
       return 'L’e-mail est retardé. Les détails restent disponibles ici.';
     default:
@@ -146,6 +163,8 @@ export const ADMIN_NOTIFICATION_STATUS = {
 };
 
 export const ADMIN_NOTIFICATION_REASONS = {
+  scheduled: 'envoi prévu 30 min après la dernière modification',
+  unchanged: 'horaire revenu à celui du dernier e-mail',
   retry_scheduled: 'nouvel essai prévu',
   superseded: 'remplacé par un e-mail plus récent',
   session_already_started: 'séance déjà commencée',
