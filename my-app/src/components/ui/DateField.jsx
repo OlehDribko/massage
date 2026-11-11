@@ -25,7 +25,14 @@ function CalendarIcon() {
  * A date shown as a pill button; a click opens the month calendar below
  * it. Escape or a click outside closes it; picking a date closes it too.
  */
-export default function DateField({ value, onChange, today, min, label }) {
+export default function DateField({
+  value,
+  onChange,
+  today,
+  min,
+  label,
+  variant = 'pill',
+}) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef(null);
   const panelId = useId();
@@ -47,24 +54,52 @@ export default function DateField({ value, onChange, today, min, label }) {
   }, [open]);
 
   return (
-    <div ref={rootRef} className="relative w-full sm:w-auto">
-      <button
-        type="button"
-        aria-expanded={open}
-        aria-controls={panelId}
-        onClick={() => setOpen((current) => !current)}
-        className="rounded-pill font-montserrat text-body hover:border-third-200 focus-visible:outline-third-200 flex min-h-12 w-full items-center gap-3 border border-black/15 bg-white px-5 text-left text-gray-900 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 sm:w-auto"
-      >
-        <CalendarIcon />
-        <span className="flex flex-col leading-tight">
-          <span className="text-label-sm font-medium text-gray-800 uppercase">
-            {label}
+    <div
+      ref={rootRef}
+      className={`relative ${variant === 'title' ? '' : 'w-full sm:w-auto'}`}
+    >
+      {variant === 'title' ? (
+        <button
+          type="button"
+          aria-expanded={open}
+          aria-controls={panelId}
+          aria-label={`${label} : ${value ? formatLocalDate(value, { year: true }) : ''} — changer de date`}
+          onClick={() => setOpen((current) => !current)}
+          className="font-faustina text-third-900 hover:text-third-200 focus-visible:outline-third-200 flex min-w-0 items-center gap-1.5 rounded-xl px-1 text-[1.5rem] leading-tight transition-colors focus-visible:outline-2 sm:gap-2 sm:px-2 sm:text-[2.125rem]"
+        >
+          <span className="first-letter:uppercase">
+            {value ? formatLocalDate(value) : 'Choisir'}
           </span>
-          <span className="font-medium first-letter:uppercase">
-            {value ? formatLocalDate(value, { year: true }) : 'Choisir'}
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            aria-hidden
+            className={`text-third-200 size-5 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}
+          >
+            <path d="M6 9l6 6 6-6" />
+          </svg>
+        </button>
+      ) : (
+        <button
+          type="button"
+          aria-expanded={open}
+          aria-controls={panelId}
+          onClick={() => setOpen((current) => !current)}
+          className="rounded-pill font-montserrat text-body hover:border-third-200 focus-visible:outline-third-200 flex min-h-12 w-full items-center gap-3 border border-black/15 bg-white px-5 text-left text-gray-900 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 sm:w-auto"
+        >
+          <CalendarIcon />
+          <span className="flex flex-col leading-tight">
+            <span className="text-label-sm font-medium text-gray-800 uppercase">
+              {label}
+            </span>
+            <span className="font-medium first-letter:uppercase">
+              {value ? formatLocalDate(value, { year: true }) : 'Choisir'}
+            </span>
           </span>
-        </span>
-      </button>
+        </button>
+      )}
       {open ? (
         <div
           id={panelId}
