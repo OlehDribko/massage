@@ -8,6 +8,7 @@ import PillButton from '@/components/ui/PillButton';
 import { AUTH_ROUTES } from '@/config/auth';
 
 const TABS = [
+  { key: 'calendrier', href: '/admin/calendrier', label: 'Calendrier' },
   { key: 'reservations', href: '/admin/reservations', label: 'Rendez-vous' },
   { key: 'horaires', href: '/admin/horaires', label: 'Horaires' },
 ];

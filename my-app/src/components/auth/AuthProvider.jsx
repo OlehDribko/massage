@@ -44,6 +44,7 @@ const INITIAL_STATE = {
   user: null,
   profile: { uid: null, status: 'idle', data: null, error: null },
   notice: null,
+  optIn: null,
 };
 const noop = () => () => {};
 

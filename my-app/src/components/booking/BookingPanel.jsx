@@ -97,7 +97,7 @@ export default function BookingPanel({ service, intro }) {
   const [refreshKey, setRefreshKey] = useState(0);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState(null);
-  const intent = useRef(null); // { startsAt, key }
+  const intent = useRef(null); // { serviceId, startsAt, key }
   const busyRef = useRef(false);
   const topRef = useRef(null);
 
@@ -120,9 +120,17 @@ export default function BookingPanel({ service, intro }) {
     setError(null);
   };
 
+  // One key per intent (this service + this time), kept with its body.
   const keyFor = (startsAt) => {
-    if (intent.current?.startsAt !== startsAt) {
-      intent.current = { startsAt, key: crypto.randomUUID() };
+    if (
+      intent.current?.startsAt !== startsAt ||
+      intent.current?.serviceId !== service.id
+    ) {
+      intent.current = {
+        serviceId: service.id,
+        startsAt,
+        key: crypto.randomUUID(),
+      };
     }
     return intent.current.key;
   };
@@ -149,7 +157,10 @@ export default function BookingPanel({ service, intro }) {
         setRefreshKey((value) => value + 1);
       }
       if (caught?.code === 'BOOKING_NOT_READY') controller.retry();
-      if (caught?.code === 'IDEMPOTENCY_KEY_REUSED') intent.current = null;
+      // Unknown outcome (network, timeout, 5xx, CALENDAR_BUSY): the same
+      // key and body on the next try, so the server never books twice.
+      // A definite refusal ends this intent: the next try is a new one.
+      if (!isRetryable(caught)) intent.current = null;
     }
     busyRef.current = false;
     setPending(false);

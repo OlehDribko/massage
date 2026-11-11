@@ -61,12 +61,12 @@ function dateAtNoonUtc(localDate) {
 }
 
 /** Studio date "2027-03-02" → "mardi 2 mars" (or with the year). */
-export function formatLocalDate(
-  localDate,
-  { year = false, weekday = 'long' } = {}
-) {
+export function formatLocalDate(localDate, options = {}) {
+  const { year = false } = options;
+  // An explicit `weekday: undefined` leaves the weekday out.
+  const weekday = 'weekday' in options ? options.weekday : 'long';
   return new Intl.DateTimeFormat(LOCALE, {
-    weekday,
+    ...(weekday ? { weekday } : {}),
     day: 'numeric',
     month: 'long',
     ...(year ? { year: 'numeric' } : {}),

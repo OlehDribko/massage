@@ -66,14 +66,40 @@ export default function BookingSummary({ booking, admin = false }) {
   );
 }
 
-/** History: created, each move (from → to), cancellation. */
+// "mer. 11 nov., 09:15" — short enough for the move chips on phones.
+const SHORT_STAMP = new Intl.DateTimeFormat('fr-FR', {
+  weekday: 'short',
+  day: 'numeric',
+  month: 'short',
+  hour: '2-digit',
+  minute: '2-digit',
+  timeZone: 'Europe/Paris',
+});
+
+const HISTORY_ICONS = {
+  created: 'M5 12l5 5 9-10',
+  rescheduled:
+    'M4 12a8 8 0 0 1 14-5.3M20 12a8 8 0 0 1-14 5.3M18 3v4h-4M6 21v-4h4',
+  cancelled: 'M6 6l12 12M18 6L6 18',
+};
+
+const HISTORY_TONES = {
+  created: 'bg-primary-200 text-on-gold',
+  rescheduled: 'bg-third-900 text-cream',
+  cancelled: 'bg-white text-error border border-error/40',
+};
+
+/**
+ * History as a timeline: created, each move (old time → new time),
+ * cancellation. Oldest first, the latest change at the bottom.
+ */
 export function BookingHistory({ history, admin = false }) {
-  const item = (entry) => {
+  const title = (entry) => {
     switch (entry.type) {
       case 'created':
         return 'Réservation créée';
       case 'rescheduled':
-        return `Déplacé du ${formatDateTime(entry.from.startsAt)} au ${formatDateTime(entry.to.startsAt)}`;
+        return 'Rendez-vous déplacé';
       case 'cancelled':
         return admin
           ? `Annulé ${entry.by === 'admin' ? 'par le cabinet' : 'par le client'}`
@@ -84,15 +110,64 @@ export function BookingHistory({ history, admin = false }) {
   };
 
   return (
-    <ol className="font-montserrat text-body-sm flex flex-col gap-3 border-l border-black/10 pl-5">
-      {history.map((entry) => (
-        <li key={`${entry.type}-${entry.at}`} className="flex flex-col gap-0.5">
-          <span className="text-gray-900">{item(entry)}</span>
-          <span className="text-gray-800 first-letter:uppercase">
-            {formatDateTime(entry.at)}
-          </span>
-        </li>
-      ))}
+    <ol className="flex flex-col">
+      {history.map((entry, index) => {
+        const last = index === history.length - 1;
+        return (
+          <li
+            key={`${entry.type}-${entry.at}`}
+            className="relative flex gap-4 pb-6 last:pb-0"
+          >
+            {!last ? (
+              <span
+                aria-hidden
+                className="absolute top-9 bottom-0 left-[1.0625rem] w-px bg-black/10"
+              />
+            ) : null}
+            <span
+              aria-hidden
+              className={`relative flex size-9 shrink-0 items-center justify-center rounded-full ${HISTORY_TONES[entry.type] ?? 'bg-secondary-100 text-third-900'}`}
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                className="size-4"
+              >
+                <path d={HISTORY_ICONS[entry.type] ?? 'M12 8v4l3 2'} />
+              </svg>
+            </span>
+            <div className="font-montserrat flex min-w-0 flex-col gap-1.5 pt-1.5">
+              <p className="text-body font-medium text-gray-900">
+                {title(entry)}
+              </p>
+              <p className="text-body-sm text-gray-800 first-letter:uppercase">
+                {formatDateTime(entry.at)}
+              </p>
+              {entry.type === 'rescheduled' ? (
+                <p className="text-body-sm flex flex-wrap items-center gap-2">
+                  <span className="bg-secondary-50 rounded-full px-3 py-1 whitespace-nowrap text-gray-800 line-through decoration-black/30">
+                    {SHORT_STAMP.format(new Date(entry.from.startsAt))}
+                  </span>
+                  <span aria-hidden className="text-third-200">
+                    →
+                  </span>
+                  <span className="sr-only">vers</span>
+                  <span className="bg-primary-50 text-third-900 rounded-full px-3 py-1 font-medium whitespace-nowrap">
+                    {SHORT_STAMP.format(new Date(entry.to.startsAt))}
+                  </span>
+                </p>
+              ) : null}
+              {entry.type === 'cancelled' && entry.reason ? (
+                <p className="text-body-sm bg-secondary-50 rounded-xl px-3 py-2 text-gray-800">
+                  Motif : {entry.reason}
+                </p>
+              ) : null}
+            </div>
+          </li>
+        );
+      })}
     </ol>
   );
 }

@@ -186,6 +186,30 @@ test('errors: French texts, never raw codes; retryable only when safe', () => {
 
 test('notifications: client texts and admin labels', () => {
   assert.match(clientNotificationText({ status: 'accepted' }), /envoyé/);
+  assert.match(
+    clientNotificationText({
+      event: 'cancelled',
+      status: 'failed',
+      reason: 'not_sent',
+    }),
+    /^L’annulation est bien enregistrée, mais/
+  );
+  assert.match(
+    clientNotificationText({
+      event: 'rescheduled',
+      status: 'failed',
+      reason: 'not_sent',
+    }),
+    /^Le nouvel horaire est bien enregistré/
+  );
+  assert.match(
+    clientNotificationText({
+      event: 'created',
+      status: 'pending',
+      reason: null,
+    }),
+    /en cours d’envoi/
+  );
   assert.equal(clientNotificationText({ status: 'skipped' }), null);
   assert.equal(clientNotificationText(null), null);
   assert.equal(
