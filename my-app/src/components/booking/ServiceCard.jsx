@@ -2,9 +2,11 @@
 
 import { useId, useState } from 'react';
 
+import ForfaitsBlock from '@/components/booking/ForfaitsBlock';
 import PriceTag from '@/components/booking/PriceTag';
 import MaskIcon from '@/components/ui/MaskIcon';
 import PillButton from '@/components/ui/PillButton';
+import { FORFAITS } from '@/content/forfaits';
 import { CATEGORIES } from '@/content/services';
 import { formatDuration } from '@/lib/format';
 
@@ -114,6 +116,14 @@ export default function ServiceCard({
           ))}
         </div>
       </fieldset>
+
+      {FORFAITS[prestation.key] ? (
+        <ForfaitsBlock
+          forfaits={FORFAITS[prestation.key]}
+          singlePriceCents={variants[0].priceCents}
+          name={name}
+        />
+      ) : null}
 
       <div className="mt-auto flex flex-wrap items-end justify-between gap-4 border-t border-black/7 pt-5">
         <p aria-live="polite" className="flex flex-col gap-0.5">
