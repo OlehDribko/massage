@@ -1,13 +1,18 @@
 'use client';
 
-import { useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 import AdminShell, { AdminError } from '@/components/admin/AdminShell';
 import { useAccountData } from '@/components/auth/useAccountData';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
-import Notice from '@/components/ui/Notice';
 import PillButton from '@/components/ui/PillButton';
 import {
   bookingsByDate,
@@ -33,21 +38,21 @@ const WEEKDAY_SHORT = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 
 const STATE_STYLE = {
   open: {
-    label: 'Ouvert',
+    label: 'Jour ouvré',
     short: 'Ouvert',
-    badge: 'bg-white text-third-900 border-black/15',
+    badge: 'border-black/15 bg-white text-third-900',
     dot: 'bg-primary-200',
   },
   closed: {
-    label: 'Fermé aux réservations',
+    label: 'Fermé aux nouvelles réservations',
     short: 'Fermé',
-    badge: 'bg-third-900 text-cream border-third-900',
+    badge: 'border-third-900 bg-third-900 text-cream',
     dot: 'bg-third-900',
   },
   off: {
-    label: 'Jour de repos',
+    label: 'Jour de repos (planning)',
     short: 'Repos',
-    badge: 'bg-secondary-50 text-gray-800 border-dashed border-gray-200',
+    badge: 'border-dashed border-gray-200 bg-secondary-50 text-gray-800',
     dot: 'bg-gray-200',
   },
   unknown: {
@@ -65,7 +70,9 @@ const monthTitle = (month) =>
     timeZone: 'UTC',
   }).format(new Date(`${month}-15T12:00:00Z`));
 
-/** Active bookings (not cancelled, not finished) of a day. */
+const plural = (count, one, many) => (count > 1 ? many : one);
+
+/** Bookings still to come (not cancelled, not finished). */
 const activeBookings = (list) =>
   (list ?? []).filter(
     (booking) =>
@@ -74,7 +81,7 @@ const activeBookings = (list) =>
       booking.phase !== 'cancelled'
   );
 
-function BookingLine({ booking, date }) {
+function BookingItem({ booking, date }) {
   const cancelled = booking.status === 'cancelled';
   return (
     <Link
@@ -86,173 +93,165 @@ function BookingLine({ booking, date }) {
       }`}
     >
       <span className="font-semibold">
-        {formatTime(booking.startsAt)}–{formatTime(booking.endsAt)}
+        {formatTime(booking.startsAt)} – {formatTime(booking.endsAt)}
         {cancelled ? ' · annulé' : ''}
       </span>
-      <span className={`truncate text-sm ${cancelled ? 'line-through' : ''}`}>
-        {booking.client?.name ?? 'Nom non renseigné'}
-      </span>
-      <span className={`truncate ${cancelled ? '' : 'text-secondary-200'}`}>
+      <span
+        className={`text-sm leading-snug ${cancelled ? 'line-through' : 'text-secondary-200'}`}
+      >
         {booking.service.name}
       </span>
+      <span
+        className={`text-sm font-medium break-words ${cancelled ? 'line-through' : ''}`}
+      >
+        {booking.client?.name ?? 'Nom non renseigné'}
+      </span>
+      <span className="sr-only"> — voir le détail</span>
     </Link>
   );
 }
 
-function StateBadge({ state }) {
-  const style = STATE_STYLE[state.kind];
+function DayCheckbox({ date, today, checked, onToggle }) {
+  const selectable = isSelectable(date, today);
   return (
-    <span
-      className={`font-montserrat inline-flex w-fit items-center rounded-full border px-2.5 py-0.5 text-[0.6875rem] font-medium tracking-wide uppercase ${style.badge}`}
-    >
-      {style.label}
-    </span>
-  );
-}
-
-function SelectToggle({ date, selected, onToggle, children, className = '' }) {
-  return (
-    <button
-      type="button"
-      aria-pressed={selected}
-      onClick={() => onToggle(date)}
-      className={`focus-visible:outline-third-200 text-left focus-visible:outline-2 focus-visible:outline-offset-2 ${className}`}
-    >
-      {children}
-      <span className="sr-only">
-        {selected ? ' — sélectionnée' : ' — sélectionner'}
-      </span>
-    </button>
-  );
-}
-
-function CheckMark({ selected }) {
-  return (
-    <span
-      aria-hidden
-      className={`flex size-6 shrink-0 items-center justify-center rounded-md border transition-colors ${
-        selected
-          ? 'border-primary-200 bg-primary-200 text-on-gold'
-          : 'border-black/25 bg-white text-transparent'
+    <label
+      className={`font-montserrat flex min-h-11 items-center gap-2.5 text-xs font-medium tracking-wide uppercase ${
+        selectable
+          ? 'cursor-pointer text-gray-900'
+          : 'cursor-not-allowed text-gray-800/60'
       }`}
     >
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="3"
-        className="size-4"
-      >
-        <path d="M5 12l5 5 9-10" />
-      </svg>
-    </span>
+      <input
+        type="checkbox"
+        checked={checked}
+        disabled={!selectable}
+        onChange={() => onToggle(date)}
+        className="accent-third-200 size-5 shrink-0"
+      />
+      {selectable ? 'Sélectionner' : 'Date passée'}
+      <span className="sr-only">
+        {' '}
+        le {formatLocalDate(date, { year: true })}
+      </span>
+    </label>
   );
 }
 
-/** Week: one column per day (a list on phones), bookings in full. */
-export function WeekView({
-  dates,
-  daysByDate,
-  byDate,
-  today,
-  selecting,
-  selected,
-  onToggle,
-}) {
+/**
+ * Week (main view): 7 vertical columns, Monday → Sunday. All 7 side by
+ * side on wide screens; on narrower ones the row scrolls horizontally and
+ * the week buttons stay the way to change weeks.
+ */
+function WeekView({ dates, daysByDate, byDate, today, selected, onToggle }) {
+  const scrollerRef = useRef(null);
+
+  // When the row scrolls, start it at today's column.
+  useEffect(() => {
+    const scroller = scrollerRef.current;
+    const column = scroller?.querySelector('[data-today="true"]');
+    if (scroller && column && scroller.scrollWidth > scroller.clientWidth) {
+      scroller.scrollLeft = column.offsetLeft - scroller.offsetLeft;
+    }
+  }, [dates]);
+
   return (
-    <ol className="grid gap-3 lg:grid-cols-7 lg:gap-2">
-      {dates.map((date) => {
-        const state = dayState(daysByDate.get(date));
-        const bookings = byDate.get(date) ?? [];
-        const isToday = date === today;
-        const canSelect = selecting && isSelectable(date, today);
-        const isSelected = selected.has(date);
-        const header = (
-          <span className="flex items-start justify-between gap-2">
-            <span className="flex flex-col">
-              <span className="font-montserrat text-xs tracking-wider text-gray-800 uppercase">
-                {formatLocalDate(date, { weekday: 'long' }).split(' ')[0]}
-              </span>
-              <span
-                className={`font-faustina text-[1.75rem] leading-none ${isToday ? 'text-primary-300' : 'text-third-900'}`}
-              >
-                {Number(date.slice(8))}
-                <span className="sr-only">
-                  {' '}
-                  {formatLocalDate(date, { year: true, weekday: undefined })}
-                  {isToday ? ' (aujourd’hui)' : ''}
-                </span>
-              </span>
-            </span>
-            {canSelect ? <CheckMark selected={isSelected} /> : null}
-          </span>
-        );
-        return (
-          <li
-            key={date}
-            className={`rounded-card flex min-w-0 flex-col gap-3 border p-3 ${
-              isSelected
-                ? 'border-primary-200 ring-primary-200 bg-white ring-2'
-                : state.kind === 'closed'
-                  ? 'bg-secondary-50 border-black/15'
-                  : 'border-black/10 bg-white'
-            }`}
-          >
-            {canSelect ? (
-              <SelectToggle
-                date={date}
-                selected={isSelected}
-                onToggle={onToggle}
-                className="-m-1 rounded-lg p-1"
-              >
-                {header}
-              </SelectToggle>
-            ) : (
-              header
-            )}
-            <div className="flex flex-col gap-1">
-              <StateBadge state={state} />
-              {state.kind === 'open' ? (
-                <span className="font-montserrat text-xs text-gray-800">
-                  {hoursLabel(state.hours)}
-                </span>
-              ) : null}
-            </div>
-            {bookings.length ? (
-              <ul className="flex flex-col gap-1.5">
-                {bookings.map((booking) => (
-                  <li key={booking.id}>
-                    <BookingLine booking={booking} date={date} />
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="font-montserrat text-xs text-gray-800">
-                Aucun rendez-vous
-              </p>
-            )}
-            <Link
-              href={`/admin/reservations?date=${date}`}
-              className="font-montserrat text-label-sm hover:text-third-200 mt-auto font-medium text-gray-800 uppercase underline underline-offset-4"
+    <div
+      ref={scrollerRef}
+      className="sm:-mx-section-x-tablet sm:px-section-x-tablet sm:scroll-px-section-x-tablet -mx-4 snap-x snap-mandatory scroll-px-4 overflow-x-auto px-4 pb-3 xl:mx-0 xl:snap-none xl:overflow-visible xl:px-0 xl:pb-0"
+    >
+      <ol className="grid w-max grid-cols-[repeat(7,minmax(15rem,1fr))] gap-3 sm:grid-cols-[repeat(7,minmax(13.5rem,1fr))] xl:w-full xl:grid-cols-7 xl:gap-2">
+        {dates.map((date) => {
+          const state = dayState(daysByDate.get(date));
+          const bookings = byDate.get(date) ?? [];
+          const isToday = date === today;
+          const isSelected = selected.has(date);
+          return (
+            <li
+              key={date}
+              data-today={isToday || undefined}
+              className={`rounded-card flex min-w-0 snap-start flex-col gap-3 border p-3 ${
+                isSelected
+                  ? 'border-primary-200 ring-primary-200 bg-white ring-2'
+                  : state.kind === 'closed'
+                    ? 'bg-secondary-50 border-black/15'
+                    : isToday
+                      ? 'border-primary-200 bg-white'
+                      : 'border-black/10 bg-white'
+              }`}
             >
-              Journée
-              <span className="sr-only"> du {formatLocalDate(date)}</span>
-            </Link>
-          </li>
-        );
-      })}
-    </ol>
+              <div className="flex items-start justify-between gap-2">
+                <h3 className="flex flex-col">
+                  <span
+                    className={`font-montserrat text-xs tracking-wider uppercase ${isToday ? 'text-primary-300 font-semibold' : 'text-gray-800'}`}
+                  >
+                    {formatLocalDate(date).split(' ')[0]}
+                  </span>
+                  <span
+                    className={`font-faustina text-2xl leading-tight ${isToday ? 'text-primary-300' : 'text-third-900'}`}
+                  >
+                    {formatLocalDate(date, { weekday: undefined })}
+                  </span>
+                </h3>
+                {isToday ? (
+                  <span className="font-montserrat bg-primary-200 text-on-gold rounded-full px-2 py-0.5 text-[0.6875rem] font-semibold uppercase">
+                    Aujourd’hui
+                  </span>
+                ) : null}
+              </div>
+
+              <DayCheckbox
+                date={date}
+                today={today}
+                checked={isSelected}
+                onToggle={onToggle}
+              />
+
+              <div className="flex flex-col gap-1.5">
+                <span
+                  className={`font-montserrat inline-flex w-fit items-center rounded-full border px-2.5 py-0.5 text-[0.6875rem] font-medium tracking-wide uppercase ${STATE_STYLE[state.kind].badge}`}
+                >
+                  {STATE_STYLE[state.kind].label}
+                </span>
+                {state.kind === 'open' ? (
+                  <p className="font-montserrat text-xs text-gray-800">
+                    Heures d’ouverture : {hoursLabel(state.hours)}
+                  </p>
+                ) : null}
+              </div>
+
+              <div className="flex flex-col gap-1.5 border-t border-black/10 pt-3">
+                <p className="font-montserrat text-label-sm font-medium text-gray-800 uppercase">
+                  Rendez-vous
+                </p>
+                {bookings.length ? (
+                  <ul className="flex flex-col gap-1.5">
+                    {bookings.map((booking) => (
+                      <li key={booking.id}>
+                        <BookingItem booking={booking} date={date} />
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="font-montserrat text-xs text-gray-800">
+                    Aucun rendez-vous
+                  </p>
+                )}
+              </div>
+            </li>
+          );
+        })}
+      </ol>
+    </div>
   );
 }
 
-/** Month: compact cells (state, count); a cell opens its day. */
-export function MonthView({
+/** Month (extra overview): a tap on a date selects it for a bulk action. */
+function MonthView({
   dates,
   month,
   daysByDate,
   byDate,
   today,
-  selecting,
   selected,
   onToggle,
 }) {
@@ -272,14 +271,20 @@ export function MonthView({
         {dates.map((date) => {
           const inMonth = date.startsWith(month);
           const state = dayState(daysByDate.get(date));
-          const bookings = byDate.get(date) ?? [];
-          const active = activeBookings(bookings).length;
+          const active = activeBookings(byDate.get(date)).length;
           const isToday = date === today;
-          const canSelect = selecting && isSelectable(date, today);
+          const selectable = isSelectable(date, today);
           const isSelected = selected.has(date);
           const label = `${formatLocalDate(date, { year: true })} — ${STATE_STYLE[state.kind].label}${
             state.kind === 'open' ? ` (${hoursLabel(state.hours)})` : ''
           } — ${active ? `${active} rendez-vous` : 'aucun rendez-vous'}`;
+          const cellClass = `rounded-xl sm:rounded-card flex h-full min-h-16 w-full flex-col gap-1 border p-1.5 text-left sm:min-h-28 sm:p-2.5 ${
+            isSelected
+              ? 'border-primary-200 ring-primary-200 bg-white ring-2'
+              : state.kind === 'closed'
+                ? 'bg-secondary-50 border-black/15'
+                : 'border-black/10 bg-white'
+          } ${inMonth ? '' : 'opacity-50'}`;
           const content = (
             <>
               <span className="flex items-start justify-between gap-1">
@@ -287,16 +292,29 @@ export function MonthView({
                   className={`font-faustina text-lg leading-none sm:text-2xl ${
                     isToday
                       ? 'text-primary-300 font-semibold'
-                      : inMonth
-                        ? 'text-third-900'
-                        : 'text-gray-200'
+                      : 'text-third-900'
                   }`}
                 >
                   {Number(date.slice(8))}
                 </span>
-                {canSelect ? (
-                  <span className="hidden sm:block">
-                    <CheckMark selected={isSelected} />
+                {selectable ? (
+                  <span
+                    aria-hidden
+                    className={`hidden size-5 items-center justify-center rounded border sm:flex ${
+                      isSelected
+                        ? 'border-primary-200 bg-primary-200 text-on-gold'
+                        : 'border-black/25 bg-white text-transparent'
+                    }`}
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="3"
+                      className="size-3.5"
+                    >
+                      <path d="M5 12l5 5 9-10" />
+                    </svg>
                   </span>
                 ) : null}
               </span>
@@ -319,33 +337,22 @@ export function MonthView({
               ) : null}
             </>
           );
-          const cellClass = `rounded-xl sm:rounded-card flex h-full min-h-16 flex-col gap-1 border p-1.5 transition-colors sm:min-h-28 sm:p-2.5 ${
-            isSelected
-              ? 'border-primary-200 ring-primary-200 bg-white ring-2'
-              : state.kind === 'closed'
-                ? 'bg-secondary-50 border-black/15'
-                : 'border-black/10 bg-white'
-          } ${inMonth ? '' : 'opacity-60'}`;
           return (
             <li key={date} className="min-w-0">
-              {canSelect ? (
+              {selectable ? (
                 <button
                   type="button"
                   aria-pressed={isSelected}
                   aria-label={label}
                   onClick={() => onToggle(date)}
-                  className={`${cellClass} focus-visible:outline-third-200 w-full text-left focus-visible:outline-2 focus-visible:outline-offset-2`}
+                  className={`${cellClass} hover:border-third-200 focus-visible:outline-third-200 focus-visible:outline-2 focus-visible:outline-offset-2`}
                 >
                   {content}
                 </button>
               ) : (
-                <Link
-                  href={`/admin/reservations?date=${date}`}
-                  aria-label={label}
-                  className={`${cellClass} hover:border-third-200 focus-visible:outline-third-200 focus-visible:outline-2 focus-visible:outline-offset-2`}
-                >
+                <div role="img" aria-label={label} className={cellClass}>
                   {content}
-                </Link>
+                </div>
               )}
             </li>
           );
@@ -355,7 +362,7 @@ export function MonthView({
   );
 }
 
-export function Legend() {
+function Legend({ view }) {
   return (
     <ul className="font-montserrat flex flex-wrap gap-x-5 gap-y-2 text-xs text-gray-800">
       {['open', 'closed', 'off'].map((kind) => (
@@ -367,82 +374,78 @@ export function Legend() {
           {STATE_STYLE[kind].label}
         </li>
       ))}
-      <li className="flex items-center gap-1.5">
-        <span
-          aria-hidden
-          className="bg-primary-200 text-on-gold rounded-full px-1.5 text-[0.6875rem] font-semibold"
-        >
-          2
-        </span>
-        Rendez-vous à venir
-      </li>
+      {view === 'month' ? (
+        <li className="flex items-center gap-1.5">
+          <span
+            aria-hidden
+            className="bg-primary-200 text-on-gold rounded-full px-1.5 text-[0.6875rem] font-semibold"
+          >
+            2
+          </span>
+          Rendez-vous à venir
+        </li>
+      ) : null}
     </ul>
   );
 }
 
-/** Result of a closure: the bookings that stay, with links. */
-export function ClosureResult({ result, onDismiss }) {
-  if (result.kind === 'reopen') {
-    return (
-      <div role="status" className="flex flex-col gap-3">
-        <Notice>
-          {result.dates.length > 1
-            ? `${result.dates.length} dates rouvertes aux réservations.`
-            : 'Date rouverte aux réservations.'}
-          {result.stillOff.length ? (
-            <>
-              {' '}
-              Sans horaires dans le planning, ces dates restent fermées :{' '}
-              {result.stillOff
-                .map((date) => formatLocalDate(date, { weekday: undefined }))
-                .join(', ')}
-              . Modifiez les horaires pour les ouvrir.
-            </>
-          ) : null}
-        </Notice>
-        <PillButton variant="text" onClick={onDismiss} className="self-start">
-          Fermer ce message
-        </PillButton>
-      </div>
-    );
-  }
+/** What the last bulk action did, from the server answer. */
+function ActionResult({ result, onDismiss }) {
   return (
     <div
       role="status"
       className="rounded-card flex flex-col gap-4 border border-black/10 bg-white p-5 sm:p-6"
     >
-      <p className="font-montserrat text-body font-semibold text-gray-900">
-        {result.dates.length > 1
-          ? `${result.dates.length} dates fermées aux nouvelles réservations.`
-          : 'Date fermée aux nouvelles réservations.'}
-      </p>
-      {result.bookings.length ? (
+      {result.kind === 'reopen' ? (
         <>
-          <p className="font-montserrat text-body text-gray-800">
-            Les rendez-vous déjà pris ces jours-là sont conservés : aucun n’a
-            été annulé. Vous pouvez les assurer ou contacter les clients
-            vous-même.
+          <p className="font-montserrat text-body font-semibold text-gray-900">
+            Fermeture retirée pour {result.dates.length}{' '}
+            {plural(result.dates.length, 'date', 'dates')}.
           </p>
-          <ul className="font-montserrat text-body-sm flex flex-col gap-1.5 text-gray-900">
-            {result.bookings.map((booking) => (
-              <li key={booking.bookingId}>
-                <Link
-                  href={`/admin/reservations/${booking.bookingId}?date=${booking.date}`}
-                  className="hover:text-third-200 underline underline-offset-2"
-                >
-                  <span className="first-letter:uppercase">
-                    {formatDateTime(booking.startsAt)}
-                  </span>{' '}
-                  — {booking.serviceName}
-                </Link>
-              </li>
-            ))}
-          </ul>
+          <p className="font-montserrat text-body text-gray-800">
+            Chaque date reprend son planning habituel.
+            {result.stillOff.length
+              ? ` Jour de repos dans le planning, ${plural(result.stillOff.length, 'cette date reste fermée', 'ces dates restent fermées')} : ${result.stillOff
+                  .map((date) => formatLocalDate(date, { weekday: undefined }))
+                  .join(', ')}. Pour y travailler, modifiez les horaires.`
+              : ''}
+          </p>
         </>
       ) : (
-        <p className="font-montserrat text-body text-gray-800">
-          Aucun rendez-vous n’était prévu ces jours-là.
-        </p>
+        <>
+          <p className="font-montserrat text-body font-semibold text-gray-900">
+            {result.dates.length}{' '}
+            {plural(result.dates.length, 'date fermée', 'dates fermées')} aux
+            nouvelles réservations.
+          </p>
+          {result.bookings.length ? (
+            <>
+              <p className="font-montserrat text-body text-gray-800">
+                Ces rendez-vous sont conservés, aucun n’a été annulé. Vous
+                pouvez les assurer ou contacter les clients vous-même.
+              </p>
+              <ul className="font-montserrat text-body-sm flex flex-col gap-1.5 text-gray-900">
+                {result.bookings.map((booking) => (
+                  <li key={booking.bookingId}>
+                    <Link
+                      href={`/admin/reservations/${booking.bookingId}?date=${booking.date}`}
+                      className="hover:text-third-200 underline underline-offset-2"
+                    >
+                      <span className="inline-block first-letter:uppercase">
+                        {formatDateTime(booking.startsAt)}
+                      </span>{' '}
+                      — {booking.serviceName}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : (
+            <p className="font-montserrat text-body text-gray-800">
+              Aucun rendez-vous n’était prévu ces jours-là.
+            </p>
+          )}
+        </>
       )}
       <PillButton variant="text" onClick={onDismiss} className="self-start">
         Fermer ce message
@@ -459,7 +462,6 @@ function CalendarContent({ controller, enabled }) {
   const asked = searchParams.get('date');
   const anchor = asked && DATE.test(asked) ? asked : today;
 
-  const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState(() => new Set());
   const [dialog, setDialog] = useState(null); // 'close' | 'reopen'
   const [pending, setPending] = useState(false);
@@ -487,10 +489,12 @@ function CalendarContent({ controller, enabled }) {
     [bookings.data]
   );
 
+  // The selection belongs to the dates on screen.
   const go = (nextView, nextAnchor) => {
     const params = new URLSearchParams();
     if (nextView === 'month') params.set('vue', 'mois');
     params.set('date', nextAnchor);
+    setSelected(new Set());
     router.replace(`/admin/calendrier?${params}`, { scroll: false });
   };
 
@@ -501,11 +505,6 @@ function CalendarContent({ controller, enabled }) {
       else next.add(date);
       return next;
     });
-
-  const stopSelecting = () => {
-    setSelecting(false);
-    setSelected(new Set());
-  };
 
   if (!range) {
     return (
@@ -525,6 +524,7 @@ function CalendarContent({ controller, enabled }) {
     dialog === 'reopen'
       ? targets.filter((date) => dayState(daysByDate.get(date)).scheduleOff)
       : [];
+  const skipped = dialog === 'close' ? summary.closed : summary.open;
 
   const apply = async () => {
     if (busyRef.current || !targets.length) return;
@@ -556,7 +556,7 @@ function CalendarContent({ controller, enabled }) {
             }
       );
       setDialog(null);
-      stopSelecting();
+      setSelected(new Set());
     } catch (caught) {
       setActionError(caught);
     } finally {
@@ -569,23 +569,38 @@ function CalendarContent({ controller, enabled }) {
     view === 'month'
       ? monthTitle(range.month)
       : `Du ${formatLocalDate(range.from, { weekday: undefined })} au ${formatLocalDate(range.to, { weekday: undefined, year: true })}`;
-  const loading =
-    days.status === 'loading' ||
-    days.status === 'idle' ||
-    bookings.status === 'loading' ||
-    bookings.status === 'idle';
+  const showsToday =
+    view === 'week'
+      ? range.dates.includes(today)
+      : Boolean(today?.startsWith(range.month));
+  const loading = [days.status, bookings.status].some(
+    (value) => value === 'loading' || value === 'idle'
+  );
   const failed =
     days.status === 'error'
       ? days
       : bookings.status === 'error'
         ? bookings
         : null;
+  const navButton =
+    'font-montserrat text-label hover:bg-secondary-50 focus-visible:outline-third-200 flex min-h-11 items-center gap-2 rounded-full px-3 font-medium text-gray-900 uppercase focus-visible:outline-2 sm:px-4';
 
   return (
     <div
-      className={`flex flex-col gap-6 ${selecting && selected.size ? 'pb-40 sm:pb-28' : ''}`}
+      className={`flex flex-col gap-6 ${selected.size ? 'pb-56 sm:pb-36 lg:pb-28' : ''}`}
     >
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div className="flex flex-col gap-1">
+          <p className="font-montserrat text-label-sm font-medium text-gray-800 uppercase">
+            {view === 'month' ? 'Vue du mois' : 'Semaine affichée'}
+          </p>
+          <h2
+            aria-live="polite"
+            className="font-faustina text-third-900 text-[1.75rem] leading-tight first-letter:uppercase"
+          >
+            {title}
+          </h2>
+        </div>
         <div
           role="group"
           aria-label="Affichage"
@@ -610,78 +625,54 @@ function CalendarContent({ controller, enabled }) {
             </button>
           ))}
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <PillButton
-            variant="text"
-            underline={false}
-            onClick={() => go(view, shiftAnchor(view, anchor, -1))}
-          >
-            ← {view === 'month' ? 'Mois précédent' : 'Semaine précédente'}
-          </PillButton>
-          <PillButton
-            variant="text"
-            underline={false}
-            onClick={() => go(view, today)}
-            disabled={
-              range.dates.includes(today) &&
-              (view === 'week' || today.startsWith(range.month))
-            }
-            className="disabled:opacity-40"
-          >
-            Aujourd’hui
-          </PillButton>
-          <PillButton
-            variant="text"
-            underline={false}
-            onClick={() => go(view, shiftAnchor(view, anchor, 1))}
-          >
-            {view === 'month' ? 'Mois suivant' : 'Semaine suivante'} →
-          </PillButton>
-        </div>
       </div>
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <h2 className="font-faustina text-third-900 text-[1.75rem] leading-tight first-letter:uppercase">
-          {title}
-        </h2>
-        {selecting ? (
-          <PillButton
-            variant="outline"
-            tone="dark"
-            size="sm"
-            onClick={stopSelecting}
-          >
-            Terminer la sélection
-          </PillButton>
-        ) : (
-          <PillButton
-            variant="outline"
-            tone="dark"
-            size="sm"
-            onClick={() => {
-              setResult(null);
-              setSelecting(true);
-            }}
-            disabled={loading || Boolean(failed)}
-            className="disabled:opacity-60"
-          >
-            Fermer ou rouvrir des dates
-          </PillButton>
-        )}
-      </div>
+      <nav
+        aria-label={view === 'month' ? 'Changer de mois' : 'Changer de semaine'}
+        className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 rounded-full border border-black/10 bg-white p-1"
+      >
+        <button
+          type="button"
+          onClick={() => go(view, shiftAnchor(view, anchor, -1))}
+          className={`${navButton} justify-self-start`}
+        >
+          <span aria-hidden>←</span>
+          <span className="sr-only sm:not-sr-only">
+            {view === 'month' ? 'Mois précédent' : 'Semaine précédente'}
+          </span>
+        </button>
+        <button
+          type="button"
+          onClick={() => go(view, today)}
+          disabled={!today || showsToday}
+          className="font-montserrat text-label focus-visible:outline-third-200 bg-third-900 text-cream min-h-11 rounded-full px-5 font-medium uppercase focus-visible:outline-2 disabled:bg-transparent disabled:text-gray-800"
+        >
+          Aujourd’hui
+        </button>
+        <button
+          type="button"
+          onClick={() => go(view, shiftAnchor(view, anchor, 1))}
+          className={`${navButton} justify-self-end`}
+        >
+          <span className="sr-only sm:not-sr-only">
+            {view === 'month' ? 'Mois suivant' : 'Semaine suivante'}
+          </span>
+          <span aria-hidden>→</span>
+        </button>
+      </nav>
 
-      {selecting ? (
-        <Notice>
-          Touchez les dates à fermer ou à rouvrir (aujourd’hui et après). Les
-          rendez-vous déjà pris restent valables dans tous les cas.
-        </Notice>
-      ) : null}
+      <div className="flex flex-col gap-2">
+        <Legend view={view} />
+        <p className="font-montserrat text-body-sm text-gray-800">
+          {view === 'month'
+            ? 'Touchez les dates (à partir d’aujourd’hui) pour les sélectionner. Le détail des rendez-vous est dans la vue Semaine.'
+            : 'Cochez des jours pour les fermer aux nouvelles réservations ou retirer leur fermeture. Les heures d’ouverture peuvent déjà contenir des rendez-vous.'}
+        </p>
+      </div>
 
       {result ? (
-        <ClosureResult result={result} onDismiss={() => setResult(null)} />
+        <ActionResult result={result} onDismiss={() => setResult(null)} />
       ) : null}
-
-      <Legend />
 
       {failed ? (
         <AdminError
@@ -693,16 +684,16 @@ function CalendarContent({ controller, enabled }) {
           message={bookingErrorMessage(failed.error)}
         />
       ) : loading ? (
-        <div role="status" className="flex flex-col gap-3">
+        <div role="status">
           <span className="sr-only">Chargement du calendrier…</span>
           <div
             aria-hidden
-            className={`grid gap-2 ${view === 'month' ? 'grid-cols-7' : 'lg:grid-cols-7'}`}
+            className={`grid gap-2 overflow-hidden ${view === 'month' ? 'grid-cols-7' : 'grid-cols-[repeat(7,minmax(13.5rem,1fr))] xl:grid-cols-7'}`}
           >
             {range.dates.map((date) => (
               <span
                 key={date}
-                className={`bg-secondary-50 animate-pulse rounded-xl motion-reduce:animate-none ${view === 'month' ? 'h-16 sm:h-28' : 'h-40'}`}
+                className={`bg-secondary-50 animate-pulse rounded-xl motion-reduce:animate-none ${view === 'month' ? 'h-16 sm:h-28' : 'h-72'}`}
               />
             ))}
           </div>
@@ -714,7 +705,6 @@ function CalendarContent({ controller, enabled }) {
           daysByDate={daysByDate}
           byDate={byDate}
           today={today}
-          selecting={selecting}
           selected={selected}
           onToggle={toggle}
         />
@@ -724,27 +714,27 @@ function CalendarContent({ controller, enabled }) {
           daysByDate={daysByDate}
           byDate={byDate}
           today={today}
-          selecting={selecting}
           selected={selected}
           onToggle={toggle}
         />
       )}
 
-      {selecting && selected.size ? (
-        <div className="px-page fixed inset-x-0 bottom-0 z-20 border-t border-black/10 bg-white/95 py-4 shadow-[0_-8px_24px_rgba(0,0,0,0.08)] backdrop-blur-sm">
-          <div className="max-w-content mx-auto flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <p className="font-montserrat text-body text-gray-900">
-              {selected.size} date{selected.size > 1 ? 's' : ''} sélectionnée
-              {selected.size > 1 ? 's' : ''}
-              <button
-                type="button"
-                onClick={() => setSelected(new Set())}
-                className="text-body-sm hover:text-third-200 ml-3 text-gray-800 underline underline-offset-2"
-              >
-                Tout désélectionner
-              </button>
+      {selected.size ? (
+        <div
+          role="region"
+          aria-label="Dates sélectionnées"
+          className="px-page fixed inset-x-0 bottom-0 z-20 border-t border-black/10 bg-white/95 py-4 shadow-[0_-8px_24px_rgba(0,0,0,0.08)] backdrop-blur-sm"
+        >
+          <div className="max-w-content mx-auto flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <p className="font-montserrat text-body font-medium text-gray-900">
+              {selected.size}{' '}
+              {plural(
+                selected.size,
+                'date sélectionnée',
+                'dates sélectionnées'
+              )}
             </p>
-            <div className="grid grid-cols-2 gap-2 sm:flex">
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
               <PillButton
                 size="sm"
                 onClick={() => {
@@ -754,7 +744,7 @@ function CalendarContent({ controller, enabled }) {
                 disabled={!summary.open.length}
                 className="disabled:opacity-50"
               >
-                Fermer
+                Fermer aux nouvelles réservations
               </PillButton>
               <PillButton
                 variant="outline"
@@ -767,7 +757,14 @@ function CalendarContent({ controller, enabled }) {
                 disabled={!summary.closed.length}
                 className="disabled:opacity-50"
               >
-                Rouvrir
+                Retirer la fermeture
+              </PillButton>
+              <PillButton
+                variant="text"
+                onClick={() => setSelected(new Set())}
+                className="self-center"
+              >
+                Réinitialiser la sélection
               </PillButton>
             </div>
           </div>
@@ -778,18 +775,18 @@ function CalendarContent({ controller, enabled }) {
         open={dialog !== null}
         title={
           dialog === 'close'
-            ? 'Fermer ces dates aux réservations ?'
-            : 'Rouvrir ces dates ?'
+            ? 'Fermer aux nouvelles réservations ?'
+            : 'Retirer la fermeture ?'
         }
         confirmLabel={
-          dialog === 'close' ? 'Fermer les dates' : 'Rouvrir les dates'
+          dialog === 'close' ? 'Fermer ces dates' : 'Retirer la fermeture'
         }
         pending={pending}
         error={actionError ? bookingErrorMessage(actionError) : null}
         onConfirm={apply}
         onClose={() => setDialog(null)}
       >
-        <ul className="bg-secondary-50 mb-4 flex max-h-40 flex-col gap-1 overflow-y-auto rounded-2xl p-4 text-gray-900">
+        <ul className="bg-secondary-50 mb-4 flex max-h-44 flex-col gap-1 overflow-y-auto rounded-2xl p-4 text-gray-900">
           {targets.map((date) => (
             <li key={date} className="first-letter:uppercase">
               {formatLocalDate(date, { year: true })}
@@ -798,29 +795,32 @@ function CalendarContent({ controller, enabled }) {
         </ul>
         {dialog === 'close' ? (
           <>
-            Plus aucune nouvelle réservation ni aucun déplacement vers ces
-            dates.{' '}
-            {keptBookings.length
-              ? `${keptBookings.length} rendez-vous déjà pris ${keptBookings.length > 1 ? 'restent valables' : 'reste valable'} : rien n’est annulé, la liste s’affichera ensuite.`
-              : 'Aucun rendez-vous à venir n’est prévu ces jours-là.'}
-            {summary.closed.length ? (
-              <span className="text-body-sm mt-2 block">
-                Déjà fermée{summary.closed.length > 1 ? 's' : ''}, non modifiée
-                {summary.closed.length > 1 ? 's' : ''} : {summary.closed.length}
-                .
-              </span>
-            ) : null}
+            <span className="block">
+              Plus aucune nouvelle réservation ni aucun déplacement vers{' '}
+              {plural(targets.length, 'cette date', 'ces dates')}.
+            </span>
+            <span className="mt-2 block font-medium text-gray-900">
+              Les rendez-vous existants ne sont pas annulés
+              {keptBookings.length
+                ? ` (${keptBookings.length} à venir) : leur liste s’affichera ensuite.`
+                : '.'}
+            </span>
           </>
         ) : (
           <>
-            Seule la fermeture est retirée : chaque date reprend les horaires de
-            son planning.
+            <span className="block">
+              Seule la fermeture est retirée : chaque date reprend son planning
+              habituel.
+            </span>
             {staysOff.length ? (
               <span className="mt-2 block">
-                {staysOff.length > 1 ? 'Ces dates n’ont' : 'Cette date n’a'} pas
-                d’horaires dans le planning et{' '}
-                {staysOff.length > 1 ? 'resteront' : 'restera'} sans réservation
-                possible :{' '}
+                Jour de repos dans le planning,{' '}
+                {plural(
+                  staysOff.length,
+                  'cette date restera fermée',
+                  'ces dates resteront fermées'
+                )}{' '}
+                :{' '}
                 {staysOff
                   .map((date) => formatLocalDate(date, { weekday: undefined }))
                   .join(', ')}
@@ -829,16 +829,34 @@ function CalendarContent({ controller, enabled }) {
             ) : null}
           </>
         )}
+        {skipped.length ? (
+          <span className="text-body-sm mt-2 block">
+            {skipped.length}{' '}
+            {dialog === 'close'
+              ? plural(
+                  skipped.length,
+                  'date déjà fermée, inchangée.',
+                  'dates déjà fermées, inchangées.'
+                )
+              : plural(
+                  skipped.length,
+                  'date non fermée, inchangée.',
+                  'dates non fermées, inchangées.'
+                )}
+          </span>
+        ) : null}
       </ConfirmDialog>
     </div>
   );
 }
 
 /**
- * /admin/calendrier — week or month view: working hours in force, closures
- * and bookings (two range requests, no polling). Several dates can be
- * closed for new bookings or reopened at once; existing bookings are never
- * cancelled by a closure and are listed afterwards.
+ * /admin/calendrier — main view: the week, Monday → Sunday, one column per
+ * day with its state, working hours (not free times: they may hold
+ * bookings) and bookings. The month is an extra overview to select dates.
+ * Two range requests per view, no polling. Selected dates can be closed
+ * for new bookings or have their closure removed; existing bookings are
+ * never cancelled and are listed after a closure.
  */
 export default function AdminCalendar() {
   return (
