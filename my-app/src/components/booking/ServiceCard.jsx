@@ -5,29 +5,60 @@ import { useId, useState } from 'react';
 import PriceTag from '@/components/booking/PriceTag';
 import MaskIcon from '@/components/ui/MaskIcon';
 import PillButton from '@/components/ui/PillButton';
+import { CATEGORIES } from '@/content/services';
 import { formatDuration } from '@/lib/format';
 
+const CATEGORY_LABEL = Object.fromEntries(
+  CATEGORIES.map((category) => [category.key, category.label])
+);
+
+export function PopularBadge({ className = '' }) {
+  return (
+    <span
+      className={`font-montserrat bg-primary-200 text-on-gold inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[0.6875rem] font-semibold tracking-wide uppercase ${className}`}
+    >
+      <svg viewBox="0 0 24 24" aria-hidden className="size-3 fill-current">
+        <path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z" />
+      </svg>
+      Populaire
+    </span>
+  );
+}
+
 /**
- * One prestation of the catalogue as a card (no photo yet). Three separate
- * controls, nothing nested:
- * - the "Description" button opens/closes the approved text (only when one
- *   exists); the collapsed text stays in the HTML but is `inert`;
- * - the duration switch (radios) chooses the variant — id, duration, price;
+ * One prestation of the catalogue as a card, in the site's style: category
+ * eyebrow and « Populaire » badge, Faustina title, durations as pills, the
+ * price and « Choisir l’horaire » under a hairline.
+ * - the "Description" button opens the approved text (only when one exists);
+ * - the duration pills (radios) choose the variant — id, duration, price;
+ *   `initialServiceId` opens the card on a duration (e.g. a filter);
  * - "Choisir l’horaire" goes to step 2 with exactly that variant.
  */
-export default function ServiceCard({ prestation, headingLevel = 'h3' }) {
-  const { name, description, variants } = prestation;
+export default function ServiceCard({
+  prestation,
+  headingLevel = 'h3',
+  initialServiceId,
+}) {
+  const { name, description, variants, featured, category } = prestation;
   const [open, setOpen] = useState(false);
-  const [selectedId, setSelectedId] = useState(variants[0].id);
+  const [selectedId, setSelectedId] = useState(
+    initialServiceId ?? variants[0].id
+  );
   const id = useId();
   const selected =
     variants.find((service) => service.id === selectedId) ?? variants[0];
   const Heading = headingLevel;
 
   return (
-    <article className="rounded-panel flex h-full flex-col gap-5 border border-black/10 bg-white p-6">
+    <article className="rounded-panel hover:border-primary-200 group flex h-full flex-col gap-6 border border-black/7 bg-white p-6 transition-[border-color,box-shadow] duration-200 hover:shadow-[0_18px_40px_-24px_rgba(26,15,8,0.35)] motion-reduce:transition-none sm:p-7">
       <div className="flex flex-col gap-3">
-        <Heading className="font-faustina text-third-900 text-[1.625rem] leading-tight font-medium">
+        <div className="flex min-h-7 items-center justify-between gap-3">
+          <p className="font-montserrat text-label-sm text-third-200 font-medium tracking-[0.12em] uppercase">
+            {CATEGORY_LABEL[category] ?? 'Soin'}
+          </p>
+          {featured ? <PopularBadge /> : null}
+        </div>
+        <Heading className="font-faustina text-third-900 text-[1.75rem] leading-[1.1] font-normal">
           {name}
         </Heading>
         {description ? (
@@ -60,45 +91,38 @@ export default function ServiceCard({ prestation, headingLevel = 'h3' }) {
         ) : null}
       </div>
 
-      {variants.length === 1 ? (
-        <p className="font-montserrat text-body-sm text-gray-800">
-          Durée :{' '}
-          <span className="font-medium text-gray-900">
-            {formatDuration(selected.durationMinutes)}
-          </span>
-        </p>
-      ) : (
-        <fieldset className="flex flex-col gap-2">
-          <legend className="font-montserrat text-body-sm mb-2 text-gray-800">
-            Durée<span className="sr-only"> — {name}</span>
-          </legend>
-          <div className="rounded-pill bg-secondary-50 flex gap-1 p-1">
-            {variants.map((service) => (
-              <label
-                key={service.id}
-                className="rounded-pill font-montserrat text-body-sm has-checked:bg-third-900 has-checked:text-cream has-focus-visible:outline-third-200 hover:text-third-900 relative flex min-h-11 flex-1 cursor-pointer items-center justify-center px-3 font-medium whitespace-nowrap text-gray-900 transition-colors has-focus-visible:outline-2 has-focus-visible:outline-offset-2 motion-reduce:transition-none"
-              >
-                <input
-                  type="radio"
-                  name={`${id}-duration`}
-                  value={service.id}
-                  checked={service.id === selected.id}
-                  onChange={() => setSelectedId(service.id)}
-                  className="sr-only"
-                />
-                {formatDuration(service.durationMinutes)}
-              </label>
-            ))}
-          </div>
-        </fieldset>
-      )}
+      <fieldset className="flex flex-col gap-2.5">
+        <legend className="font-montserrat text-label-sm mb-2.5 font-medium text-gray-800 uppercase">
+          Durée<span className="sr-only"> — {name}</span>
+        </legend>
+        <div className="flex flex-wrap gap-2">
+          {variants.map((service) => (
+            <label
+              key={service.id}
+              className="rounded-pill font-montserrat text-body-sm has-checked:border-third-900 has-checked:bg-third-900 has-checked:text-cream has-focus-visible:outline-third-200 hover:border-third-200 relative flex min-h-10 cursor-pointer items-center justify-center border border-black/15 px-4 font-medium whitespace-nowrap text-gray-900 transition-colors has-focus-visible:outline-2 has-focus-visible:outline-offset-2 motion-reduce:transition-none"
+            >
+              <input
+                type="radio"
+                name={`${id}-duration`}
+                value={service.id}
+                checked={service.id === selected.id}
+                onChange={() => setSelectedId(service.id)}
+                className="sr-only"
+              />
+              {formatDuration(service.durationMinutes)}
+            </label>
+          ))}
+        </div>
+      </fieldset>
 
-      <div className="mt-auto flex flex-wrap items-center justify-between gap-4 pt-1">
-        <p
-          aria-live="polite"
-          className="font-faustina text-third-900 text-[1.75rem] leading-none"
-        >
-          <PriceTag service={selected} />
+      <div className="mt-auto flex flex-wrap items-end justify-between gap-4 border-t border-black/7 pt-5">
+        <p aria-live="polite" className="flex flex-col gap-0.5">
+          <span className="font-montserrat text-label-sm font-medium text-gray-800 uppercase">
+            Tarif
+          </span>
+          <span className="font-faustina text-third-900 text-[1.875rem] leading-none">
+            <PriceTag service={selected} />
+          </span>
         </p>
         <PillButton href={`/reserver/${selected.id}`} size="sm">
           Choisir l’horaire
@@ -113,12 +137,16 @@ export default function ServiceCard({ prestation, headingLevel = 'h3' }) {
 }
 
 /** Catalogue as a grid of cards: 1 → 2 → 3 columns. */
-export function ServiceList({ catalog, headingLevel = 'h3' }) {
+export function ServiceList({ catalog, headingLevel = 'h3', initialIds }) {
   return (
     <ul className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
       {catalog.map((prestation) => (
         <li key={prestation.key}>
-          <ServiceCard prestation={prestation} headingLevel={headingLevel} />
+          <ServiceCard
+            prestation={prestation}
+            headingLevel={headingLevel}
+            initialServiceId={initialIds?.get(prestation.key)}
+          />
         </li>
       ))}
     </ul>

@@ -17,7 +17,7 @@ import {
   hasActiveSale,
   lowestPrice,
 } from '../../src/lib/booking/catalog.js';
-import { SERVICE_GROUPS } from '../../src/content/services.js';
+import { CATEGORIES, SERVICE_GROUPS } from '../../src/content/services.js';
 import {
   adminNotificationLabel,
   bookingErrorMessage,
@@ -137,9 +137,21 @@ test('editorial layer: 35 distinct ids in 18 prestations, no business data', () 
   for (const group of SERVICE_GROUPS) {
     assert.deepEqual(
       Object.keys(group).filter(
-        (key) => !['key', 'serviceIds', 'description', 'featured'].includes(key)
+        (key) =>
+          ![
+            'key',
+            'serviceIds',
+            'description',
+            'featured',
+            'category',
+          ].includes(key)
       ),
       []
+    );
+    // Every prestation has a known catalogue category (filters of /reserver).
+    assert.ok(
+      CATEGORIES.some((category) => category.key === group.category),
+      group.key
     );
   }
 });
