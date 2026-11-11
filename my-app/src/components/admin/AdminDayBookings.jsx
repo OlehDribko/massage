@@ -1,12 +1,14 @@
 'use client';
 
-import { useId, useSyncExternalStore } from 'react';
+import { useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 import AdminShell, { AdminError } from '@/components/admin/AdminShell';
 import { useAccountData } from '@/components/auth/useAccountData';
+import { DateTile } from '@/components/booking/BookingCard';
 import BookingStatus from '@/components/booking/BookingStatus';
+import DateField from '@/components/ui/DateField';
 import PillButton from '@/components/ui/PillButton';
 import { sortDayBookings } from '@/lib/booking/bookings';
 import {
@@ -21,6 +23,8 @@ import {
 } from '@/lib/format';
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
+const navButton =
+  'font-montserrat text-label hover:bg-secondary-50 focus-visible:outline-third-200 flex min-h-11 items-center gap-2 rounded-full px-3 font-medium text-gray-900 uppercase focus-visible:outline-2 sm:px-4';
 const noopSubscribe = () => () => {};
 
 // Studio-time minutes of an instant: "10:45" → 645.
@@ -270,7 +274,6 @@ export default function AdminDayBookings() {
   const today = useSyncExternalStore(noopSubscribe, studioToday, () => null);
   const asked = searchParams.get('date');
   const date = asked && DATE.test(asked) ? asked : today;
-  const dateInputId = useId();
 
   const go = (next) => router.replace(`/admin/reservations?date=${next}`);
 
@@ -287,53 +290,52 @@ export default function AdminDayBookings() {
       {({ status }) =>
         date ? (
           <div className="flex flex-col gap-6">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-              <div className="flex flex-col gap-1">
-                <label
-                  htmlFor={dateInputId}
-                  className="font-montserrat text-label-sm font-medium text-gray-800 uppercase"
-                >
-                  Date
-                </label>
-                <input
-                  id={dateInputId}
-                  type="date"
-                  value={date}
-                  onChange={(event) =>
-                    DATE.test(event.target.value) && go(event.target.value)
-                  }
-                  className="font-montserrat text-body focus:border-third-200 border-b border-black/20 bg-transparent py-2 text-gray-900 focus:outline-none"
-                />
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <PillButton
-                  variant="text"
-                  underline={false}
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <DateField
+                label="Journée"
+                value={date}
+                today={today}
+                onChange={go}
+              />
+              <nav
+                aria-label="Changer de jour"
+                className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 rounded-full border border-black/10 bg-white p-1 lg:min-w-[30rem]"
+              >
+                <button
+                  type="button"
                   onClick={() => go(addDays(date, -1))}
+                  className={`${navButton} justify-self-start`}
                 >
-                  ← Veille
-                </PillButton>
-                <PillButton
-                  variant="text"
-                  underline={false}
+                  <span aria-hidden>←</span> Veille
+                </button>
+                <button
+                  type="button"
                   onClick={() => go(today)}
                   disabled={date === today}
-                  className="disabled:opacity-40"
+                  className="font-montserrat text-label focus-visible:outline-third-200 bg-third-900 text-cream min-h-11 rounded-full px-5 font-medium uppercase focus-visible:outline-2 disabled:bg-transparent disabled:text-gray-800"
                 >
                   Aujourd’hui
-                </PillButton>
-                <PillButton
-                  variant="text"
-                  underline={false}
+                </button>
+                <button
+                  type="button"
                   onClick={() => go(addDays(date, 1))}
+                  className={`${navButton} justify-self-end`}
                 >
-                  Lendemain →
-                </PillButton>
+                  Lendemain <span aria-hidden>→</span>
+                </button>
+              </nav>
+            </div>
+            <div className="flex items-center gap-4">
+              <DateTile startsAt={`${date}T12:00:00Z`} size="lg" />
+              <div className="flex flex-col">
+                <p className="font-montserrat text-label-sm font-medium text-gray-800 uppercase">
+                  {date === today ? 'Aujourd’hui' : 'Rendez-vous du'}
+                </p>
+                <h2 className="font-faustina text-third-900 text-[1.75rem] leading-tight first-letter:uppercase">
+                  {formatLocalDate(date, { year: true })}
+                </h2>
               </div>
             </div>
-            <h2 className="font-faustina text-third-900 text-[1.75rem] leading-tight first-letter:uppercase">
-              {formatLocalDate(date, { year: true })}
-            </h2>
             <DayList date={date} enabled={status === 'admin'} />
           </div>
         ) : (

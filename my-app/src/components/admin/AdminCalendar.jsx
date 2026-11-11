@@ -37,32 +37,66 @@ const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const noopSubscribe = () => () => {};
 const WEEKDAY_SHORT = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 
+// Day states, styled like the rest of the site: white panels (20 px
+// radius), a closed day drawn dark with a lock, a day off muted.
 const STATE_STYLE = {
   open: {
-    label: 'Jour ouvré',
-    short: 'Ouvert',
-    badge: 'border-black/15 bg-white text-third-900',
-    dot: 'bg-primary-200',
+    label: 'Ouvert',
+    legend: 'Jour ouvert',
+    card: 'border-black/10 bg-white',
+    swatch: 'border border-black/15 bg-white',
   },
   closed: {
-    label: 'Fermé aux nouvelles réservations',
-    short: 'Fermé',
-    badge: 'border-third-900 bg-third-900 text-cream',
-    dot: 'bg-third-900',
+    label: 'Fermé aux réservations',
+    legend: 'Fermé aux nouvelles réservations',
+    card: 'border-third-900 bg-[repeating-linear-gradient(135deg,var(--color-secondary-100)_0_10px,var(--color-secondary-50)_10px_20px)]',
+    swatch:
+      'border border-third-900 bg-[repeating-linear-gradient(135deg,var(--color-secondary-200)_0_3px,var(--color-secondary-50)_3px_6px)]',
   },
   off: {
-    label: 'Jour de repos (planning)',
-    short: 'Repos',
-    badge: 'border-dashed border-gray-200 bg-secondary-50 text-gray-800',
-    dot: 'bg-gray-200',
+    label: 'Jour de repos',
+    legend: 'Jour de repos (planning)',
+    card: 'border-dashed border-black/15 bg-secondary-50',
+    swatch: 'border border-dashed border-black/25 bg-secondary-50',
   },
   unknown: {
     label: '—',
-    short: '—',
-    badge: 'border-black/10',
-    dot: 'bg-black/10',
+    legend: '—',
+    card: 'border-black/10 bg-white',
+    swatch: 'border border-black/10',
   },
 };
+
+function LockIcon({ className = 'size-3.5' }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      aria-hidden
+      className={`shrink-0 ${className}`}
+    >
+      <rect x="5" y="11" width="14" height="10" rx="2" />
+      <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+    </svg>
+  );
+}
+
+function CheckIcon({ className = 'size-3.5' }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="3"
+      aria-hidden
+      className={className}
+    >
+      <path d="M5 12l5 5 9-10" />
+    </svg>
+  );
+}
 
 const monthTitle = (month) =>
   new Intl.DateTimeFormat('fr-FR', {
@@ -87,55 +121,91 @@ function BookingItem({ booking, date }) {
   return (
     <Link
       href={`/admin/reservations/${booking.id}?date=${date}`}
-      className={`font-montserrat focus-visible:outline-third-200 flex flex-col gap-0.5 rounded-xl px-3 py-2 text-xs transition-shadow hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 ${
+      className={`font-montserrat focus-visible:outline-third-200 flex flex-col gap-1 rounded-2xl px-3.5 py-3 transition-shadow hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 ${
         cancelled
-          ? 'border border-dashed border-gray-200 bg-white text-gray-800'
+          ? 'border border-dashed border-black/20 bg-white/70 text-gray-800'
           : 'bg-third-900 text-cream'
       }`}
     >
-      <span className="font-semibold">
-        {formatTime(booking.startsAt)} – {formatTime(booking.endsAt)}
-        {cancelled ? ' · annulé' : ''}
+      <span className="flex items-center justify-between gap-2 text-xs font-semibold">
+        <span>
+          {formatTime(booking.startsAt)} – {formatTime(booking.endsAt)}
+        </span>
+        {cancelled ? (
+          <span className="font-medium uppercase">Annulé</span>
+        ) : null}
       </span>
       <span
-        className={`text-sm leading-snug ${cancelled ? 'line-through' : 'text-secondary-200'}`}
-      >
-        {booking.service.name}
-      </span>
-      <span
-        className={`text-sm font-medium break-words ${cancelled ? 'line-through' : ''}`}
+        className={`text-sm leading-snug font-medium break-words ${cancelled ? 'line-through' : ''}`}
       >
         {booking.client?.name ?? 'Nom non renseigné'}
+      </span>
+      <span
+        className={`line-clamp-2 text-xs leading-snug ${cancelled ? 'line-through' : 'text-secondary-200'}`}
+      >
+        {booking.service.name}
       </span>
       <span className="sr-only"> — voir le détail</span>
     </Link>
   );
 }
 
-function DayCheckbox({ date, today, checked, onToggle }) {
-  const selectable = isSelectable(date, today);
+/** Round checkbox in the corner of a day (today or later only). */
+function DayCheckbox({ date, checked, onToggle }) {
   return (
-    <label
-      className={`font-montserrat flex min-h-11 items-center gap-2.5 text-xs font-medium tracking-wide uppercase ${
-        selectable
-          ? 'cursor-pointer text-gray-900'
-          : 'cursor-not-allowed text-gray-800/60'
-      }`}
-    >
+    <label className="relative -m-1.5 flex size-11 shrink-0 cursor-pointer items-center justify-center">
       <input
         type="checkbox"
         checked={checked}
-        disabled={!selectable}
         onChange={() => onToggle(date)}
-        className="accent-third-200 size-5 shrink-0"
+        className="peer absolute inset-0 cursor-pointer opacity-0"
       />
-      {selectable ? 'Sélectionner' : 'Date passée'}
+      <span
+        aria-hidden
+        className={`peer-focus-visible:outline-third-200 flex size-7 items-center justify-center rounded-full border transition-colors peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 ${
+          checked
+            ? 'border-primary-200 bg-primary-200 text-on-gold'
+            : 'hover:border-third-200 border-black/25 bg-white text-transparent'
+        }`}
+      >
+        <CheckIcon />
+      </span>
       <span className="sr-only">
-        {' '}
-        le {formatLocalDate(date, { year: true })}
+        Sélectionner le {formatLocalDate(date, { year: true })}
       </span>
     </label>
   );
+}
+
+/** One line: what the day is and, when open, its opening hours. */
+function DayStatus({ state }) {
+  if (state.kind === 'closed') {
+    return (
+      <p className="font-montserrat bg-third-900 text-cream flex w-fit items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium">
+        <LockIcon />
+        {STATE_STYLE.closed.label}
+      </p>
+    );
+  }
+  if (state.kind === 'off') {
+    return (
+      <p className="font-montserrat text-xs font-medium text-gray-800">
+        {STATE_STYLE.off.label}
+      </p>
+    );
+  }
+  if (state.kind === 'open') {
+    return (
+      <p className="font-montserrat flex items-center gap-1.5 text-xs text-gray-800">
+        <span aria-hidden className="bg-primary-200 size-2 rounded-full" />
+        <span>
+          <span className="sr-only">Heures d’ouverture : </span>
+          {hoursLabel(state.hours)}
+        </span>
+      </p>
+    );
+  }
+  return null;
 }
 
 /**
@@ -160,90 +230,74 @@ function WeekView({ dates, daysByDate, byDate, today, selected, onToggle }) {
       ref={scrollerRef}
       className="sm:-mx-section-x-tablet sm:px-section-x-tablet sm:scroll-px-section-x-tablet relative -mx-4 snap-x snap-mandatory scroll-px-4 overflow-x-auto px-4 pb-3 xl:mx-0 xl:snap-none xl:overflow-visible xl:px-0 xl:pb-0"
     >
-      <ol className="grid w-max grid-cols-[repeat(7,minmax(15rem,1fr))] gap-3 sm:grid-cols-[repeat(7,minmax(13.5rem,1fr))] xl:w-full xl:grid-cols-7 xl:gap-2">
+      <ol className="grid w-max grid-cols-[repeat(7,minmax(15rem,1fr))] gap-3 sm:grid-cols-[repeat(7,minmax(13.5rem,1fr))] xl:w-full xl:grid-cols-7 xl:gap-2.5">
         {dates.map((date) => {
           const state = dayState(daysByDate.get(date));
           const bookings = byDate.get(date) ?? [];
           const isToday = date === today;
           const isSelected = selected.has(date);
+          const selectable = isSelectable(date, today);
           return (
             <li
               key={date}
               data-today={isToday || undefined}
-              className={`rounded-card flex min-w-0 snap-start flex-col gap-3 border p-3 ${
+              className={`rounded-panel flex min-h-72 min-w-0 snap-start flex-col gap-4 border p-4 transition-shadow ${STATE_STYLE[state.kind].card} ${
                 isSelected
-                  ? 'border-primary-200 ring-primary-200 bg-white ring-2'
-                  : state.kind === 'closed'
-                    ? 'bg-secondary-50 border-black/15'
-                    : isToday
-                      ? 'border-primary-200 bg-white'
-                      : 'border-black/10 bg-white'
-              }`}
+                  ? 'ring-primary-200 ring-2 ring-offset-2'
+                  : isToday && state.kind !== 'closed'
+                    ? 'border-primary-200'
+                    : ''
+              } ${selectable ? '' : 'opacity-70'}`}
             >
-              <h3 className="flex flex-col gap-0.5">
-                <span
-                  className={`font-montserrat text-xs tracking-wider uppercase ${isToday ? 'text-primary-300 font-semibold' : 'text-gray-800'}`}
-                >
-                  {formatLocalDate(date).split(' ')[0]}
-                </span>
-                <span className="flex items-baseline gap-1.5">
+              <div className="flex items-start justify-between gap-2">
+                <h3 className="flex flex-col">
                   <span
-                    className={`font-faustina text-[2rem] leading-none ${isToday ? 'text-primary-300' : 'text-third-900'}`}
+                    className={`font-montserrat text-[0.6875rem] tracking-[0.12em] uppercase ${isToday ? 'text-primary-300 font-semibold' : 'text-gray-800'}`}
+                    aria-hidden
                   >
-                    {Number(date.slice(8))}
+                    {isToday
+                      ? 'Aujourd’hui'
+                      : formatLocalDate(date).split(' ')[0]}
                   </span>
-                  <span className="font-montserrat text-body-sm text-gray-800">
-                    {formatMonthShort(date)}
+                  <span aria-hidden className="flex items-baseline gap-1.5">
+                    <span
+                      className={`font-faustina text-[2.25rem] leading-none ${isToday ? 'text-primary-300' : 'text-third-900'}`}
+                    >
+                      {Number(date.slice(8))}
+                    </span>
+                    <span className="font-montserrat text-body-sm text-gray-800">
+                      {formatMonthShort(date)}
+                    </span>
                   </span>
-                </span>
-                <span className="sr-only">
-                  {formatLocalDate(date, { year: true })}
-                </span>
-                {isToday ? (
-                  <span className="font-montserrat bg-primary-200 text-on-gold mt-1 w-fit rounded-full px-2 py-0.5 text-[0.6875rem] font-semibold uppercase">
-                    Aujourd’hui
+                  <span className="sr-only">
+                    {formatLocalDate(date, { year: true })}
+                    {isToday ? ' (aujourd’hui)' : ''}
                   </span>
-                ) : null}
-              </h3>
-
-              <DayCheckbox
-                date={date}
-                today={today}
-                checked={isSelected}
-                onToggle={onToggle}
-              />
-
-              <div className="flex flex-col gap-1.5">
-                <span
-                  className={`font-montserrat inline-flex w-fit items-center rounded-full border px-2.5 py-0.5 text-[0.6875rem] font-medium tracking-wide uppercase ${STATE_STYLE[state.kind].badge}`}
-                >
-                  {STATE_STYLE[state.kind].label}
-                </span>
-                {state.kind === 'open' ? (
-                  <p className="font-montserrat text-xs text-gray-800">
-                    Heures d’ouverture : {hoursLabel(state.hours)}
-                  </p>
+                </h3>
+                {selectable ? (
+                  <DayCheckbox
+                    date={date}
+                    checked={isSelected}
+                    onToggle={onToggle}
+                  />
                 ) : null}
               </div>
 
-              <div className="flex flex-col gap-1.5 border-t border-black/10 pt-3">
-                <p className="font-montserrat text-label-sm font-medium text-gray-800 uppercase">
-                  Rendez-vous
+              <DayStatus state={state} />
+
+              {bookings.length ? (
+                <ul className="flex flex-col gap-2">
+                  {bookings.map((booking) => (
+                    <li key={booking.id}>
+                      <BookingItem booking={booking} date={date} />
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="font-montserrat mt-auto pb-1 text-center text-xs text-gray-800/80">
+                  Aucun rendez-vous
                 </p>
-                {bookings.length ? (
-                  <ul className="flex flex-col gap-1.5">
-                    {bookings.map((booking) => (
-                      <li key={booking.id}>
-                        <BookingItem booking={booking} date={date} />
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="font-montserrat text-xs text-gray-800">
-                    Aucun rendez-vous
-                  </p>
-                )}
-              </div>
+              )}
             </li>
           );
         })}
@@ -264,17 +318,17 @@ function MonthView({
 }) {
   return (
     <div className="flex flex-col gap-2">
-      <div aria-hidden className="grid grid-cols-7 gap-1 sm:gap-2">
+      <div aria-hidden className="grid grid-cols-7 gap-1.5 sm:gap-2.5">
         {WEEKDAY_SHORT.map((label) => (
           <span
             key={label}
-            className="font-montserrat text-center text-[0.6875rem] tracking-wider text-gray-800 uppercase"
+            className="font-montserrat text-center text-[0.6875rem] tracking-[0.12em] text-gray-800 uppercase"
           >
             {label}
           </span>
         ))}
       </div>
-      <ol className="grid grid-cols-7 gap-1 sm:gap-2">
+      <ol className="grid grid-cols-7 gap-1.5 sm:gap-2.5">
         {dates.map((date) => {
           const inMonth = date.startsWith(month);
           const state = dayState(daysByDate.get(date));
@@ -282,21 +336,21 @@ function MonthView({
           const isToday = date === today;
           const selectable = isSelectable(date, today);
           const isSelected = selected.has(date);
-          const label = `${formatLocalDate(date, { year: true })} — ${STATE_STYLE[state.kind].label}${
+          const label = `${formatLocalDate(date, { year: true })} — ${STATE_STYLE[state.kind].legend}${
             state.kind === 'open' ? ` (${hoursLabel(state.hours)})` : ''
           } — ${active ? `${active} rendez-vous` : 'aucun rendez-vous'}`;
-          const cellClass = `rounded-xl sm:rounded-card flex h-full min-h-16 w-full flex-col gap-1 border p-1.5 text-left sm:min-h-28 sm:p-2.5 ${
+          const cellClass = `relative flex aspect-square w-full flex-col justify-between rounded-2xl border p-1.5 text-left sm:aspect-auto sm:min-h-28 sm:rounded-panel sm:p-3 ${STATE_STYLE[state.kind].card} ${
             isSelected
-              ? 'border-primary-200 ring-primary-200 bg-white ring-2'
-              : state.kind === 'closed'
-                ? 'bg-secondary-50 border-black/15'
-                : 'border-black/10 bg-white'
-          } ${inMonth ? '' : 'opacity-50'}`;
+              ? 'ring-primary-200 ring-2 ring-offset-1 sm:ring-offset-2'
+              : isToday && state.kind !== 'closed'
+                ? 'border-primary-200'
+                : ''
+          } ${inMonth ? '' : 'opacity-40'}`;
           const content = (
             <>
               <span className="flex items-start justify-between gap-1">
                 <span
-                  className={`font-faustina text-lg leading-none sm:text-2xl ${
+                  className={`font-faustina text-lg leading-none sm:text-[1.75rem] ${
                     isToday
                       ? 'text-primary-300 font-semibold'
                       : 'text-third-900'
@@ -304,44 +358,38 @@ function MonthView({
                 >
                   {Number(date.slice(8))}
                 </span>
-                {selectable ? (
+                {isSelected ? (
                   <span
                     aria-hidden
-                    className={`hidden size-5 items-center justify-center rounded border sm:flex ${
-                      isSelected
-                        ? 'border-primary-200 bg-primary-200 text-on-gold'
-                        : 'border-black/25 bg-white text-transparent'
-                    }`}
+                    className="bg-primary-200 text-on-gold absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center rounded-full sm:static sm:size-6"
                   >
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="3"
-                      className="size-3.5"
-                    >
-                      <path d="M5 12l5 5 9-10" />
-                    </svg>
+                    <CheckIcon className="size-3 sm:size-3.5" />
+                  </span>
+                ) : state.kind === 'closed' ? (
+                  <span
+                    aria-hidden
+                    className="bg-third-900 text-cream flex size-5 items-center justify-center rounded-full sm:size-6"
+                  >
+                    <LockIcon className="size-3 sm:size-3.5" />
                   </span>
                 ) : null}
               </span>
-              <span className="mt-auto flex items-center gap-1.5">
-                <span
-                  aria-hidden
-                  className={`size-2 shrink-0 rounded-full ${STATE_STYLE[state.kind].dot}`}
-                />
+              <span className="flex items-end justify-between gap-1">
                 <span className="font-montserrat hidden truncate text-[0.6875rem] text-gray-800 sm:inline">
                   {state.kind === 'open'
                     ? hoursLabel(state.hours)
-                    : STATE_STYLE[state.kind].short}
+                    : state.kind === 'closed'
+                      ? 'Fermé'
+                      : state.kind === 'off'
+                        ? 'Repos'
+                        : ''}
                 </span>
+                {active ? (
+                  <span className="font-montserrat bg-third-900 text-cream ml-auto flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[0.6875rem] font-semibold sm:h-6 sm:min-w-6">
+                    {active}
+                  </span>
+                ) : null}
               </span>
-              {active ? (
-                <span className="font-montserrat bg-primary-200 text-on-gold w-fit rounded-full px-1.5 text-[0.6875rem] font-semibold sm:px-2">
-                  {active}
-                  <span className="hidden sm:inline"> rdv</span>
-                </span>
-              ) : null}
             </>
           );
           return (
@@ -352,7 +400,7 @@ function MonthView({
                   aria-pressed={isSelected}
                   aria-label={label}
                   onClick={() => onToggle(date)}
-                  className={`${cellClass} hover:border-third-200 focus-visible:outline-third-200 focus-visible:outline-2 focus-visible:outline-offset-2`}
+                  className={`${cellClass} hover:border-third-200 focus-visible:outline-third-200 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2`}
                 >
                   {content}
                 </button>
@@ -373,19 +421,19 @@ function Legend({ view }) {
   return (
     <ul className="font-montserrat flex flex-wrap gap-x-5 gap-y-2 text-xs text-gray-800">
       {['open', 'closed', 'off'].map((kind) => (
-        <li key={kind} className="flex items-center gap-1.5">
+        <li key={kind} className="flex items-center gap-2">
           <span
             aria-hidden
-            className={`size-2.5 rounded-full ${STATE_STYLE[kind].dot}`}
+            className={`size-4 rounded-md ${STATE_STYLE[kind].swatch}`}
           />
-          {STATE_STYLE[kind].label}
+          {STATE_STYLE[kind].legend}
         </li>
       ))}
       {view === 'month' ? (
-        <li className="flex items-center gap-1.5">
+        <li className="flex items-center gap-2">
           <span
             aria-hidden
-            className="bg-primary-200 text-on-gold rounded-full px-1.5 text-[0.6875rem] font-semibold"
+            className="bg-third-900 text-cream flex size-5 items-center justify-center rounded-full text-[0.6875rem] font-semibold"
           >
             2
           </span>
@@ -401,7 +449,7 @@ function ActionResult({ result, onDismiss }) {
   return (
     <div
       role="status"
-      className="rounded-card flex flex-col gap-4 border border-black/10 bg-white p-5 sm:p-6"
+      className="rounded-panel flex flex-col gap-4 border border-black/10 bg-white p-5 sm:p-6"
     >
       {result.kind === 'reopen' ? (
         <>
