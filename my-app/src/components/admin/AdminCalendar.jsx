@@ -28,6 +28,7 @@ import { bookingErrorMessage } from '@/lib/booking/labels';
 import {
   formatDateTime,
   formatLocalDate,
+  formatMonthShort,
   formatTime,
   studioToday,
 } from '@/lib/format';
@@ -157,7 +158,7 @@ function WeekView({ dates, daysByDate, byDate, today, selected, onToggle }) {
   return (
     <div
       ref={scrollerRef}
-      className="sm:-mx-section-x-tablet sm:px-section-x-tablet sm:scroll-px-section-x-tablet -mx-4 snap-x snap-mandatory scroll-px-4 overflow-x-auto px-4 pb-3 xl:mx-0 xl:snap-none xl:overflow-visible xl:px-0 xl:pb-0"
+      className="sm:-mx-section-x-tablet sm:px-section-x-tablet sm:scroll-px-section-x-tablet relative -mx-4 snap-x snap-mandatory scroll-px-4 overflow-x-auto px-4 pb-3 xl:mx-0 xl:snap-none xl:overflow-visible xl:px-0 xl:pb-0"
     >
       <ol className="grid w-max grid-cols-[repeat(7,minmax(15rem,1fr))] gap-3 sm:grid-cols-[repeat(7,minmax(13.5rem,1fr))] xl:w-full xl:grid-cols-7 xl:gap-2">
         {dates.map((date) => {
@@ -179,25 +180,31 @@ function WeekView({ dates, daysByDate, byDate, today, selected, onToggle }) {
                       : 'border-black/10 bg-white'
               }`}
             >
-              <div className="flex items-start justify-between gap-2">
-                <h3 className="flex flex-col">
+              <h3 className="flex flex-col gap-0.5">
+                <span
+                  className={`font-montserrat text-xs tracking-wider uppercase ${isToday ? 'text-primary-300 font-semibold' : 'text-gray-800'}`}
+                >
+                  {formatLocalDate(date).split(' ')[0]}
+                </span>
+                <span className="flex items-baseline gap-1.5">
                   <span
-                    className={`font-montserrat text-xs tracking-wider uppercase ${isToday ? 'text-primary-300 font-semibold' : 'text-gray-800'}`}
+                    className={`font-faustina text-[2rem] leading-none ${isToday ? 'text-primary-300' : 'text-third-900'}`}
                   >
-                    {formatLocalDate(date).split(' ')[0]}
+                    {Number(date.slice(8))}
                   </span>
-                  <span
-                    className={`font-faustina text-2xl leading-tight ${isToday ? 'text-primary-300' : 'text-third-900'}`}
-                  >
-                    {formatLocalDate(date, { weekday: undefined })}
+                  <span className="font-montserrat text-body-sm text-gray-800">
+                    {formatMonthShort(date)}
                   </span>
-                </h3>
+                </span>
+                <span className="sr-only">
+                  {formatLocalDate(date, { year: true })}
+                </span>
                 {isToday ? (
-                  <span className="font-montserrat bg-primary-200 text-on-gold rounded-full px-2 py-0.5 text-[0.6875rem] font-semibold uppercase">
+                  <span className="font-montserrat bg-primary-200 text-on-gold mt-1 w-fit rounded-full px-2 py-0.5 text-[0.6875rem] font-semibold uppercase">
                     Aujourd’hui
                   </span>
                 ) : null}
-              </div>
+              </h3>
 
               <DayCheckbox
                 date={date}
@@ -637,6 +644,9 @@ function CalendarContent({ controller, enabled }) {
           className={`${navButton} justify-self-start`}
         >
           <span aria-hidden>←</span>
+          <span aria-hidden className="sm:hidden">
+            Préc.
+          </span>
           <span className="sr-only sm:not-sr-only">
             {view === 'month' ? 'Mois précédent' : 'Semaine précédente'}
           </span>
@@ -654,6 +664,9 @@ function CalendarContent({ controller, enabled }) {
           onClick={() => go(view, shiftAnchor(view, anchor, 1))}
           className={`${navButton} justify-self-end`}
         >
+          <span aria-hidden className="sm:hidden">
+            Suiv.
+          </span>
           <span className="sr-only sm:not-sr-only">
             {view === 'month' ? 'Mois suivant' : 'Semaine suivante'}
           </span>
@@ -723,18 +736,28 @@ function CalendarContent({ controller, enabled }) {
         <div
           role="region"
           aria-label="Dates sélectionnées"
-          className="px-page fixed inset-x-0 bottom-0 z-20 border-t border-black/10 bg-white/95 py-4 shadow-[0_-8px_24px_rgba(0,0,0,0.08)] backdrop-blur-sm"
+          className="px-page fixed inset-x-0 bottom-0 z-20 border-t border-black/10 bg-white/95 py-3 shadow-[0_-8px_24px_rgba(0,0,0,0.08)] backdrop-blur-sm sm:py-4"
         >
-          <div className="max-w-content mx-auto flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <p className="font-montserrat text-body font-medium text-gray-900">
-              {selected.size}{' '}
-              {plural(
-                selected.size,
-                'date sélectionnée',
-                'dates sélectionnées'
-              )}
-            </p>
-            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+          <div className="max-w-content mx-auto flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between lg:gap-3">
+            <div className="flex items-center justify-between gap-4 lg:justify-start">
+              <p className="font-montserrat text-body font-medium whitespace-nowrap text-gray-900">
+                {selected.size}{' '}
+                {plural(
+                  selected.size,
+                  'date sélectionnée',
+                  'dates sélectionnées'
+                )}
+              </p>
+              <button
+                type="button"
+                onClick={() => setSelected(new Set())}
+                className="font-montserrat text-body-sm hover:text-third-200 focus-visible:outline-third-200 min-h-11 text-gray-800 underline underline-offset-4 focus-visible:outline-2"
+              >
+                Réinitialiser
+                <span className="hidden sm:inline"> la sélection</span>
+              </button>
+            </div>
+            <div className="grid gap-2 sm:flex sm:flex-wrap sm:items-center">
               <PillButton
                 size="sm"
                 onClick={() => {
@@ -758,13 +781,6 @@ function CalendarContent({ controller, enabled }) {
                 className="disabled:opacity-50"
               >
                 Retirer la fermeture
-              </PillButton>
-              <PillButton
-                variant="text"
-                onClick={() => setSelected(new Set())}
-                className="self-center"
-              >
-                Réinitialiser la sélection
               </PillButton>
             </div>
           </div>
