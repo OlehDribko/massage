@@ -13,10 +13,11 @@
  * - `featured`: shown in « Massages populaires » on the home page and
  *   marked « Populaire » in the booking catalogue.
  * - `category`: one of CATEGORIES (filters of /reserver), after the
- *   sections of the studio's Planity page. Assumed where Planity hides the
- *   service behind « Voir N autres prestations »: premium-femmes (détente),
- *   drainage-lymphatique, prénatal, postnatal, myofascial, tissus profonds
- *   (spécifiques) — to confirm with the practitioner.
+ *   sections of the studio's Planity page (checked 2026-11-12). « Relax
+ *   massages » hides exactly 3 more services (ayurvédique 1 h, tête aux
+ *   pieds 1 h 30 / 2 h), so the services Planity hides elsewhere —
+ *   premium-femmes, drainage-lymphatique, prénatal, postnatal, myofascial,
+ *   tissus profonds — are in « Speciality massages » (spécifiques).
  */
 
 /** Catalogue categories, in display order. */
@@ -52,7 +53,7 @@ export const SERVICE_GROUPS = [
   },
   {
     key: 'premium-femmes',
-    category: 'detente',
+    category: 'specifiques',
     serviceIds: ['0a879540-15e2-4e5a-8b8a-ab3ce30cc25e'],
     description: null,
   },
