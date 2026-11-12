@@ -2,7 +2,6 @@ import Image from 'next/image';
 
 import PillButton from '@/components/ui/PillButton';
 import SectionEyebrow from '@/components/ui/SectionEyebrow';
-import { BUSINESS } from '@/config/site';
 
 const POINTS = [
   'Idéale pour toute personne recherchant détente, récupération ou un moment rien qu’à elle.',
@@ -10,8 +9,9 @@ const POINTS = [
   'Valable 1 an à compter de la date d’achat, envoyée par email prête à offrir.',
 ];
 
-// No online gift-card purchase: the request goes to the studio by email.
-const REQUEST_HREF = `mailto:${BUSINESS.email}?subject=${encodeURIComponent('Demande de carte cadeau')}`;
+// No online gift-card purchase: the request form (GiftCardDrawer) asks for
+// the visitor's details and the practitioner calls back.
+const REQUEST_HREF = '#carte-cadeau';
 
 /**
  * Figma «Carte cadeau» (704:1672): eyebrow, then a band between hairlines

@@ -1,7 +1,10 @@
+import { ViewTransition } from 'react';
+
 import { Faustina, Montserrat } from 'next/font/google';
 
 import './globals.css';
 import AuthProvider from '@/components/auth/AuthProvider';
+import GiftCardDrawer from '@/components/marketing/GiftCardDrawer';
 import OptInNotice from '@/components/marketing/OptInNotice';
 import Footer from '@/components/layout/Footer';
 import { IS_INDEXABLE, SITE, SITE_URL } from '@/config/site';
@@ -53,9 +56,13 @@ export default function RootLayout({ children }) {
         {/* Header is rendered by each page: it picks its variant explicitly. */}
         {/* Client boundary for the session only: pages stay server-rendered. */}
         <AuthProvider>
-          <div className="flex flex-1 flex-col">{children}</div>
+          {/* Motion (test): page changes cross-fade (globals.css, .page). */}
+          <ViewTransition default="page">
+            <div className="flex flex-1 flex-col">{children}</div>
+          </ViewTransition>
           <Footer />
           <OptInNotice />
+          <GiftCardDrawer />
         </AuthProvider>
       </body>
     </html>
