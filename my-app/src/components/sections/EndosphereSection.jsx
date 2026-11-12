@@ -11,7 +11,10 @@ import { ENDOSPHERES_SERVICE_ID } from '@/content/services';
  */
 export default function EndosphereSection() {
   return (
-    <section className="bg-third-900 relative flex min-h-[880px] flex-col justify-end overflow-hidden lg:min-h-[960px]">
+    // Mock-up height (880 / 960 px), but never taller than the screen:
+    // on laptops and phones the photo fills exactly one screen. The text
+    // keeps its own height, so it never runs over the top.
+    <section className="bg-third-900 relative flex min-h-[min(880px,100svh)] flex-col justify-end overflow-hidden lg:min-h-[min(960px,100svh)]">
       <div aria-hidden className="absolute inset-0 overflow-hidden">
         {/* Full size of the original (1897 px): no extra enlargement, so
             the photo stays sharp; mirrored as in the mock-up. */}
