@@ -1,8 +1,12 @@
+import { Suspense } from 'react';
+
 import BookingSteps from '@/components/booking/BookingSteps';
+import CatalogBrowser from '@/components/booking/CatalogBrowser';
 import Header from '@/components/layout/Header';
 import { ServiceList } from '@/components/booking/ServiceCard';
 import Notice from '@/components/ui/Notice';
 import PillButton from '@/components/ui/PillButton';
+import { filterCatalog } from '@/lib/booking/catalog';
 import { loadCatalog } from '@/lib/booking/loadCatalog';
 import { pageMetadata } from '@/lib/seo';
 
@@ -80,7 +84,18 @@ export default async function ReserverPage() {
           ) : catalog.length === 0 ? (
             <Notice>Aucune prestation n’est ouverte à la réservation.</Notice>
           ) : (
-            <ServiceList catalog={catalog} headingLevel="h2" />
+            // Filters read the URL: the plain list is the fallback while
+            // the search params are not known (static render).
+            <Suspense
+              fallback={
+                <ServiceList
+                  catalog={filterCatalog(catalog)}
+                  headingLevel="h2"
+                />
+              }
+            >
+              <CatalogBrowser catalog={catalog} />
+            </Suspense>
           )}
         </div>
       </main>
