@@ -41,7 +41,9 @@ const COLUMNS = [
 /**
  * Figma «how-it-works-steps» (577:651): a 3 × 2 grid of 345 px cells,
  * photos and text cells alternating (photo / text, text / photo,
- * photo / text). Phones: each text follows its photo.
+ * photo / text) — from 1280 px, where the columns are wide enough for the
+ * text. Tablets and small laptops: one row per block, photo beside text
+ * (alternating sides). Phones: each text follows its photo.
  */
 export default function ApproachSection({ id }) {
   return (
@@ -60,27 +62,39 @@ export default function ApproachSection({ id }) {
           </h2>
         </div>
 
-        <div className="rounded-card grid overflow-hidden sm:grid-cols-3">
-          {COLUMNS.map((column) => (
-            <div key={column.heading} className="flex flex-col">
+        <div className="rounded-panel grid overflow-hidden border border-black/7 bg-white/40 xl:grid-cols-3">
+          {COLUMNS.map((column, index) => (
+            <div
+              key={column.heading}
+              className={`grid sm:grid-cols-2 xl:grid-cols-1 ${index ? 'border-t border-black/7 xl:border-t-0 xl:border-l' : ''}`}
+            >
               <div
-                className={`relative h-[260px] overflow-hidden bg-white lg:h-[345px] ${column.imageFirst ? '' : 'sm:order-last'}`}
+                className={`relative h-[240px] overflow-hidden sm:h-auto sm:min-h-[300px] xl:h-[345px] xl:min-h-0 ${column.imageFirst ? '' : 'sm:order-last'}`}
               >
                 <Image
                   src={column.image}
                   alt={column.imageAlt}
                   fill
-                  sizes="(min-width: 640px) 33vw, 100vw"
+                  sizes="(min-width: 1280px) 33vw, (min-width: 640px) 50vw, 100vw"
                   className="object-cover"
                 />
               </div>
-              <div className="flex min-h-[260px] flex-col justify-center gap-6 border border-black/7 p-8 text-gray-900 lg:h-[345px] lg:p-10">
-                <h3 className="font-montserrat text-body-lg font-bold">
+              <div className="flex flex-col justify-center gap-5 p-7 text-gray-900 sm:p-10 xl:h-[345px] xl:px-9 xl:py-8">
+                <h3 className="font-faustina text-third-900 text-[1.625rem] leading-tight font-normal">
                   {column.heading}
                 </h3>
-                <ul className="font-montserrat text-body list-disc pl-6 font-medium">
+                <ul className="font-montserrat text-body flex flex-col gap-3">
                   {column.items.map((item) => (
-                    <li key={item}>{item}</li>
+                    <li
+                      key={item}
+                      className="flex gap-3 text-pretty text-gray-800"
+                    >
+                      <span
+                        aria-hidden
+                        className="bg-primary-200 mt-[0.6em] size-1.5 shrink-0 rounded-full"
+                      />
+                      <span>{item}</span>
+                    </li>
                   ))}
                 </ul>
               </div>

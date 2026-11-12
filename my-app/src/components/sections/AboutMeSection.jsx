@@ -17,13 +17,14 @@ const STATS = [
 /**
  * Figma «massage-confirmed-section» (380:213): text column (661 px at
  * 1440) with the stats under a hairline, photo 554 × 650 on the right.
- * The photo is mirrored in the mock-up, as here.
+ * The portrait is the original of the mock-up (not mirrored); between
+ * 1024 and 1280 px it takes 44 % of the width so the row never overflows.
  */
 export default function AboutMeSection({ id }) {
   return (
     <section id={id} className="bg-secondary-100 px-page pt-6 pb-20 lg:py-40">
       <div className="max-w-content mx-auto flex flex-col gap-12 lg:flex-row lg:items-center lg:justify-between lg:gap-16">
-        <div className="flex flex-col gap-12 max-lg:order-last lg:max-w-[661px] lg:flex-1 lg:gap-20">
+        <div className="flex min-w-0 flex-col gap-12 max-lg:order-last lg:max-w-[661px] lg:flex-1 lg:gap-20">
           <div className="flex flex-col gap-10 lg:gap-[60px]">
             <SectionEyebrow>Pourquoi mes clients me choisissent</SectionEyebrow>
             <div className="flex flex-col gap-8 lg:gap-10">
@@ -65,13 +66,15 @@ export default function AboutMeSection({ id }) {
           </dl>
         </div>
 
-        <div className="rounded-card relative aspect-[358/349] w-full shrink-0 overflow-hidden sm:aspect-[554/650] sm:max-w-[554px] lg:w-[554px]">
+        <div className="rounded-card relative aspect-[358/349] w-full shrink-0 overflow-hidden sm:aspect-[554/650] sm:max-w-[554px] lg:w-[44%] xl:w-[554px]">
           <Image
             src="/images/about-stefania.jpg"
             alt="Stefaniia, masseuse certifiée à Bordeaux"
             fill
-            sizes="(min-width: 1024px) 554px, 100vw"
-            className="-scale-x-100 object-cover object-[50%_20%] sm:object-bottom"
+            sizes="(min-width: 640px) 554px, 100vw"
+            quality={90}
+            data-parallax="soft"
+            className="object-cover object-[50%_30%] sm:object-[50%_75%]"
           />
         </div>
       </div>

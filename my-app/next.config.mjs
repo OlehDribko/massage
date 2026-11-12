@@ -10,6 +10,14 @@ const nextConfig = {
   turbopack: {
     root: __dirname,
   },
+  // Motion (test): React <ViewTransition> on route changes (app/layout.js).
+  // Photos that must stay sharp (portrait, Endosphères) use quality 90.
+  images: {
+    qualities: [75, 90],
+  },
+  experimental: {
+    viewTransition: true,
+  },
   // The catalogue briefly lived at /prestations; /reserver is the single
   // booking entry now.
   async redirects() {

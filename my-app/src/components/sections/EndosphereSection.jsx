@@ -13,13 +13,16 @@ export default function EndosphereSection() {
   return (
     <section className="bg-third-900 relative flex min-h-[880px] flex-col justify-end overflow-hidden lg:min-h-[960px]">
       <div aria-hidden className="absolute inset-0 overflow-hidden">
-        <div className="absolute inset-0 lg:top-[-12.4%] lg:left-[-44.8%] lg:h-[136.5%] lg:w-[156.3%]">
+        {/* Full size of the original (1897 px): no extra enlargement, so
+            the photo stays sharp; mirrored as in the mock-up. */}
+        <div className="absolute inset-0">
           <Image
             src="/images/endosphere-device.jpg"
             alt=""
             fill
-            sizes="(min-width: 1024px) 156vw, 100vw"
-            className="-scale-x-100 object-cover object-[22%_40%] lg:object-center"
+            quality={90}
+            sizes="100vw"
+            className="-scale-x-100 object-cover object-[22%_40%] lg:object-[60%_45%]"
           />
         </div>
         <div className="absolute inset-0 bg-black/20" />

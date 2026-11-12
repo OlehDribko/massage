@@ -9,13 +9,18 @@ import { REVIEWS } from '@/content/reviews';
  * from 768 px, Figma 412:194), 'strip' (hero bottom strip on phones,
  * Figma 546:220).
  */
-export default function PlanityBadge({ variant = 'light', className = '' }) {
+export default function PlanityBadge({
+  variant = 'light',
+  className = '',
+  style,
+}) {
   const label = `Note ${REVIEWS.rating} sur 5 — ${REVIEWS.count} avis vérifiés sur Planity (nouvelle fenêtre)`;
   const link = {
     href: REVIEWS.url,
     target: '_blank',
     rel: 'noopener noreferrer',
     'aria-label': label,
+    style,
   };
 
   if (variant === 'card') {

@@ -225,3 +225,116 @@ html[data-account='member'] .account-hint-guest,
 html:not([data-account='member']) .account-hint-member {
   display: none;
 }
+
+/*
+ * Motion (test). Everything below is skipped when the visitor asks the
+ * system for reduced motion; without browser support nothing animates.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  /*
+   * Home page scroll animations: GSAP + ScrollTrigger and Lenis
+   * (components/motion/HomeMotion.jsx), also skipped on reduced motion.
+   * A changed review slides in (TestimonialsSection keys the quote).
+   */
+  @keyframes quote-in {
+    from {
+      opacity: 0;
+      transform: translateY(18px);
+      filter: blur(4px);
+    }
+  }
+  .quote-swap {
+    animation: quote-in 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+  /* Gift card panel: slides in from the right, the page dims. */
+  @keyframes drawer-in {
+    from {
+      transform: translateX(100%);
+    }
+  }
+  @keyframes backdrop-in {
+    from {
+      opacity: 0;
+    }
+  }
+  .gift-drawer[open] {
+    animation: drawer-in 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+  .gift-drawer[open]::backdrop {
+    animation: backdrop-in 0.4s ease both;
+  }
+
+  /* Review slider: the new review slides in from the side it comes from. */
+  @keyframes slide-from-right {
+    from {
+      opacity: 0;
+      transform: translateX(56px);
+      filter: blur(3px);
+    }
+  }
+  @keyframes slide-from-left {
+    from {
+      opacity: 0;
+      transform: translateX(-56px);
+      filter: blur(3px);
+    }
+  }
+  .slide-next {
+    animation: slide-from-right 0.65s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+  .slide-prev {
+    animation: slide-from-left 0.65s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+  @keyframes autoplay-bar {
+    from {
+      width: 0;
+    }
+    to {
+      width: 100%;
+    }
+  }
+  .autoplay-bar {
+    animation: autoplay-bar linear both;
+  }
+
+  /* Page changes (next.config experimental.viewTransition). */
+  @keyframes page-out {
+    to {
+      opacity: 0;
+      transform: translateY(-8px);
+    }
+  }
+  @keyframes page-in {
+    from {
+      opacity: 0;
+      transform: translateY(16px);
+    }
+  }
+  ::view-transition-old(.page) {
+    animation: page-out 0.22s ease-in both;
+  }
+  ::view-transition-new(.page) {
+    animation: page-in 0.45s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+}
+
+/*
+ * The site never scrolls sideways: without this, focusing a panel that is
+ * still sliding in from the right (gift card) scrolled the page. `clip`
+ * (unlike `hidden`) creates no scroll container, so sticky stays sticky.
+ */
+html {
+  overflow-x: clip;
+}
+
+/* Lenis smooth scrolling (home page). */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+.lenis.lenis-stopped {
+  overflow: hidden;
+}

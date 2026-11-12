@@ -178,6 +178,15 @@ export default function MobileNav({ id, open, onClose, items, cta, account }) {
             <PillButton href={cta.href} onClick={onClose} className="w-full">
               {cta.label}
             </PillButton>
+            <PillButton
+              href="#carte-cadeau"
+              variant="outline"
+              tone="dark"
+              onClick={onClose}
+              className="w-full"
+            >
+              Offrir une carte cadeau
+            </PillButton>
           </div>
         </nav>
       </div>

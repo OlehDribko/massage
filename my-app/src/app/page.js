@@ -1,4 +1,5 @@
 import Header from '@/components/layout/Header';
+import HomeMotion from '@/components/motion/HomeMotion';
 import AboutMeSection from '@/components/sections/AboutMeSection';
 import ApproachSection from '@/components/sections/ApproachSection';
 import EndosphereSection from '@/components/sections/EndosphereSection';
@@ -28,8 +29,10 @@ export default async function Home() {
   return (
     <>
       <Header variant="overlay" />
-      <main>
+      {/* Motion (test): GSAP scroll animations attach to these sections. */}
+      <main className="home-motion">
         <JsonLd data={localBusinessJsonLd()} />
+        <HomeMotion />
         <HeroSection />
         <AboutMeSection id="about" />
         <ServicesSection id="services" prestations={featured} />
