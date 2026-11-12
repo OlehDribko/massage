@@ -147,16 +147,20 @@ export default function HomeMotion() {
           const frame = image.parentElement;
           if (!frame || image.closest('a, button')) continue;
           gsap.set(frame, { overflow: 'hidden' });
-          gsap.fromTo(
-            frame,
-            { clipPath: 'inset(18% 0% 0% 0% round 4px)' },
-            {
-              clipPath: 'inset(0% 0% 0% 0% round 4px)',
-              duration: 1.4,
-              ease: 'power2.out',
-              scrollTrigger: { trigger: frame, start: 'top 85%' },
-            }
-          );
+          // Full-bleed backgrounds (data-reveal="none") get no curtain: it
+          // would uncover the section's dark background behind the photo.
+          if (image.dataset.reveal !== 'none') {
+            gsap.fromTo(
+              frame,
+              { clipPath: 'inset(18% 0% 0% 0% round 4px)' },
+              {
+                clipPath: 'inset(0% 0% 0% 0% round 4px)',
+                duration: 1.4,
+                ease: 'power2.out',
+                scrollTrigger: { trigger: frame, start: 'top 85%' },
+              }
+            );
+          }
           // Mirrored photos (Tailwind -scale-x-100 = CSS `scale`): keep
           // the mirror inside GSAP's own transform instead.
           const mirrored = /^-/.test(getComputedStyle(image).scale);

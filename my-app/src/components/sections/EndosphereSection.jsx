@@ -22,6 +22,7 @@ export default function EndosphereSection() {
             fill
             quality={90}
             sizes="100vw"
+            data-reveal="none"
             className="-scale-x-100 object-cover object-[22%_40%] lg:object-[60%_45%]"
           />
         </div>
