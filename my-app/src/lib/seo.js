@@ -1,4 +1,5 @@
 import { BUSINESS, SITE, SITE_URL } from '@/config/site';
+import { formatDuration, formatPrice } from '@/lib/format';
 
 const openGraphBase = {
   type: 'website',
@@ -53,8 +54,45 @@ export function pageMetadata({
   };
 }
 
-/** schema.org LocalBusiness data, built only from confirmed BUSINESS facts. */
-export function localBusinessJsonLd() {
+/**
+ * The services and their current prices (API catalogue) as a schema.org
+ * OfferCatalog: search engines and AI agents read the price list without
+ * running the page. null without a catalogue (API down).
+ */
+function offerCatalog(catalog) {
+  const offers = (catalog ?? []).flatMap((prestation) =>
+    prestation.variants.map((service) => ({
+      '@type': 'Offer',
+      price: (service.effectivePriceCents / 100).toFixed(2),
+      priceCurrency: 'EUR',
+      itemOffered: {
+        '@type': 'Service',
+        name: `${prestation.name} — ${formatDuration(service.durationMinutes)}`,
+      },
+      ...(SITE_URL && {
+        url: `${SITE_URL}/reserver/${encodeURIComponent(service.id)}`,
+      }),
+    }))
+  );
+  if (!offers.length) return null;
+  const prices = (catalog ?? []).flatMap((prestation) =>
+    prestation.variants.map((service) => service.effectivePriceCents)
+  );
+  return {
+    priceRange: `${formatPrice(Math.min(...prices))} – ${formatPrice(Math.max(...prices))}`,
+    hasOfferCatalog: {
+      '@type': 'OfferCatalog',
+      name: 'Massages et soins',
+      itemListElement: offers,
+    },
+  };
+}
+
+/**
+ * schema.org LocalBusiness data, built only from confirmed BUSINESS facts,
+ * plus the price list when the catalogue is available.
+ */
+export function localBusinessJsonLd(catalog = null) {
   const { address, openingHours } = BUSINESS;
 
   return {
@@ -84,6 +122,9 @@ export function localBusinessJsonLd() {
         closes: openingHours.closes,
       },
     ],
+    areaServed: { '@type': 'City', name: address.city },
+    currenciesAccepted: 'EUR',
+    ...offerCatalog(catalog),
     sameAs: [
       ...new Set(
         [...Object.values(BUSINESS.socials), BUSINESS.bookingUrl].filter(

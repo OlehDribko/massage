@@ -31,7 +31,7 @@ export default async function Home() {
       <Header variant="overlay" />
       {/* Motion (test): GSAP scroll animations attach to these sections. */}
       <main className="home-motion">
-        <JsonLd data={localBusinessJsonLd()} />
+        <JsonLd data={localBusinessJsonLd(catalog)} />
         <HomeMotion />
         <HeroSection />
         <AboutMeSection id="about" />
