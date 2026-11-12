@@ -53,3 +53,31 @@ export function forfaitRows(forfaits, singlePriceCents) {
     };
   });
 }
+
+/**
+ * The best a package list offers, for the promo badge and price line:
+ * `{ maxSavingCents, maxPercent, minPerSessionCents }` (percent rounded
+ * down, 0 when nothing is cheaper).
+ */
+export function bestOffer(rows) {
+  let maxSavingCents = 0;
+  let maxPercent = 0;
+  for (const row of rows ?? []) {
+    if (!row.savingCents) continue;
+    maxSavingCents = Math.max(maxSavingCents, row.savingCents);
+    maxPercent = Math.max(
+      maxPercent,
+      Math.floor((row.savingCents / row.fullCents) * 100)
+    );
+  }
+  const minPerSessionCents = Math.min(
+    ...(rows ?? []).map((row) => row.perSessionCents)
+  );
+  return {
+    maxSavingCents,
+    maxPercent,
+    minPerSessionCents: Number.isFinite(minPerSessionCents)
+      ? minPerSessionCents
+      : null,
+  };
+}

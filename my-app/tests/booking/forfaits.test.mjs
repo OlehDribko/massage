@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { FORFAITS, forfaitRows } from '../../src/content/forfaits.js';
+import {
+  FORFAITS,
+  bestOffer,
+  forfaitRows,
+} from '../../src/content/forfaits.js';
 
 test('packages: per-session price and saving against the single price', () => {
   const rows = forfaitRows(FORFAITS.endospheres, 11000);
@@ -29,4 +33,16 @@ test('no saving shown when the package is not cheaper or price unknown', () => {
   assert.equal(row.savingCents, null);
   assert.equal(row.fullCents, null);
   assert.equal(forfaitRows(FORFAITS.endospheres, null)[0].savingCents, null);
+});
+
+test('best offer: biggest saving, its percent and the lowest session price', () => {
+  const best = bestOffer(forfaitRows(FORFAITS.endospheres, 11000));
+  assert.equal(best.maxSavingCents, 96000);
+  assert.equal(best.maxPercent, 36); // 960 / 2640
+  assert.equal(best.minPerSessionCents, 7000);
+  assert.deepEqual(bestOffer([]), {
+    maxSavingCents: 0,
+    maxPercent: 0,
+    minPerSessionCents: null,
+  });
 });

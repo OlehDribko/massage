@@ -6,9 +6,9 @@ import ForfaitsBlock from '@/components/booking/ForfaitsBlock';
 import PriceTag from '@/components/booking/PriceTag';
 import MaskIcon from '@/components/ui/MaskIcon';
 import PillButton from '@/components/ui/PillButton';
-import { FORFAITS } from '@/content/forfaits';
+import { FORFAITS, bestOffer, forfaitRows } from '@/content/forfaits';
 import { CATEGORIES } from '@/content/services';
-import { formatDuration } from '@/lib/format';
+import { formatDuration, formatPrice } from '@/lib/format';
 
 const CATEGORY_LABEL = Object.fromEntries(
   CATEGORIES.map((category) => [category.key, category.label])
@@ -50,15 +50,35 @@ export default function ServiceCard({
   const selected =
     variants.find((service) => service.id === selectedId) ?? variants[0];
   const Heading = headingLevel;
+  // Packages make the card a promo card (content/forfaits.js).
+  const forfaits = FORFAITS[prestation.key]
+    ? forfaitRows(FORFAITS[prestation.key], variants[0].priceCents)
+    : null;
+  const offer = forfaits ? bestOffer(forfaits) : null;
 
   return (
-    <article className="rounded-panel hover:border-primary-200 group flex h-full flex-col gap-6 border border-black/7 bg-white p-6 transition-[border-color,box-shadow] duration-200 hover:shadow-[0_18px_40px_-24px_rgba(26,15,8,0.35)] motion-reduce:transition-none sm:p-7">
+    <article
+      className={`rounded-panel hover:border-primary-200 group relative flex h-full flex-col gap-6 border p-6 transition-[border-color,box-shadow] duration-200 hover:shadow-[0_18px_40px_-24px_rgba(26,15,8,0.35)] motion-reduce:transition-none sm:p-7 ${
+        offer
+          ? 'border-primary-200 to-primary-50/70 bg-linear-to-b from-white'
+          : 'border-black/7 bg-white'
+      }`}
+    >
       <div className="flex flex-col gap-3">
         <div className="flex min-h-7 items-center justify-between gap-3">
           <p className="font-montserrat text-label-sm text-third-200 font-medium tracking-[0.12em] uppercase">
             {CATEGORY_LABEL[category] ?? 'Soin'}
           </p>
-          {featured ? <PopularBadge /> : null}
+          <span className="flex flex-wrap justify-end gap-1.5">
+            {offer?.maxPercent ? (
+              <ForfaitsBlock
+                rows={forfaits}
+                name={name}
+                percent={offer.maxPercent}
+              />
+            ) : null}
+            {featured ? <PopularBadge /> : null}
+          </span>
         </div>
         <Heading className="font-faustina text-third-900 text-[1.75rem] leading-[1.1] font-normal">
           {name}
@@ -114,16 +134,13 @@ export default function ServiceCard({
               {formatDuration(service.durationMinutes)}
             </label>
           ))}
+          {offer?.minPerSessionCents ? (
+            <span className="font-montserrat text-third-200 self-center text-xs font-semibold">
+              ou dès {formatPrice(offer.minPerSessionCents)} / séance en forfait
+            </span>
+          ) : null}
         </div>
       </fieldset>
-
-      {FORFAITS[prestation.key] ? (
-        <ForfaitsBlock
-          forfaits={FORFAITS[prestation.key]}
-          singlePriceCents={variants[0].priceCents}
-          name={name}
-        />
-      ) : null}
 
       <div className="mt-auto flex flex-wrap items-end justify-between gap-4 border-t border-black/7 pt-5">
         <p aria-live="polite" className="flex flex-col gap-0.5">
