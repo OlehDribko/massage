@@ -200,7 +200,7 @@ function Detail({ bookingId, controller, enabled }) {
   return (
     <div className="flex flex-col gap-6">
       <Link
-        href={`/admin/reservations?date=${day}`}
+        href={`/admin/calendrier/jour?date=${day}`}
         className="font-montserrat text-body-sm hover:border-third-200 focus-visible:outline-third-200 flex min-h-11 w-fit items-center gap-2 rounded-full border border-black/15 bg-white px-5 text-gray-900 transition-colors focus-visible:outline-2"
       >
         <span aria-hidden>←</span> Agenda du jour
@@ -348,7 +348,7 @@ export default function AdminBookingDetail({ bookingId }) {
           Détail du <span className="heading-accent">rendez-vous</span>
         </>
       }
-      current="reservations"
+      current="calendrier"
       returnTo={`/admin/reservations/${bookingId}`}
     >
       {({ controller, status }) => (

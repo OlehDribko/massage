@@ -270,7 +270,7 @@ function ExceptionForm({ controller, today, existing, onSaved }) {
     <form
       noValidate
       onSubmit={save}
-      className="rounded-panel grid gap-6 border border-black/10 bg-white p-5 sm:p-7 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] lg:gap-8"
+      className="grid gap-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] lg:gap-8"
     >
       <div className="flex flex-col gap-3">
         <h3 className="font-montserrat text-body-lg font-semibold text-gray-900">
@@ -400,7 +400,7 @@ function ExceptionsList({ exceptions, controller, onChanged }) {
 
   if (!exceptions.length) {
     return (
-      <p className="rounded-panel font-montserrat text-body-sm bg-secondary-50 border border-dashed border-black/15 px-5 py-6 text-center text-gray-800">
+      <p className="rounded-panel font-montserrat text-body-sm border border-dashed border-black/15 px-5 py-6 text-center text-gray-800">
         Aucune date particulière à venir : la semaine type s’applique.
       </p>
     );
@@ -408,11 +408,11 @@ function ExceptionsList({ exceptions, controller, onChanged }) {
 
   return (
     <>
-      <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-1">
         {exceptions.map((exception) => (
           <li
             key={exception.date}
-            className="rounded-panel flex items-center gap-4 border border-black/10 bg-white p-4"
+            className="rounded-panel bg-secondary-50 flex items-center gap-4 border border-black/7 p-4"
           >
             <DateTile startsAt={`${exception.date}T12:00:00Z`} />
             <div className="font-montserrat flex min-w-0 flex-1 flex-col gap-0.5">
@@ -527,17 +527,26 @@ function ScheduleContent({ controller, enabled }) {
           réduits…). Pour bloquer des dates sans toucher aux rendez-vous,
           utilisez le Calendrier.
         </SectionHead>
-        <ExceptionsList
-          exceptions={data.exceptions}
-          controller={controller}
-          onChanged={reload}
-        />
-        <ExceptionForm
-          controller={controller}
-          today={today}
-          existing={existing}
-          onSaved={reload}
-        />
+        {/* One row on wide screens: 1. date, 2. hours of that day,
+            3. the dates already set. Below, the saved dates come last. */}
+        <div className="rounded-panel grid gap-8 border border-black/10 bg-white p-5 sm:p-7 xl:grid-cols-[minmax(0,1fr)_minmax(0,19rem)] xl:gap-8">
+          <ExceptionForm
+            controller={controller}
+            today={today}
+            existing={existing}
+            onSaved={reload}
+          />
+          <div className="flex flex-col gap-3 border-t border-black/7 pt-6 xl:border-t-0 xl:border-l xl:pt-0 xl:pl-8">
+            <h3 className="font-montserrat text-body-lg font-semibold text-gray-900">
+              3. Dates personnalisées
+            </h3>
+            <ExceptionsList
+              exceptions={data.exceptions}
+              controller={controller}
+              onChanged={reload}
+            />
+          </div>
+        </div>
       </section>
     </div>
   );
