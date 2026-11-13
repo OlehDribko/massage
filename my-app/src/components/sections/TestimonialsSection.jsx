@@ -69,7 +69,7 @@ function PauseIcon({ paused }) {
 }
 
 const arrowButton =
-  'border-third-200 text-third-200 hover:bg-third-200 hover:text-on-dark focus-visible:outline-third-200 flex size-12 shrink-0 items-center justify-center rounded-full border transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 motion-reduce:transition-none';
+  'border-third-200 text-third-200 hover:bg-third-200 hover:text-on-dark focus-visible:outline-third-200 flex size-11 shrink-0 items-center sm:size-12 justify-center rounded-full border transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 motion-reduce:transition-none';
 
 /**
  * Figma «discover-techniques» (577:760, mobile 704:1685): the reviews of
@@ -192,9 +192,9 @@ export default function TestimonialsSection({ id }) {
             onTouchStart={onTouchStart}
             onTouchEnd={onTouchEnd}
           >
-            <div className="flex items-center justify-between gap-6">
-              <figcaption className="flex flex-col">
-                <span className="flex items-center gap-2">
+            <div className="flex items-center justify-between gap-3 sm:gap-6">
+              <figcaption className="flex min-w-0 flex-col">
+                <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
                   <span className="font-montserrat text-body-lg font-semibold text-gray-900">
                     Avis Planity
                   </span>
@@ -210,7 +210,7 @@ export default function TestimonialsSection({ id }) {
                   {formatDate(featured.date)}
                 </span>
               </figcaption>
-              <div className="flex items-center gap-2">
+              <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
                 {!reduced ? (
                   <button
                     type="button"
@@ -230,7 +230,7 @@ export default function TestimonialsSection({ id }) {
                   type="button"
                   onClick={() => go(-1)}
                   aria-label="Avis précédent"
-                  className={`${arrowButton} hidden sm:flex`}
+                  className={arrowButton}
                 >
                   <Arrow back />
                 </button>
