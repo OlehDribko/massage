@@ -17,9 +17,10 @@ const TABS = [
 ];
 
 export function AccountNav({ current, isAdmin }) {
-  // The admin cannot book for themselves: profile + administration only.
+  // The admin keeps « Mes réservations » here (to see the client view);
+  // only the header menu leaves it out.
   const tabs = isAdmin
-    ? [TABS[0], { key: 'admin', href: '/admin', label: 'Administration' }]
+    ? [...TABS, { key: 'admin', href: '/admin', label: 'Administration' }]
     : TABS;
   return (
     <nav aria-label="Espace client">
