@@ -10,6 +10,7 @@ import {
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 
+import { DAY_PATH } from '@/components/admin/AdminDayBookings';
 import AdminShell, { AdminError } from '@/components/admin/AdminShell';
 import { useAccountData } from '@/components/auth/useAccountData';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
@@ -250,29 +251,35 @@ function WeekView({ dates, daysByDate, byDate, today, selected, onToggle }) {
               } ${selectable ? '' : 'opacity-70'}`}
             >
               <div className="flex items-start justify-between gap-2">
-                <h3 className="flex flex-col">
-                  <span
-                    className={`font-montserrat text-[0.6875rem] tracking-[0.12em] uppercase ${isToday ? 'text-primary-300 font-semibold' : 'text-gray-800'}`}
-                    aria-hidden
+                <h3>
+                  <Link
+                    href={`${DAY_PATH}?date=${date}`}
+                    className="group focus-visible:outline-third-200 flex flex-col rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2"
                   >
-                    {isToday
-                      ? 'Aujourd’hui'
-                      : formatLocalDate(date).split(' ')[0]}
-                  </span>
-                  <span aria-hidden className="flex items-baseline gap-1.5">
                     <span
-                      className={`font-faustina text-[2.25rem] leading-none ${isToday ? 'text-primary-300' : 'text-third-900'}`}
+                      className={`font-montserrat text-[0.6875rem] tracking-[0.12em] uppercase ${isToday ? 'text-primary-300 font-semibold' : 'text-gray-800'}`}
+                      aria-hidden
                     >
-                      {Number(date.slice(8))}
+                      {isToday
+                        ? 'Aujourd’hui'
+                        : formatLocalDate(date).split(' ')[0]}
                     </span>
-                    <span className="font-montserrat text-body-sm text-gray-800">
-                      {formatMonthShort(date)}
+                    <span aria-hidden className="flex items-baseline gap-1.5">
+                      <span
+                        className={`font-faustina text-[2.25rem] leading-none ${isToday ? 'text-primary-300' : 'text-third-900'}`}
+                      >
+                        {Number(date.slice(8))}
+                      </span>
+                      <span className="font-montserrat text-body-sm group-hover:text-third-200 text-gray-800 transition-colors">
+                        {formatMonthShort(date)}
+                        <span className="text-third-200 ml-1.5">→</span>
+                      </span>
                     </span>
-                  </span>
-                  <span className="sr-only">
-                    {formatLocalDate(date, { year: true })}
-                    {isToday ? ' (aujourd’hui)' : ''}
-                  </span>
+                    <span className="sr-only">
+                      {formatLocalDate(date, { year: true })}
+                      {isToday ? ' (aujourd’hui)' : ''} — voir la journée
+                    </span>
+                  </Link>
                 </h3>
                 {selectable ? (
                   <DayCheckbox
@@ -314,6 +321,7 @@ function MonthView({
   byDate,
   today,
   selected,
+  selecting,
   onToggle,
 }) {
   return (
@@ -392,6 +400,19 @@ function MonthView({
               </span>
             </>
           );
+          if (!selecting) {
+            return (
+              <li key={date} className="min-w-0">
+                <Link
+                  href={`${DAY_PATH}?date=${date}`}
+                  aria-label={`${label} — voir la journée`}
+                  className={`${cellClass} hover:border-third-200 focus-visible:outline-third-200 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2`}
+                >
+                  {content}
+                </Link>
+              </li>
+            );
+          }
           return (
             <li key={date} className="min-w-0">
               {selectable ? (
@@ -518,6 +539,8 @@ function CalendarContent({ controller, enabled }) {
   const anchor = asked && DATE.test(asked) ? asked : today;
 
   const [selected, setSelected] = useState(() => new Set());
+  // Month: a tap opens the day; this mode makes taps select dates instead.
+  const [selecting, setSelecting] = useState(false);
   const [dialog, setDialog] = useState(null); // 'close' | 'reopen'
   const [pending, setPending] = useState(false);
   const [actionError, setActionError] = useState(null);
@@ -550,6 +573,7 @@ function CalendarContent({ controller, enabled }) {
     if (nextView === 'month') params.set('vue', 'mois');
     params.set('date', nextAnchor);
     setSelected(new Set());
+    if (nextView !== view) setSelecting(false);
     router.replace(`/admin/calendrier?${params}`, { scroll: false });
   };
 
@@ -724,11 +748,32 @@ function CalendarContent({ controller, enabled }) {
 
       <div className="flex flex-col gap-2">
         <Legend view={view} />
-        <p className="font-montserrat text-body-sm text-gray-800">
-          {view === 'month'
-            ? 'Touchez les dates (à partir d’aujourd’hui) pour les sélectionner. Le détail des rendez-vous est dans la vue Semaine.'
-            : 'Cochez des jours pour les fermer aux nouvelles réservations ou retirer leur fermeture. Les heures d’ouverture peuvent déjà contenir des rendez-vous.'}
-        </p>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="font-montserrat text-body-sm text-gray-800">
+            {view === 'month'
+              ? selecting
+                ? 'Touchez les dates (à partir d’aujourd’hui) pour les sélectionner, puis choisissez l’action en bas.'
+                : 'Touchez une date pour ouvrir l’agenda du jour. Pour fermer ou rouvrir des dates, passez en sélection.'
+              : 'Touchez une date pour ouvrir l’agenda du jour. Cochez des jours pour les fermer aux nouvelles réservations ou retirer leur fermeture.'}
+          </p>
+          {view === 'month' ? (
+            <button
+              type="button"
+              aria-pressed={selecting}
+              onClick={() => {
+                setSelecting((value) => !value);
+                setSelected(new Set());
+              }}
+              className={`font-montserrat text-body-sm focus-visible:outline-third-200 min-h-11 shrink-0 rounded-full border px-5 font-medium transition-colors focus-visible:outline-2 ${
+                selecting
+                  ? 'border-third-900 bg-third-900 text-cream'
+                  : 'hover:border-third-200 border-black/20 bg-white text-gray-900'
+              }`}
+            >
+              {selecting ? 'Terminer la sélection' : 'Sélectionner des dates'}
+            </button>
+          ) : null}
+        </div>
       </div>
 
       {result ? (
@@ -767,6 +812,7 @@ function CalendarContent({ controller, enabled }) {
           byDate={byDate}
           today={today}
           selected={selected}
+          selecting={selecting}
           onToggle={toggle}
         />
       ) : (

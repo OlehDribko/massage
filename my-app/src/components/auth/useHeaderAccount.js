@@ -39,7 +39,8 @@ export function useHeaderAccount() {
       : {},
     signInHref: onSignInPage ? undefined : `${AUTH_ROUTES.signIn}${returnTo}`,
     accountHref: AUTH_ROUTES.account,
-    bookingsHref: '/compte/reservations',
+    // The admin cannot book for themselves: no « Mes rendez-vous ».
+    bookingsHref: status === 'admin' ? undefined : '/compte/reservations',
     // Shown only for the role confirmed by the backend profile; the API
     // checks every admin request itself.
     adminHref: status === 'admin' ? '/admin' : undefined,

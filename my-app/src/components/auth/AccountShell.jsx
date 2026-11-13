@@ -17,8 +17,9 @@ const TABS = [
 ];
 
 export function AccountNav({ current, isAdmin }) {
+  // The admin cannot book for themselves: profile + administration only.
   const tabs = isAdmin
-    ? [...TABS, { key: 'admin', href: '/admin', label: 'Administration' }]
+    ? [TABS[0], { key: 'admin', href: '/admin', label: 'Administration' }]
     : TABS;
   return (
     <nav aria-label="Espace client">

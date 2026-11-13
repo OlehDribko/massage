@@ -25,10 +25,13 @@ import {
   formatDuration,
   formatPrice,
   formatTime,
+  localDateOf,
   studioToday,
 } from '@/lib/format';
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
+/** The day agenda lives inside the calendar (no separate tab). */
+export const DAY_PATH = '/admin/calendrier/jour';
 const noopSubscribe = () => () => {};
 const MAX_REASON = 500;
 const HOUR_PX = 64;
@@ -423,7 +426,7 @@ function BookingPanel({ booking, controller, onChanged }) {
       ) : null}
 
       <Link
-        href={`/admin/reservations/${booking.id}`}
+        href={`/admin/reservations/${booking.id}?date=${booking.startsAt ? localDateOf(booking.startsAt) : ''}`}
         className="font-montserrat text-body-sm hover:text-third-200 self-start text-gray-800 underline underline-offset-4"
       >
         Historique complet
@@ -569,7 +572,8 @@ function Chevron({ back = false }) {
 }
 
 /**
- * /admin/reservations?date=YYYY-MM-DD — «Agenda du jour»: the day's
+ * /admin/calendrier/jour?date=YYYY-MM-DD — «Agenda du jour», opened from a
+ * day of the calendar (week or month): the day's
  * timeline (all statuses, GET /api/admin/bookings?date=) with the working
  * hours of the date, and the selected booking on the side (contact, email
  * results, cancellation with an optional reason).
@@ -582,7 +586,7 @@ export default function AdminDayBookings() {
   const date = asked && DATE.test(asked) ? asked : today;
 
   const go = (next) =>
-    router.replace(`/admin/reservations?date=${next}`, { scroll: false });
+    router.replace(`${DAY_PATH}?date=${next}`, { scroll: false });
 
   return (
     <AdminShell
@@ -591,12 +595,18 @@ export default function AdminDayBookings() {
           Agenda du <span className="heading-accent">jour</span>
         </>
       }
-      current="reservations"
-      returnTo="/admin/reservations"
+      current="calendrier"
+      returnTo={date ? `${DAY_PATH}?date=${date}` : DAY_PATH}
     >
       {({ status, controller }) =>
         date ? (
           <div className="flex flex-col gap-6">
+            <Link
+              href={`/admin/calendrier?date=${date}`}
+              className="font-montserrat text-body-sm hover:border-third-200 focus-visible:outline-third-200 flex min-h-11 w-fit items-center gap-2 rounded-full border border-black/15 bg-white px-5 text-gray-900 transition-colors focus-visible:outline-2"
+            >
+              <span aria-hidden>←</span> Calendrier
+            </Link>
             <DayContent
               key={date}
               date={date}
