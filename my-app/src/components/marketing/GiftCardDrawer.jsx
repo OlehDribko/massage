@@ -202,8 +202,8 @@ export function RequestForm({
   const retryable = failure && keepsIdempotencyKey(failure);
 
   return (
-    <form noValidate onSubmit={submit} className="flex flex-col gap-10">
-      <div className="flex flex-col gap-7">
+    <form noValidate onSubmit={submit} className="flex flex-col gap-8">
+      <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-0.5">
           <label htmlFor={ids.amount} className={LABEL}>
             Montant de la carte *
@@ -247,7 +247,7 @@ export function RequestForm({
           <textarea
             id={ids.description}
             name="description"
-            rows={3}
+            rows={2}
             maxLength={MAX_DESCRIPTION}
             placeholder="Pour l’anniversaire de ma sœur, un massage relaxant…"
             value={description}
@@ -312,7 +312,13 @@ export function RequestForm({
         <ProfileContacts profile={profile} onLeave={onLeave} />
       </div>
 
-      <div className="flex flex-col gap-4">
+      <p className="font-montserrat text-xs text-gray-800">
+        Pas de paiement en ligne : la praticienne vous recontacte pour convenir
+        du règlement et de la remise de la carte.
+      </p>
+      {/* Stays at the bottom of the panel while the form scrolls, so the
+          button is reachable on short screens. */}
+      <div className="bg-secondary-900 sticky bottom-0 z-10 -mx-4 -mt-4 flex flex-col gap-3 border-t border-white/10 px-4 pt-4 pb-4 sm:-mx-12 sm:px-12 sm:pb-6">
         <div role="alert">
           {failure ? (
             <p className="font-montserrat text-body-sm text-error">
@@ -332,10 +338,6 @@ export function RequestForm({
               ? 'Réessayer l’envoi'
               : 'Envoyer la demande'}
         </button>
-        <p className="font-montserrat text-xs text-gray-800">
-          Pas de paiement en ligne : la praticienne vous recontacte pour
-          convenir du règlement et de la remise de la carte.
-        </p>
       </div>
     </form>
   );
@@ -524,9 +526,10 @@ export default function GiftCardDrawer() {
         // A click on the backdrop (outside the panel) closes it.
         if (event.target === dialogRef.current) close();
       }}
-      className="gift-drawer bg-secondary-900 m-0 ml-auto h-dvh max-h-none w-full max-w-none p-0 text-gray-100 backdrop:bg-[rgba(28,25,20,0.6)] sm:w-[545px]"
+      data-lenis-prevent
+      className="gift-drawer bg-secondary-900 m-0 ml-auto h-dvh max-h-none w-full max-w-none overflow-y-auto overscroll-contain p-0 text-gray-100 backdrop:bg-[rgba(28,25,20,0.6)] sm:w-[545px]"
     >
-      <div className="relative flex min-h-full flex-col justify-between gap-12 px-4 pt-24 pb-10 sm:px-12 sm:pt-24 sm:pb-12">
+      <div className="relative flex min-h-full flex-col justify-between gap-10 px-4 pt-16 pb-8 sm:px-12 sm:pt-20 sm:pb-10">
         <button
           type="button"
           onClick={close}
@@ -536,7 +539,7 @@ export default function GiftCardDrawer() {
           <MaskIcon src="/icons/close-modal.svg" className="size-7" />
         </button>
 
-        <div className="flex flex-col gap-[60px]">
+        <div className="flex flex-col gap-8 sm:gap-10">
           <div className="flex flex-col gap-4">
             <p className="font-montserrat text-third-200 flex items-center gap-4 text-[11px] font-medium tracking-[0.2em] uppercase">
               Carte cadeau
