@@ -175,7 +175,7 @@ function AccountMenu({ account, triggerClasses }) {
                 onClick={() => close()}
                 className={itemClasses}
               >
-                <span aria-hidden className="size-6" />
+                <MaskIcon src="/icons/calendar.svg" className="size-6" />
                 Mes réservations
               </Link>
             </li>
@@ -187,7 +187,7 @@ function AccountMenu({ account, triggerClasses }) {
                 onClick={() => close()}
                 className={itemClasses}
               >
-                <span aria-hidden className="size-6" />
+                <MaskIcon src="/icons/admin.svg" className="size-6" />
                 Administration
               </Link>
             </li>
