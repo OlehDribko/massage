@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 import PlanityBadge from '@/components/ui/PlanityBadge';
 import RatingStars from '@/components/ui/RatingStars';
@@ -30,6 +30,31 @@ function Arrow({ back = false }) {
 }
 
 const AUTOPLAY_MS = 7000;
+// How long the outgoing review stays for its exit (globals.css).
+const EXIT_MS = 600;
+
+/** Its height follows the content smoothly (no jump between reviews). */
+function AutoHeight({ children, className = '' }) {
+  const inner = useRef(null);
+  const [height, setHeight] = useState();
+  useLayoutEffect(() => {
+    const element = inner.current;
+    if (!element) return undefined;
+    const observer = new ResizeObserver(() => setHeight(element.offsetHeight));
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+  return (
+    <div
+      style={{ height }}
+      className="[overflow-y:clip] transition-[height] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none"
+    >
+      <div ref={inner} className={className}>
+        {children}
+      </div>
+    </div>
+  );
+}
 
 function PauseIcon({ paused }) {
   return (
@@ -67,10 +92,27 @@ export default function TestimonialsSection({ id }) {
     .map((index) => ({ index, review: items[index] }));
   // Direction of the last change: the new review slides in from that side.
   const [direction, setDirection] = useState('next');
-  const go = (delta) => {
-    setDirection(delta < 0 ? 'prev' : 'next');
-    setCurrent((index) => (index + delta + total) % total);
+  // The review leaving: kept a moment so it slides out under the new one.
+  const [leaving, setLeaving] = useState(null);
+  const shownRef = useRef(0);
+  const reducedRef = useRef(true);
+  const change = (next, side) => {
+    setDirection(side);
+    // Reduced motion: no exit (nor slide), the review just changes.
+    if (!reducedRef.current) setLeaving({ index: shownRef.current, side });
+    shownRef.current = next;
+    setCurrent(next);
   };
+  useEffect(() => {
+    if (!leaving) return undefined;
+    const timer = setTimeout(() => setLeaving(null), EXIT_MS);
+    return () => clearTimeout(timer);
+  }, [leaving]);
+  const go = (delta) =>
+    change(
+      (shownRef.current + delta + total) % total,
+      delta < 0 ? 'prev' : 'next'
+    );
 
   // Phones: a horizontal swipe on the review changes it.
   const touchStart = useRef(null);
@@ -98,7 +140,10 @@ export default function TestimonialsSection({ id }) {
 
   useEffect(() => {
     const query = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const update = () => setReduced(query.matches);
+    const update = () => {
+      reducedRef.current = query.matches;
+      setReduced(query.matches);
+    };
     update();
     query.addEventListener('change', update);
     const observer = new IntersectionObserver(
@@ -115,10 +160,10 @@ export default function TestimonialsSection({ id }) {
   const running = visible && !hovered && !paused && !reduced;
   useEffect(() => {
     if (!running) return undefined;
-    const timer = setTimeout(() => {
-      setDirection('next');
-      setCurrent((index) => (index + 1) % total);
-    }, AUTOPLAY_MS);
+    const timer = setTimeout(
+      () => change((shownRef.current + 1) % total, 'next'),
+      AUTOPLAY_MS
+    );
     return () => clearTimeout(timer);
   }, [running, current, total]);
 
@@ -158,7 +203,10 @@ export default function TestimonialsSection({ id }) {
                     {String(featured.rating).replace('.', ',')} sur 5
                   </span>
                 </span>
-                <span className="font-montserrat text-body text-gray-800">
+                <span
+                  key={current}
+                  className="font-montserrat text-body fade-in text-gray-800"
+                >
                   {formatDate(featured.date)}
                 </span>
               </figcaption>
@@ -196,14 +244,27 @@ export default function TestimonialsSection({ id }) {
                 </button>
               </div>
             </div>
-            {/* A new key on each review: it slides in (globals.css). */}
-            <blockquote
-              key={current}
-              aria-live={running ? 'off' : 'polite'}
-              className={`slide-${direction} font-faustina text-secondary-900 sm:text-h4 text-[34px] leading-[1.12] font-light tracking-[-0.22px] break-words italic`}
-            >
-              « {featured.quote} »
-            </blockquote>
+            {/* The new review slides in while the previous one slides out,
+                both in the same grid cell; the height follows smoothly
+                (globals.css). */}
+            <AutoHeight className="grid">
+              {leaving && leaving.index !== current ? (
+                <blockquote
+                  key={`out-${leaving.index}`}
+                  aria-hidden
+                  className={`slide-out-${leaving.side} font-faustina text-secondary-900 sm:text-h4 pointer-events-none text-[34px] leading-[1.12] font-light tracking-[-0.22px] break-words italic [grid-area:1/1]`}
+                >
+                  « {items[leaving.index].quote} »
+                </blockquote>
+              ) : null}
+              <blockquote
+                key={current}
+                aria-live={running ? 'off' : 'polite'}
+                className={`slide-${direction} font-faustina text-secondary-900 sm:text-h4 text-[34px] leading-[1.12] font-light tracking-[-0.22px] break-words italic [grid-area:1/1]`}
+              >
+                « {featured.quote} »
+              </blockquote>
+            </AutoHeight>
             <div className="flex items-center gap-4">
               <p className="font-montserrat text-body-sm shrink-0 text-gray-800">
                 Avis {current + 1} sur {total}
@@ -232,7 +293,7 @@ export default function TestimonialsSection({ id }) {
           {following.map(({ index: key, review }, index) => (
             <li
               key={key}
-              style={{ animationDelay: `${0.12 + index * 0.1}s` }}
+              style={{ animationDelay: `${0.25 + index * 0.12}s` }}
               className={`slide-${direction} flex flex-col gap-8 ${index ? 'border-t border-black/7 pt-10' : ''}`}
             >
               <RatingStars count={Math.round(review.rating)} />
