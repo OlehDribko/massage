@@ -183,12 +183,14 @@ function WeeklyEditor({ weekly, controller }) {
       <div role="status">
         {saved ? <Notice>Horaires de la semaine enregistrés.</Notice> : null}
       </div>
-      <div className="flex flex-col gap-3 sm:flex-row">
+      {/* Same size: full width one under the other on phones, two equal
+          columns from 640 px. */}
+      <div className="grid gap-3 sm:max-w-xl sm:grid-cols-2">
         <PillButton
           type="submit"
           disabled={!dirty || invalid || write.pending}
           aria-busy={write.pending}
-          className="disabled:opacity-60"
+          className="w-full! px-4! disabled:opacity-60"
         >
           {write.pending ? 'Enregistrement…' : 'Enregistrer la semaine'}
         </PillButton>
@@ -201,7 +203,7 @@ function WeeklyEditor({ weekly, controller }) {
             setDirty(false);
             write.setError(null);
           }}
-          className="disabled:opacity-60"
+          className="w-full px-4! disabled:opacity-60"
         >
           Annuler les modifications
         </PillButton>
@@ -446,12 +448,14 @@ function ExceptionForm({
           />
         ) : null}
         <div role="status">{notice ? <Notice>{notice}</Notice> : null}</div>
-        <div className="mt-auto flex flex-wrap items-center gap-3">
+        {/* Full width of the column, one under the other at the same size
+            (side by side they would wrap in this narrow column). */}
+        <div className="mt-auto grid gap-3">
           <PillButton
             type="submit"
             disabled={write.pending || asUsual || unchanged}
             aria-busy={write.pending}
-            className="disabled:opacity-60"
+            className="w-full! px-4! disabled:opacity-60"
           >
             {write.pending
               ? 'Enregistrement…'
@@ -460,13 +464,15 @@ function ExceptionForm({
                 : 'Enregistrer la date'}
           </PillButton>
           {initialDate ? (
-            <button
+            <PillButton
               type="button"
+              variant="outline"
+              tone="dark"
               onClick={onCancelEdit}
-              className="font-montserrat text-body-sm hover:text-third-200 min-h-11 text-gray-800 underline underline-offset-4"
+              className="w-full px-4!"
             >
               Annuler la modification
-            </button>
+            </PillButton>
           ) : null}
         </div>
       </div>
