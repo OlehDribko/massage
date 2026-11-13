@@ -52,8 +52,8 @@ export default function HeroSection() {
               Prendre rendez-vous
             </PillButton>
             <div className="hidden md:block">
-              <PillButton variant="text" href="#services" tone="light">
-                Découvrir les services
+              <PillButton variant="text" href="#carte-cadeau" tone="light">
+                Offrir une carte cadeau
               </PillButton>
             </div>
           </div>

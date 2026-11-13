@@ -60,6 +60,9 @@ export default function HomeMotion() {
             type: 'words',
             mask: 'words',
             autoSplit: true,
+            // No aria-label on <p>/<h2> (prohibited ARIA, Lighthouse): the
+            // split spans are read as plain text, in order.
+            aria: 'none',
             onSplit: (split) =>
               intro.from(
                 split.words,
@@ -108,6 +111,9 @@ export default function HomeMotion() {
             type: 'lines',
             mask: 'lines',
             autoSplit: true,
+            // No aria-label on <p>/<h2> (prohibited ARIA, Lighthouse): the
+            // split spans are read as plain text, in order.
+            aria: 'none',
             onSplit: (split) =>
               gsap.from(split.lines, {
                 yPercent: 105,
@@ -131,6 +137,9 @@ export default function HomeMotion() {
             type: 'lines',
             mask: 'lines',
             autoSplit: true,
+            // No aria-label on <p>/<h2> (prohibited ARIA, Lighthouse): the
+            // split spans are read as plain text, in order.
+            aria: 'none',
             onSplit: (split) =>
               gsap.from(split.lines, {
                 yPercent: 105,

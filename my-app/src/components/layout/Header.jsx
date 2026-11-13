@@ -21,23 +21,6 @@ const NAV_ITEMS = [
 // their own « Prendre rendez-vous »).
 const BOOKING_CTA = { href: '/reserver', label: 'Prendre rendez-vous' };
 
-// The bar's own action: offering a gift card (GiftCardDrawer).
-function GiftIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.6"
-      aria-hidden
-      className="text-primary-200 size-[18px] shrink-0"
-    >
-      <rect x="3.5" y="8" width="17" height="4" rx="1" />
-      <path d="M5 12v8h14v-8M12 8v12M12 8c-1.5-3-5-3.5-5.5-1.5S9.5 8 12 8zm0 0c1.5-3 5-3.5 5.5-1.5S14.5 8 12 8z" />
-    </svg>
-  );
-}
-
 // Each page picks its variant explicitly (no guessing from the background):
 // - overlay: transparent over a dark hero, out of flow — the page itself
 //   keeps its content clear of the header (hero/404 top padding);
@@ -59,11 +42,10 @@ const variants = {
 
 // Hierarchy, left to right: logo · navigation (from 1440 px, where it fits
 // next to the actions) · account (secondary outlined pill, after a divider)
-// · «Offrir une carte cadeau» (outlined, opens the gift card panel; the
-// hero keeps the gold «Prendre rendez-vous»). Below 1440 px the
-// navigation moves to the menu; the booking button stays in the bar from
-// 768 px and is the first action of the menu below that. Mobile keeps the
-// Figma bar: account | centred logo | menu, with 44 px targets.
+// · menu below 1440 px. No action button in the bar: the hero holds
+// «Prendre rendez-vous» and «Offrir une carte cadeau»; the menu starts
+// with the booking action. Mobile keeps the Figma bar: account | centred
+// logo | menu, with 44 px targets.
 //
 // `account` comes from the shared session; the local preview passes sample
 // states instead (null = no account element).
@@ -128,16 +110,6 @@ export default function Header({ variant = 'overlay', account: sample }) {
             <AccountControl account={account} variant={variant} />
           </div>
         ) : null}
-
-        <div className={`hidden md:block ${account ? '' : 'min-[90rem]:ml-6'}`}>
-          <a
-            href="#carte-cadeau"
-            className="rounded-pill font-montserrat text-label hover:border-primary-200 inline-flex min-h-11 items-center gap-2.5 border border-current/30 px-5 font-medium tracking-[0.05em] whitespace-nowrap uppercase transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current motion-reduce:transition-none"
-          >
-            <GiftIcon />
-            Offrir une carte cadeau
-          </a>
-        </div>
 
         <button
           type="button"
