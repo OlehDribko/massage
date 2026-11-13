@@ -509,7 +509,7 @@ function ExceptionsList({
         {exceptions.map((exception) => (
           <li
             key={exception.date}
-            className="rounded-panel bg-secondary-50 flex items-center gap-4 border border-black/7 p-4"
+            className="rounded-panel bg-secondary-50 flex min-h-24 items-center gap-4 border border-black/7 p-4"
           >
             <DateTile startsAt={`${exception.date}T12:00:00Z`} />
             <div className="font-montserrat flex min-w-0 flex-1 flex-col gap-0.5">
@@ -524,50 +524,53 @@ function ExceptionsList({
                       .join(', ')}
               </span>
             </div>
-            <button
-              type="button"
-              onClick={() => onEdit(exception.date)}
-              aria-label={`Modifier le ${formatLocalDate(exception.date, { year: true })}`}
-              aria-pressed={editing === exception.date}
-              title="Modifier"
-              className={`focus-visible:outline-third-200 flex size-10 shrink-0 items-center justify-center rounded-full transition-colors focus-visible:outline-2 ${
-                editing === exception.date
-                  ? 'bg-third-900 text-cream'
-                  : 'hover:bg-secondary-100 hover:text-third-900 text-gray-800'
-              }`}
-            >
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.6"
-                aria-hidden
-                className="size-5"
+            {/* Edit at the top right, delete at the bottom right. */}
+            <div className="-my-2 -mr-2 flex shrink-0 flex-col justify-between gap-1 self-stretch">
+              <button
+                type="button"
+                onClick={() => onEdit(exception.date)}
+                aria-label={`Modifier le ${formatLocalDate(exception.date, { year: true })}`}
+                aria-pressed={editing === exception.date}
+                title="Modifier"
+                className={`focus-visible:outline-third-200 flex size-9 shrink-0 items-center justify-center rounded-full transition-colors focus-visible:outline-2 ${
+                  editing === exception.date
+                    ? 'bg-third-900 text-cream'
+                    : 'hover:bg-secondary-100 hover:text-third-900 text-gray-800'
+                }`}
               >
-                <path d="M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4" />
-              </svg>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                write.setError(null);
-                setRemoving(exception.date);
-              }}
-              aria-label={`Revenir à la semaine type le ${formatLocalDate(exception.date, { year: true })}`}
-              title="Revenir à la semaine type"
-              className="hover:bg-secondary-100 hover:text-third-900 focus-visible:outline-third-200 flex size-10 shrink-0 items-center justify-center rounded-full text-gray-800 transition-colors focus-visible:outline-2"
-            >
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.6"
-                aria-hidden
-                className="size-5"
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  aria-hidden
+                  className="size-5"
+                >
+                  <path d="M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  write.setError(null);
+                  setRemoving(exception.date);
+                }}
+                aria-label={`Revenir à la semaine type le ${formatLocalDate(exception.date, { year: true })}`}
+                title="Revenir à la semaine type"
+                className="hover:bg-error/10 hover:text-error focus-visible:outline-error flex size-9 shrink-0 items-center justify-center rounded-full text-gray-800 transition-colors focus-visible:outline-2"
               >
-                <path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" />
-              </svg>
-            </button>
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  aria-hidden
+                  className="size-5"
+                >
+                  <path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" />
+                </svg>
+              </button>
+            </div>
           </li>
         ))}
       </ul>

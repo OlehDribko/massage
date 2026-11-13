@@ -50,6 +50,20 @@ export function normalizeTime(value) {
   return HH_MM.test(result) ? result : value;
 }
 
+/**
+ * Mask while typing: digits only, the colon appears by itself after the
+ * hours — "15" → "15", "150" → "15:0", "1500" → "15:00". A first digit
+ * above 2 is an hour of one digit: "9" → "09", "93" → "09:3".
+ */
+export function maskTimeInput(value) {
+  let digits = String(value ?? '').replace(/\D/g, '');
+  if (/^[3-9]/.test(digits)) digits = `0${digits}`;
+  digits = digits.slice(0, 4);
+  return digits.length > 2
+    ? `${digits.slice(0, 2)}:${digits.slice(2)}`
+    : digits;
+}
+
 /** "09:30" → 570; invalid → null. Accepts what normalizeTime() accepts. */
 export function toMinutes(value) {
   const time = normalizeTime(value);

@@ -3,6 +3,7 @@ import { test } from 'node:test';
 
 import {
   isoWeekday,
+  maskTimeInput,
   normalizeIntervals,
   normalizeTime,
   sameAsWeekly,
@@ -83,4 +84,23 @@ test('a date with the weekly hours of its weekday changes nothing', () => {
   assert.equal(sameAsWeekly('2026-11-15', [], weekly), true);
   assert.equal(sameAsWeekly('2026-11-17', [], weekly), false);
   assert.equal(sameAsWeekly(null, [], weekly), false);
+});
+
+test('the colon appears while typing', () => {
+  const steps = {
+    1: '1',
+    15: '15',
+    150: '15:0',
+    1500: '15:00',
+    15000: '15:00',
+  };
+  for (const [typed, shown] of Object.entries(steps)) {
+    assert.equal(maskTimeInput(typed), shown, typed);
+  }
+  assert.equal(maskTimeInput('9'), '09');
+  assert.equal(maskTimeInput('930'), '09:30');
+  assert.equal(maskTimeInput('15:'), '15'); // backspace over the colon
+  assert.equal(maskTimeInput('12h3'), '12:3');
+  assert.equal(normalizeTime(maskTimeInput('12h3')), '12:30');
+  assert.equal(maskTimeInput('abc'), '');
 });
