@@ -237,7 +237,9 @@ test('notifications: client texts and admin labels', () => {
 test('schedule: HH:MM up to 24:00, overlap and order checks', () => {
   assert.equal(toMinutes('24:00'), 1440);
   assert.equal(toMinutes('24:30'), null);
-  assert.equal(toMinutes('9:00'), null);
+  // The colon and the leading zero are optional (normalizeTime).
+  assert.equal(toMinutes('9:00'), 540);
+  assert.equal(toMinutes('25:00'), null);
   assert.deepEqual(
     validateDay([
       { start: '09:00', end: '13:00' },
