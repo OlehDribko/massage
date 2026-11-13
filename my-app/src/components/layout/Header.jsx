@@ -5,6 +5,7 @@ import Link from 'next/link';
 
 import { useHeaderAccount } from '@/components/auth/useHeaderAccount';
 import AccountControl from '@/components/layout/AccountControl';
+import LanguageSwitcher from '@/components/layout/LanguageSwitcher';
 import MobileNav from '@/components/layout/MobileNav';
 import MaskIcon from '@/components/ui/MaskIcon';
 import NavLink from '@/components/ui/NavLink';
@@ -45,7 +46,8 @@ const variants = {
 // · menu below 1440 px. No action button in the bar: the hero holds
 // «Prendre rendez-vous» and «Offrir une carte cadeau»; the menu starts
 // with the booking action. Mobile keeps the Figma bar: account | centred
-// logo | menu, with 44 px targets.
+// logo | language + menu, with 44 px targets. The language choice sits in
+// the top right corner at every width (LanguageSwitcher, French only yet).
 //
 // `account` comes from the shared session; the local preview passes sample
 // states instead (null = no account element).
@@ -71,7 +73,7 @@ export default function Header({ variant = 'overlay', account: sample }) {
   return (
     <header className={`z-header px-page ${styles.header}`}>
       <div
-        className={`font-montserrat max-w-content mx-auto grid grid-cols-[2.75rem_1fr_2.75rem] items-center pt-10 pb-5 sm:flex sm:gap-3 sm:pb-6 lg:gap-4 ${styles.text}`}
+        className={`font-montserrat max-w-content mx-auto grid grid-cols-[1fr_auto_1fr] items-center pt-10 pb-5 sm:flex sm:gap-3 sm:pb-6 lg:gap-4 ${styles.text}`}
       >
         <Link
           href="/"
@@ -105,22 +107,25 @@ export default function Header({ variant = 'overlay', account: sample }) {
 
         {account ? (
           <div
-            className={`col-start-1 row-start-1 min-[90rem]:border-l min-[90rem]:pl-6 ${styles.divider}`}
+            className={`col-start-1 row-start-1 justify-self-start min-[90rem]:border-l min-[90rem]:pl-6 ${styles.divider}`}
           >
             <AccountControl account={account} variant={variant} />
           </div>
         ) : null}
 
-        <button
-          type="button"
-          onClick={() => setMenuOpen(true)}
-          aria-expanded={menuOpen}
-          aria-controls={menuId}
-          aria-label="Ouvrir le menu"
-          className="col-start-3 row-start-1 flex size-11 items-center justify-center justify-self-end transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current motion-reduce:transition-none min-[90rem]:hidden"
-        >
-          <MaskIcon src="/icons/menu.svg" className="size-10" />
-        </button>
+        <div className="col-start-3 row-start-1 flex items-center justify-self-end sm:gap-1 lg:gap-2">
+          <LanguageSwitcher variant={variant} />
+          <button
+            type="button"
+            onClick={() => setMenuOpen(true)}
+            aria-expanded={menuOpen}
+            aria-controls={menuId}
+            aria-label="Ouvrir le menu"
+            className="flex size-11 items-center justify-center transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current motion-reduce:transition-none min-[90rem]:hidden"
+          >
+            <MaskIcon src="/icons/menu.svg" className="size-10" />
+          </button>
+        </div>
       </div>
 
       <MobileNav

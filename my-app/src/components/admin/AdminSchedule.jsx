@@ -446,12 +446,14 @@ function ExceptionForm({
           />
         ) : null}
         <div role="status">{notice ? <Notice>{notice}</Notice> : null}</div>
-        <div className="mt-auto flex flex-wrap items-center gap-3">
+        {/* Full width of the column, one under the other at the same size
+            (side by side they would wrap in this narrow column). */}
+        <div className="mt-auto grid gap-3">
           <PillButton
             type="submit"
             disabled={write.pending || asUsual || unchanged}
             aria-busy={write.pending}
-            className="disabled:opacity-60"
+            className="w-full! px-4! disabled:opacity-60"
           >
             {write.pending
               ? 'Enregistrement…'
@@ -460,13 +462,15 @@ function ExceptionForm({
                 : 'Enregistrer la date'}
           </PillButton>
           {initialDate ? (
-            <button
+            <PillButton
               type="button"
+              variant="outline"
+              tone="dark"
               onClick={onCancelEdit}
-              className="font-montserrat text-body-sm hover:text-third-200 min-h-11 text-gray-800 underline underline-offset-4"
+              className="w-full px-4!"
             >
               Annuler la modification
-            </button>
+            </PillButton>
           ) : null}
         </div>
       </div>
