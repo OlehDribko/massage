@@ -23,7 +23,9 @@ function priceList(catalog) {
   const sections = [
     ...CATEGORIES.map((category) => ({
       label: category.label,
-      items: catalog.filter((prestation) => prestation.category === category.key),
+      items: catalog.filter(
+        (prestation) => prestation.category === category.key
+      ),
     })),
     {
       label: 'Autres soins',
@@ -93,6 +95,7 @@ export async function GET(request) {
     '',
     '## Carte cadeau',
     '',
+    'Un montant libre ou un soin précis, au choix.',
     `Pas d’achat en ligne : laisser ses coordonnées via le [formulaire carte cadeau](${origin}/#carte-cadeau) ou contacter le cabinet (${phone.display}, ${email}) ; la praticienne rappelle pour l’achat.`,
     '',
     '## Pages',
@@ -108,7 +111,8 @@ export async function GET(request) {
     headers: {
       'Content-Type': 'text/markdown; charset=utf-8',
       // Prices change rarely; a short shared cache spares the API.
-      'Cache-Control': 'public, max-age=0, s-maxage=3600, stale-while-revalidate=86400',
+      'Cache-Control':
+        'public, max-age=0, s-maxage=3600, stale-while-revalidate=86400',
     },
   });
 }
