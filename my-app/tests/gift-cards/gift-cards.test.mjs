@@ -183,3 +183,45 @@ test('admin list filters: address ↔ API query, invalid values dropped', () => 
   assert.equal(pageCount(0, 20), 1);
   assert.equal(pageCount(41, 20), 3);
 });
+
+test('a soin is sent as its price and a « Soin offert » line', async () => {
+  const { soinOptions, giftDescription, messageLimit, MAX_DESCRIPTION } =
+    await import('../../src/lib/giftCards.js');
+  const groups = soinOptions([
+    {
+      name: 'Massage relaxant',
+      variants: [
+        {
+          id: 'a',
+          durationMinutes: 60,
+          effectivePriceCents: 8000,
+          currency: 'EUR',
+        },
+        { id: 'b', durationMinutes: 90, effectivePriceCents: null },
+      ],
+    },
+    { name: 'Vide', variants: [] },
+  ]);
+  assert.equal(groups.length, 1);
+  assert.deepEqual(groups[0].options, [
+    {
+      id: 'a',
+      label: '60 min',
+      title: 'Massage relaxant — 60 min',
+      cents: 8000,
+      currency: 'EUR',
+    },
+  ]);
+  const option = groups[0].options[0];
+  assert.equal(
+    giftDescription(option, '  '),
+    'Soin offert : Massage relaxant — 60 min'
+  );
+  assert.equal(
+    giftDescription(option, 'Pour Marie'),
+    'Soin offert : Massage relaxant — 60 min\n\nPour Marie'
+  );
+  assert.equal(giftDescription(null, ' Pour Marie '), 'Pour Marie');
+  const long = 'x'.repeat(messageLimit(option));
+  assert.equal(giftDescription(option, long).length, MAX_DESCRIPTION);
+});

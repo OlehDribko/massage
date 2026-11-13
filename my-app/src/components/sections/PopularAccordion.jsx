@@ -80,17 +80,19 @@ export default function PopularAccordion({ prestations }) {
                 </span>
                 <MaskIcon
                   src="/icons/arrow-up-right.svg"
-                  className={`text-third-200 ml-auto size-7 shrink-0 transition-transform duration-300 motion-reduce:transition-none sm:size-8 ${isOpen ? '' : 'rotate-90'}`}
+                  className={`text-third-200 ml-auto size-7 shrink-0 transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none sm:size-8 ${isOpen ? '' : 'rotate-90'}`}
                 />
               </button>
 
               <div
                 id={panelId}
                 inert={!isOpen}
-                className={`grid transition-[grid-template-rows] duration-300 ease-out motion-reduce:transition-none ${isOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}
+                className={`grid transition-[grid-template-rows] duration-600 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${isOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}
               >
                 <div className="overflow-hidden">
-                  <div className="font-montserrat text-body flex flex-col pt-8 pl-[3.25rem] sm:pl-[6.75rem] lg:pr-[46px]">
+                  <div
+                    className={`font-montserrat text-body flex flex-col pt-8 pl-[3.25rem] transition-[opacity,translate] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none sm:pl-[6.75rem] lg:pr-[46px] ${isOpen ? 'translate-y-0 opacity-100 delay-100 duration-600' : '-translate-y-2 opacity-0 duration-300'}`}
+                  >
                     {prestation.description ? (
                       <p className="text-gray-200">{prestation.description}</p>
                     ) : null}
@@ -122,17 +124,20 @@ export default function PopularAccordion({ prestations }) {
                   </div>
 
                   {/* Phones and tablets (Figma 704:1465): the photo of the
-                      open item, inside it. */}
+                      open item, inside it. Always mounted and loaded ahead
+                      (1px wide from 1024 px, where it is hidden), so it
+                      never pops in: it fades in as the item opens (the scroll
+                      parallax of HomeMotion already moves it). */}
                   <div className="relative mt-6 aspect-[358/398] w-full overflow-hidden rounded-[4px] sm:aspect-[4/3] lg:hidden">
-                    {isOpen ? (
-                      <Image
-                        src={photo.src}
-                        alt={photo.alt}
-                        fill
-                        sizes="(min-width: 640px) 90vw, 100vw"
-                        className={`object-cover ${photo.position}`}
-                      />
-                    ) : null}
+                    <Image
+                      src={photo.src}
+                      alt={isOpen ? photo.alt : ''}
+                      fill
+                      loading="eager"
+                      fetchPriority="low"
+                      sizes="(min-width: 1024px) 1px, (min-width: 640px) 90vw, 100vw"
+                      className={`object-cover ${photo.position} transition-opacity ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${isOpen ? 'opacity-100 delay-150 duration-1000' : 'opacity-0 duration-300'}`}
+                    />
                   </div>
                 </div>
               </div>
@@ -151,7 +156,7 @@ export default function PopularAccordion({ prestations }) {
             aria-hidden={index === shown % PHOTOS.length ? undefined : true}
             fill
             sizes="554px"
-            className={`object-cover ${photo.position} transition-opacity duration-500 motion-reduce:transition-none ${index === shown % PHOTOS.length ? 'opacity-100' : 'opacity-0'}`}
+            className={`object-cover ${photo.position} transition-opacity duration-1000 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${index === shown % PHOTOS.length ? 'opacity-100' : 'opacity-0'}`}
           />
         ))}
       </div>
