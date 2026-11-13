@@ -2,18 +2,23 @@
 
 import { useId } from 'react';
 
-import { MAX_INTERVALS_PER_DAY } from '@/lib/booking/schedule';
+import { MAX_INTERVALS_PER_DAY, normalizeTime } from '@/lib/booking/schedule';
 
 export const DEFAULT_INTERVAL = { start: '09:00', end: '20:30' };
 
 // Text inputs, not type="time": the API accepts "24:00" as an end (a day
-// that ends at midnight), which time inputs cannot express.
+// that ends at midnight), which time inputs cannot express. The colon is
+// optional: "12", "1200" or "9h30" become "12:00" / "09:30" on leaving.
 function TimeBox({ label, value, onChange, invalid }) {
   return (
     <input
       aria-label={label}
       value={value}
       onChange={(event) => onChange(event.target.value)}
+      onBlur={(event) => {
+        const next = normalizeTime(event.target.value);
+        if (next !== event.target.value) onChange(next);
+      }}
       inputMode="numeric"
       placeholder="09:00"
       maxLength={5}

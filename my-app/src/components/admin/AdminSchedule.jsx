@@ -17,6 +17,9 @@ import { bookingErrorMessage } from '@/lib/booking/labels';
 import {
   WEEKDAYS,
   hasErrors,
+  normalizeIntervals,
+  sameAsWeekly,
+  toMinutes,
   validateDay,
   weeklyBody,
   weeklyByDay,
@@ -236,19 +239,83 @@ function Segmented({ value, onChange, options, label }) {
 }
 
 /** Add or replace the hours of one date: calendar on the left, hours on the right. */
-function ExceptionForm({ controller, today, existing, onSaved }) {
-  const [date, setDate] = useState(null);
-  const [mode, setMode] = useState('hours'); // 'hours' | 'off'
-  const [intervals, setIntervals] = useState([{ ...DEFAULT_INTERVAL }]);
+/** The form values of a saved date (to edit it). */
+function formValues(exception) {
+  return exception?.closed
+    ? { mode: 'off', intervals: [{ ...DEFAULT_INTERVAL }] }
+    : {
+        mode: 'hours',
+        intervals: exception?.intervals?.length
+          ? exception.intervals.map(({ start, end }) => ({ start, end }))
+          : [{ ...DEFAULT_INTERVAL }],
+      };
+}
+
+const sameIntervals = (a, b) =>
+  a.length === b.length &&
+  a.every(
+    (item, index) =>
+      toMinutes(item.start) === toMinutes(b[index].start) &&
+      toMinutes(item.end) === toMinutes(b[index].end)
+  );
+
+/**
+ * A specific date: pick it, set its hours (or a day off), save. Picking a
+ * date that already has its own hours (or « Modifier » on its card) loads
+ * them to edit. Saving what the weekly schedule — or the saved date —
+ * already says is refused: nothing would change.
+ */
+function ExceptionForm({
+  controller,
+  today,
+  existing,
+  weekly,
+  initialDate = null,
+  notice,
+  onSaved,
+  onCancelEdit,
+}) {
+  const start = formValues(initialDate ? existing.get(initialDate) : null);
+  const [date, setDate] = useState(initialDate);
+  const [mode, setMode] = useState(start.mode); // 'hours' | 'off'
+  const [intervals, setIntervals] = useState(start.intervals);
   const [touched, setTouched] = useState(false);
-  const [saved, setSaved] = useState(null);
   const write = useWrite(controller);
 
   const intervalErrors = mode === 'off' ? {} : validateDay(intervals);
   const emptyIntervals = mode === 'hours' && intervals.length === 0;
-  const invalid =
-    !date || emptyIntervals || Object.keys(intervalErrors).length > 0;
   const replacing = date ? existing.get(date) : null;
+  const next = mode === 'off' ? [] : normalizeIntervals(intervals);
+  const asUsual =
+    Boolean(date) &&
+    !emptyIntervals &&
+    !Object.keys(intervalErrors).length &&
+    sameAsWeekly(date, next, weekly);
+  const unchanged =
+    Boolean(replacing) &&
+    !asUsual &&
+    (replacing.closed
+      ? mode === 'off'
+      : mode === 'hours' &&
+        sameIntervals(normalizeIntervals(replacing.intervals), next));
+  const invalid =
+    !date ||
+    emptyIntervals ||
+    Object.keys(intervalErrors).length > 0 ||
+    asUsual ||
+    unchanged;
+
+  const pick = (value) => {
+    setDate(value);
+    write.setError(null);
+    // A date that already has its own hours: load them to edit.
+    const current = existing.get(value);
+    if (current) {
+      const values = formValues(current);
+      setMode(values.mode);
+      setIntervals(values.intervals);
+    }
+  };
 
   const save = async (event) => {
     event.preventDefault();
@@ -256,13 +323,12 @@ function ExceptionForm({ controller, today, existing, onSaved }) {
     if (invalid) return;
     const result = await write.run(`/api/admin/schedule/exceptions/${date}`, {
       method: 'PUT',
-      body: mode === 'off' ? { closed: true } : { intervals },
+      body: mode === 'off' ? { closed: true } : { intervals: next },
     });
     if (result) {
-      setSaved(`${formatLocalDate(date, { year: true })} : enregistré.`);
       setDate(null);
       setTouched(false);
-      onSaved();
+      onSaved(`${formatLocalDate(date, { year: true })} : enregistré.`);
     }
   };
 
@@ -282,10 +348,7 @@ function ExceptionForm({ controller, today, existing, onSaved }) {
           min={today ?? undefined}
           marked={new Set(existing.keys())}
           label="Date particulière"
-          onChange={(next) => {
-            setDate(next);
-            setSaved(null);
-          }}
+          onChange={pick}
         />
         {touched && !date ? (
           <p className="font-montserrat text-body-sm text-error">
@@ -317,7 +380,7 @@ function ExceptionForm({ controller, today, existing, onSaved }) {
             </span>
             <span className="text-body-sm text-gray-800">
               {replacing
-                ? 'Déjà personnalisée : elle sera remplacée.'
+                ? 'Date personnalisée : modifiez ses horaires ci-dessous.'
                 : 'Remplace les horaires de la semaine type pour ce jour.'}
             </span>
           </div>
@@ -360,6 +423,19 @@ function ExceptionForm({ controller, today, existing, onSaved }) {
             Ajoutez au moins une plage, ou choisissez « Jour de repos ».
           </p>
         ) : null}
+        {asUsual ? (
+          <p role="alert" className="font-montserrat text-body-sm text-error">
+            Aucun changement : ce sont déjà les horaires de la semaine type pour
+            ce jour.
+            {replacing
+              ? ' Pour revenir à la semaine type, supprimez cette date dans la liste.'
+              : ''}
+          </p>
+        ) : unchanged ? (
+          <p className="font-montserrat text-body-sm text-gray-800">
+            Modifiez les horaires de cette date, puis enregistrez.
+          </p>
+        ) : null}
 
         {write.error?.code === 'SCHEDULE_CONFLICT' ? (
           <Conflicts conflicts={write.error.details.conflicts ?? []} />
@@ -369,21 +445,42 @@ function ExceptionForm({ controller, today, existing, onSaved }) {
             message={bookingErrorMessage(write.error)}
           />
         ) : null}
-        <div role="status">{saved ? <Notice>{saved}</Notice> : null}</div>
-        <PillButton
-          type="submit"
-          disabled={write.pending}
-          aria-busy={write.pending}
-          className="mt-auto self-start disabled:opacity-60"
-        >
-          {write.pending ? 'Enregistrement…' : 'Enregistrer la date'}
-        </PillButton>
+        <div role="status">{notice ? <Notice>{notice}</Notice> : null}</div>
+        <div className="mt-auto flex flex-wrap items-center gap-3">
+          <PillButton
+            type="submit"
+            disabled={write.pending || asUsual || unchanged}
+            aria-busy={write.pending}
+            className="disabled:opacity-60"
+          >
+            {write.pending
+              ? 'Enregistrement…'
+              : replacing
+                ? 'Enregistrer les modifications'
+                : 'Enregistrer la date'}
+          </PillButton>
+          {initialDate ? (
+            <button
+              type="button"
+              onClick={onCancelEdit}
+              className="font-montserrat text-body-sm hover:text-third-200 min-h-11 text-gray-800 underline underline-offset-4"
+            >
+              Annuler la modification
+            </button>
+          ) : null}
+        </div>
       </div>
     </form>
   );
 }
 
-function ExceptionsList({ exceptions, controller, onChanged }) {
+function ExceptionsList({
+  exceptions,
+  controller,
+  onChanged,
+  onEdit,
+  editing,
+}) {
   const [removing, setRemoving] = useState(null); // date
   const write = useWrite(controller);
 
@@ -427,6 +524,29 @@ function ExceptionsList({ exceptions, controller, onChanged }) {
                       .join(', ')}
               </span>
             </div>
+            <button
+              type="button"
+              onClick={() => onEdit(exception.date)}
+              aria-label={`Modifier le ${formatLocalDate(exception.date, { year: true })}`}
+              aria-pressed={editing === exception.date}
+              title="Modifier"
+              className={`focus-visible:outline-third-200 flex size-10 shrink-0 items-center justify-center rounded-full transition-colors focus-visible:outline-2 ${
+                editing === exception.date
+                  ? 'bg-third-900 text-cream'
+                  : 'hover:bg-secondary-100 hover:text-third-900 text-gray-800'
+              }`}
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                aria-hidden
+                className="size-5"
+              >
+                <path d="M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4" />
+              </svg>
+            </button>
             <button
               type="button"
               onClick={() => {
@@ -490,6 +610,15 @@ function ScheduleContent({ controller, enabled }) {
     () => new Map((data?.exceptions ?? []).map((item) => [item.date, item])),
     [data]
   );
+  // « Modifier » on a saved date: the form reopens with its values.
+  const [editing, setEditing] = useState(null); // { date, nonce }
+  const [notice, setNotice] = useState(null);
+  const formRef = useRef(null);
+  const edit = (date) => {
+    setEditing({ date, nonce: Date.now() });
+    setNotice(null);
+    formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   if (status === 'loading' || status === 'idle') {
     return (
@@ -529,12 +658,24 @@ function ScheduleContent({ controller, enabled }) {
         </SectionHead>
         {/* One row on wide screens: 1. date, 2. hours of that day,
             3. the dates already set. Below, the saved dates come last. */}
-        <div className="rounded-panel grid gap-8 border border-black/10 bg-white p-5 sm:p-7 xl:grid-cols-[minmax(0,1fr)_minmax(0,19rem)] xl:gap-8">
+        <div
+          ref={formRef}
+          className="rounded-panel grid scroll-mt-24 gap-8 border border-black/10 bg-white p-5 sm:p-7 xl:grid-cols-[minmax(0,1fr)_minmax(0,19rem)] xl:gap-8"
+        >
           <ExceptionForm
+            key={editing ? `${editing.date}-${editing.nonce}` : 'new'}
             controller={controller}
             today={today}
             existing={existing}
-            onSaved={reload}
+            weekly={data.weekly}
+            initialDate={editing?.date ?? null}
+            onCancelEdit={() => setEditing(null)}
+            notice={notice}
+            onSaved={(message) => {
+              setNotice(message);
+              setEditing(null);
+              reload();
+            }}
           />
           <div className="flex flex-col gap-3 border-t border-black/7 pt-6 xl:border-t-0 xl:border-l xl:pt-0 xl:pl-8">
             <h3 className="font-montserrat text-body-lg font-semibold text-gray-900">
@@ -543,6 +684,8 @@ function ScheduleContent({ controller, enabled }) {
             <ExceptionsList
               exceptions={data.exceptions}
               controller={controller}
+              editing={editing?.date ?? null}
+              onEdit={edit}
               onChanged={reload}
             />
           </div>
