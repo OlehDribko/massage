@@ -1,31 +1,11 @@
-import { Suspense } from 'react';
+import { redirect } from 'next/navigation';
 
-import AdminDayBookings from '@/components/admin/AdminDayBookings';
-import Header from '@/components/layout/Header';
-import SectionEyebrow from '@/components/ui/SectionEyebrow';
-
-export const metadata = {
-  title: 'Rendez-vous — administration',
-};
-
-export default function AdminReservationsPage() {
-  return (
-    <>
-      <Header variant="solid" />
-      <main className="px-page flex-1 py-16 sm:py-24">
-        <div className="max-w-content mx-auto flex w-full flex-col gap-10">
-          <SectionEyebrow>Administration</SectionEyebrow>
-          <Suspense
-            fallback={
-              <p className="font-montserrat text-body text-gray-800">
-                Chargement…
-              </p>
-            }
-          >
-            <AdminDayBookings />
-          </Suspense>
-        </div>
-      </main>
-    </>
+// The day agenda moved inside the calendar; old links keep working.
+export default async function AdminReservationsPage({ searchParams }) {
+  const { date } = await searchParams;
+  redirect(
+    typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)
+      ? `/admin/calendrier/jour?date=${date}`
+      : '/admin/calendrier/jour'
   );
 }
