@@ -5,7 +5,7 @@ import SectionEyebrow from '@/components/ui/SectionEyebrow';
 
 const POINTS = [
   'Idéale pour toute personne recherchant détente, récupération ou un moment rien qu’à elle.',
-  'Un montant au choix (80 €, 120 € ou 160 €), utilisable sur l’ensemble des soins.',
+  'Au choix : un montant libre, utilisable sur l’ensemble des soins, ou un soin précis à offrir.',
   'Valable 1 an à compter de la date d’achat, envoyée par email prête à offrir.',
 ];
 

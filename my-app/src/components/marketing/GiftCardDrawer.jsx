@@ -9,16 +9,22 @@ import MaskIcon from '@/components/ui/MaskIcon';
 import { BUSINESS } from '@/config/site';
 import { currentProfile } from '@/lib/auth/session';
 import { formatPrice } from '@/lib/format';
+import { SERVICE_GROUPS } from '@/content/services';
+import { fetchServices } from '@/lib/api/public';
+import { buildCatalog } from '@/lib/booking/catalog';
 import {
   CONTACT_CHANNELS,
-  MAX_DESCRIPTION,
+  GIFT_KINDS,
   channelLabel,
   descriptionError,
   giftCardErrorMessage,
   giftReadinessSteps,
   keepsIdempotencyKey,
+  giftDescription,
+  messageLimit,
   parseEuroAmount,
   requestBody,
+  soinOptions,
 } from '@/lib/giftCards';
 
 export const GIFT_CARD_HASH = '#carte-cadeau';
@@ -28,6 +34,38 @@ const LABEL =
   'font-montserrat text-label-sm font-medium tracking-[0.08em] text-gray-200 uppercase';
 const INPUT =
   'font-montserrat text-body text-base-white focus:border-primary-200 w-full border-b bg-transparent py-2 tracking-[0.01em] placeholder:text-gray-900 focus:outline-none';
+
+/** Pill radios on the dark panel (kind of card, contact channel). */
+function pillClass(selected) {
+  return `rounded-pill font-montserrat text-body-sm has-focus-visible:outline-primary-200 flex min-h-11 cursor-pointer items-center border px-5 transition-colors has-focus-visible:outline-2 has-focus-visible:outline-offset-2 ${
+    selected
+      ? 'border-primary-200 bg-primary-200 text-[#131212]'
+      : 'border-white/25 text-gray-50 hover:border-white/60'
+  }`;
+}
+
+/**
+ * The soins that can be offered, from the public catalogue (current
+ * prices). `{ state: 'loading' | 'ready' | 'error', groups }`.
+ */
+function useSoins() {
+  const [soins, setSoins] = useState({ state: 'loading', groups: [] });
+  useEffect(() => {
+    const controller = new AbortController();
+    fetchServices({ signal: controller.signal })
+      .then((services) => {
+        const groups = soinOptions(buildCatalog(services, SERVICE_GROUPS));
+        setSoins({ state: groups.length ? 'ready' : 'error', groups });
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) {
+          setSoins({ state: 'error', groups: [] });
+        }
+      });
+    return () => controller.abort();
+  }, []);
+  return soins;
+}
 
 function FieldError({ id, children }) {
   return children ? (
@@ -125,6 +163,16 @@ export function RequestForm({
   onBlocked,
   onLeave,
 }) {
+  const [kind, setKind] = useState('amount');
+  const [soinId, setSoinId] = useState('');
+  const soins = useSoins();
+  const soin =
+    kind === 'soin'
+      ? (soins.groups
+          .flatMap((group) => group.options)
+          .find((option) => option.id === soinId) ?? null)
+      : null;
+  const limit = messageLimit(soin);
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [channel, setChannel] = useState('');
@@ -135,6 +183,7 @@ export function RequestForm({
   const busyRef = useRef(false);
   const ids = {
     amount: useId(),
+    soin: useId(),
     description: useId(),
     channel: useId(),
   };
@@ -150,16 +199,27 @@ export function RequestForm({
   const submit = async (event) => {
     event.preventDefault();
     if (busyRef.current) return;
-    const parsed = parseEuroAmount(amount);
+    const parsed =
+      kind === 'soin'
+        ? soin
+          ? { cents: soin.cents }
+          : { error: null }
+        : parseEuroAmount(amount);
     const found = {
-      amount: parsed.error ?? null,
-      description: descriptionError(description),
+      amount: kind === 'amount' ? (parsed.error ?? null) : null,
+      soin: kind === 'soin' && !soin ? 'Choisissez le soin à offrir.' : null,
+      description:
+        description.trim().length > limit
+          ? `${limit} caractères maximum.`
+          : descriptionError(description),
       channel: channel
         ? null
         : 'Choisissez comment vous préférez être contacté.',
     };
     setErrors(found);
-    const first = ['amount', 'description', 'channel'].find((f) => found[f]);
+    const first = ['amount', 'soin', 'description', 'channel'].find(
+      (f) => found[f]
+    );
     if (first) {
       document.getElementById(ids[first])?.focus();
       return;
@@ -167,7 +227,7 @@ export function RequestForm({
 
     const body = requestBody({
       amountCents: parsed.cents,
-      description,
+      description: giftDescription(soin, description),
       channel,
     });
     busyRef.current = true;
@@ -204,7 +264,93 @@ export function RequestForm({
   return (
     <form noValidate onSubmit={submit} className="flex flex-col gap-8">
       <div className="flex flex-col gap-6">
-        <div className="flex flex-col gap-0.5">
+        <fieldset className="flex flex-col gap-3">
+          <legend className={`${LABEL} mb-3`}>
+            Que souhaitez-vous offrir ? *
+          </legend>
+          <div className="flex flex-wrap gap-2">
+            {GIFT_KINDS.map((option) => (
+              <label
+                key={option.value}
+                className={pillClass(kind === option.value)}
+              >
+                <input
+                  type="radio"
+                  name="kind"
+                  value={option.value}
+                  checked={kind === option.value}
+                  onChange={() => {
+                    setKind(option.value);
+                    setErrors((e) => ({ ...e, amount: null, soin: null }));
+                  }}
+                  className="sr-only"
+                />
+                {option.label}
+              </label>
+            ))}
+          </div>
+        </fieldset>
+
+        {kind === 'soin' ? (
+          <div className="flex flex-col gap-0.5">
+            <label htmlFor={ids.soin} className={LABEL}>
+              Soin offert *
+            </label>
+            {soins.state === 'error' ? (
+              <p className="font-montserrat text-body-sm pt-1 text-gray-200">
+                La liste des soins est indisponible pour le moment. Choisissez «
+                Un montant » et précisez le soin dans votre message.
+              </p>
+            ) : (
+              <select
+                id={ids.soin}
+                name="soin"
+                value={soinId}
+                disabled={soins.state === 'loading'}
+                onChange={(event) => {
+                  setSoinId(event.target.value);
+                  if (errors.soin) setErrors((e) => ({ ...e, soin: null }));
+                }}
+                aria-invalid={errors.soin ? true : undefined}
+                aria-describedby={`${ids.soin}-hint${errors.soin ? ` ${ids.soin}-error` : ''}`}
+                className={`${INPUT} cursor-pointer disabled:cursor-wait ${errors.soin ? 'border-error' : 'border-white/20'}`}
+              >
+                <option value="" className="text-gray-900">
+                  {soins.state === 'loading'
+                    ? 'Chargement des soins…'
+                    : 'Choisir un soin'}
+                </option>
+                {soins.groups.map((group) => (
+                  <optgroup
+                    key={group.name}
+                    label={group.name}
+                    className="text-gray-900"
+                  >
+                    {group.options.map((option) => (
+                      <option key={option.id} value={option.id}>
+                        {option.label} —{' '}
+                        {formatPrice(option.cents, option.currency)}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+            )}
+            <p
+              id={`${ids.soin}-hint`}
+              className="font-montserrat pt-1 text-xs text-gray-800"
+            >
+              {soin
+                ? `${soin.title} : carte de ${formatPrice(soin.cents, soin.currency)} (tarif actuel).`
+                : 'La carte vaut le prix actuel du soin choisi.'}
+            </p>
+            <FieldError id={`${ids.soin}-error`}>{errors.soin}</FieldError>
+          </div>
+        ) : null}
+
+        <div
+          className={`flex flex-col gap-0.5 ${kind === 'amount' ? '' : 'hidden'}`}
+        >
           <label htmlFor={ids.amount} className={LABEL}>
             Montant de la carte *
           </label>
@@ -248,7 +394,7 @@ export function RequestForm({
             id={ids.description}
             name="description"
             rows={2}
-            maxLength={MAX_DESCRIPTION}
+            maxLength={limit}
             placeholder="Pour l’anniversaire de ma sœur, un massage relaxant…"
             value={description}
             onChange={(event) => {
@@ -264,7 +410,7 @@ export function RequestForm({
             className={`${INPUT} resize-y ${errors.description ? 'border-error' : 'border-white/20'}`}
           />
           <p className="font-montserrat pt-1 text-right text-xs text-gray-800">
-            {description.length} / {MAX_DESCRIPTION}
+            {description.length} / {limit}
           </p>
           <FieldError id={`${ids.description}-error`}>
             {errors.description}
@@ -282,11 +428,7 @@ export function RequestForm({
             {CONTACT_CHANNELS.map((option, index) => (
               <label
                 key={option.value}
-                className={`rounded-pill font-montserrat text-body-sm has-focus-visible:outline-primary-200 flex min-h-11 cursor-pointer items-center border px-5 transition-colors has-focus-visible:outline-2 has-focus-visible:outline-offset-2 ${
-                  channel === option.value
-                    ? 'border-primary-200 bg-primary-200 text-[#131212]'
-                    : 'border-white/25 text-gray-50 hover:border-white/60'
-                }`}
+                className={pillClass(channel === option.value)}
               >
                 <input
                   id={index === 0 ? ids.channel : undefined}

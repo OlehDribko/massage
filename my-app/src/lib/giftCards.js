@@ -67,6 +67,51 @@ export function descriptionError(description) {
   return null;
 }
 
+/*
+ * What the card offers: a free amount, or one soin of the catalogue. The
+ * API only knows an amount and a message, so a soin is sent as its current
+ * price plus « Soin offert : … » at the top of the message (the admin
+ * reads it there).
+ */
+export const GIFT_KINDS = [
+  { value: 'amount', label: 'Un montant' },
+  { value: 'soin', label: 'Un soin' },
+];
+
+/**
+ * Catalogue (lib/booking/catalog buildCatalog) → choices grouped by
+ * prestation: `[{ name, options: [{ id, label, title, cents, currency }] }]`.
+ */
+export function soinOptions(catalog) {
+  return (catalog ?? [])
+    .map((prestation) => ({
+      name: prestation.name,
+      options: prestation.variants
+        .filter((variant) => Number.isInteger(variant.effectivePriceCents))
+        .map((variant) => ({
+          id: variant.id,
+          label: `${variant.durationMinutes} min`,
+          title: `${prestation.name} — ${variant.durationMinutes} min`,
+          cents: variant.effectivePriceCents,
+          currency: variant.currency ?? 'EUR',
+        })),
+    }))
+    .filter((group) => group.options.length > 0);
+}
+
+export const soinLine = (option) => `Soin offert : ${option.title}`;
+
+/** Room left for the visitor's own message once the soin line is added. */
+export const messageLimit = (option) =>
+  option ? MAX_DESCRIPTION - soinLine(option).length - 2 : MAX_DESCRIPTION;
+
+/** The message sent: the soin line (if any), then the visitor's text. */
+export function giftDescription(option, message) {
+  const text = (message ?? '').trim();
+  if (!option) return text;
+  return text ? `${soinLine(option)}\n\n${text}` : soinLine(option);
+}
+
 export const CONTACT_CHANNELS = [
   { value: 'email', label: 'E-mail' },
   { value: 'phone', label: 'Téléphone' },
