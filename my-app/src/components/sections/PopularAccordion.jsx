@@ -126,7 +126,8 @@ export default function PopularAccordion({ prestations }) {
                   {/* Phones and tablets (Figma 704:1465): the photo of the
                       open item, inside it. Always mounted and loaded ahead
                       (1px wide from 1024 px, where it is hidden), so it
-                      never pops in: it fades and settles as the item opens. */}
+                      never pops in: it fades in as the item opens (the scroll
+                      parallax of HomeMotion already moves it). */}
                   <div className="relative mt-6 aspect-[358/398] w-full overflow-hidden rounded-[4px] sm:aspect-[4/3] lg:hidden">
                     <Image
                       src={photo.src}
@@ -135,7 +136,7 @@ export default function PopularAccordion({ prestations }) {
                       loading="eager"
                       fetchPriority="low"
                       sizes="(min-width: 1024px) 1px, (min-width: 640px) 90vw, 100vw"
-                      className={`object-cover ${photo.position} transition-[opacity,scale] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${isOpen ? 'scale-100 opacity-100 delay-150 duration-1000' : 'scale-105 opacity-0 duration-300'}`}
+                      className={`object-cover ${photo.position} transition-opacity ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${isOpen ? 'opacity-100 delay-150 duration-1000' : 'opacity-0 duration-300'}`}
                     />
                   </div>
                 </div>
@@ -155,7 +156,7 @@ export default function PopularAccordion({ prestations }) {
             aria-hidden={index === shown % PHOTOS.length ? undefined : true}
             fill
             sizes="554px"
-            className={`object-cover ${photo.position} transition-[opacity,scale] duration-1000 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${index === shown % PHOTOS.length ? 'scale-100 opacity-100' : 'scale-105 opacity-0'}`}
+            className={`object-cover ${photo.position} transition-opacity duration-1000 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${index === shown % PHOTOS.length ? 'opacity-100' : 'opacity-0'}`}
           />
         ))}
       </div>
