@@ -7,14 +7,13 @@ import { TimeBox } from '@/components/admin/IntervalsEditor';
 import DateField from '@/components/ui/DateField';
 import Notice from '@/components/ui/Notice';
 import PillButton from '@/components/ui/PillButton';
-import TextField from '@/components/ui/TextField';
 import { validatorFor } from '@/lib/api/contract';
 import {
   BLOCKS_PATH,
   BLOCK_ROUTE,
   HORIZON_DAYS,
   NOTE_MAX,
-  TITLE_MAX,
+  BLOCK_SOURCES,
   blockErrorMessage,
   blockIsGone,
   blockPath,
@@ -27,6 +26,7 @@ import {
   fieldErrorsFrom,
   newBlockForm,
   patchBody,
+  sourceOptions,
   validateBlockForm,
 } from '@/lib/admin/blocks';
 import { errorReference, isRetryable } from '@/lib/booking/labels';
@@ -395,7 +395,7 @@ export default function BlockDialog({
             </h2>
             <p className="font-montserrat text-body-sm text-gray-800">
               {t(
-                'Temps déjà pris ailleurs (Planity, rendez-vous personnel…). Les clients ne peuvent plus réserver sur ce créneau, ni dans la pause de 15 min avant et après. Visible uniquement par l’administration.'
+                'Temps déjà pris ailleurs (Treatwell, Planity). Les clients ne peuvent plus réserver sur ce créneau, ni dans la pause de 15 min avant et après. Visible uniquement par l’administration.'
               )}
             </p>
           </div>
@@ -442,6 +442,12 @@ export default function BlockDialog({
                       label={t('Début (HH:MM)')}
                       value={form.start}
                       onChange={set('start')}
+                      onComplete={() => {
+                        // Typed start done: the end next, ready to replace.
+                        const end = document.getElementById(ids.end);
+                        end?.focus();
+                        end?.select();
+                      }}
                       invalid={Boolean(errors.start)}
                       describedBy={describe('start')}
                     />
@@ -458,6 +464,7 @@ export default function BlockDialog({
                       label={t('Fin (HH:MM, 24:00 pour minuit)')}
                       value={form.end}
                       onChange={set('end')}
+                      allowMidnight
                       invalid={Boolean(errors.end)}
                       describedBy={[describe('end'), `${ids.end}-hint`]
                         .filter(Boolean)
@@ -479,19 +486,35 @@ export default function BlockDialog({
             </>
           )}
 
-          <TextField
-            id={ids.title}
-            label={t('Titre ({n}/{max})', {
-              n: form.title.trim().length,
-              max: TITLE_MAX,
-            })}
-            value={form.title}
-            maxLength={TITLE_MAX}
-            placeholder={t('Planity, rendez-vous personnel…')}
-            required
-            error={errors.title}
-            onChange={(event) => set('title')(event.target.value)}
-          />
+          <div className="flex flex-col gap-1">
+            <label htmlFor={ids.title} className={LABEL}>
+              {t('Source')}
+            </label>
+            <select
+              id={ids.title}
+              value={form.title.trim()}
+              required
+              aria-invalid={errors.title ? true : undefined}
+              aria-describedby={describe('title')}
+              onChange={(event) => set('title')(event.target.value)}
+              className={`font-montserrat text-body focus:border-third-200 focus:ring-third-200/30 h-12 rounded-xl border bg-white px-3.5 text-gray-900 focus:ring-2 focus:outline-none ${errors.title ? 'border-error' : 'border-black/20'}`}
+            >
+              {/* No preselected source: the admin picks one explicitly. */}
+              {form.title.trim() ? null : (
+                <option value="" disabled>
+                  {t('Choisissez la source')}
+                </option>
+              )}
+              {sourceOptions(block?.title).map((source) => (
+                <option key={source} value={source}>
+                  {BLOCK_SOURCES.includes(source)
+                    ? source
+                    : t('{title} (titre actuel)', { title: source })}
+                </option>
+              ))}
+            </select>
+            {fieldError('title')}
+          </div>
 
           <div className="flex flex-col gap-1">
             <label htmlFor={ids.note} className={LABEL}>
@@ -506,6 +529,7 @@ export default function BlockDialog({
             <textarea
               id={ids.note}
               rows={3}
+              placeholder={t('Nom du client, détails internes…')}
               maxLength={NOTE_MAX}
               value={form.note}
               aria-invalid={errors.note ? true : undefined}
