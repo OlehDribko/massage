@@ -122,9 +122,12 @@ export const EMPTY_FORM = {
   lockedBounds: null,
 };
 
-/** New block on `date`: empty times, the admin types them. */
-export function newBlockForm(date) {
-  return { ...EMPTY_FORM, date: date ?? '' };
+/**
+ * New block on `date`. Times: empty (the admin types them) or proposed
+ * from a click in the calendar grid (`{ start, end }` as "HH:MM").
+ */
+export function newBlockForm(date, { start = '', end = '' } = {}) {
+  return { ...EMPTY_FORM, date: date ?? '', start, end };
 }
 
 /**
