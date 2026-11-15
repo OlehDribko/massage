@@ -8,7 +8,11 @@ import {
   googleCalendarUrl,
   icsContent,
 } from '../../src/lib/booking/calendar.js';
-import { groupSlotsByPeriod, pickDay } from '../../src/lib/booking/slots.js';
+import {
+  groupSlotsByPeriod,
+  pickDay,
+  weekOf,
+} from '../../src/lib/booking/slots.js';
 
 const slot = (startsAt) => ({ startsAt, endsAt: startsAt });
 
@@ -100,4 +104,17 @@ test('ics file is valid iCalendar text with escaped values', () => {
   assert.ok(ics.includes('DTEND:20270302T090000Z\r\n'));
   assert.ok(ics.includes('LOCATION:23 rue Castéja\\, 33000 Bordeaux\r\n'));
   assert.ok(ics.includes('UID:b7e1@reservation\r\n'));
+});
+
+test('slots: a restored start opens on its own week, across DST', () => {
+  assert.equal(weekOf(null, '2027-03-01'), 0);
+  assert.equal(weekOf('2027-03-02T08:00:00.000Z', null), 0);
+  assert.equal(weekOf('2027-03-07T08:00:00.000Z', '2027-03-01'), 0);
+  assert.equal(weekOf('2027-03-08T08:00:00.000Z', '2027-03-01'), 1);
+  // 28 March 2027: summer time starts in Paris; still the 4th week.
+  assert.equal(weekOf('2027-03-29T07:00:00.000Z', '2027-03-01'), 4);
+  // Late UTC evening is already the next studio day.
+  assert.equal(weekOf('2027-03-07T23:30:00.000Z', '2027-03-01'), 1);
+  // A start in the past: the current week.
+  assert.equal(weekOf('2027-02-20T08:00:00.000Z', '2027-03-01'), 0);
 });

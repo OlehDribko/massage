@@ -12,6 +12,12 @@ import {
   sortDayBookings,
 } from '../../src/lib/booking/bookings.js';
 import {
+  afterBookingError,
+  bookingAccount,
+  createBookingIntent,
+  missingSteps,
+} from '../../src/lib/booking/flow.js';
+import {
   buildCatalog,
   findPrestation,
   hasActiveSale,
@@ -345,5 +351,94 @@ test('bookings: upcoming soonest first, past latest first; admin day order', () 
       b('z', '2027-03-02T08:00:00Z', 'upcoming'),
     ]).map((x) => x.id),
     ['z', 'a', 'c']
+  );
+});
+
+// ---------------------------------------------------------------------------
+// Booking panel decisions (src/lib/booking/flow.js).
+
+test('flow: account state from the server profile only', () => {
+  const base = {
+    enabled: true,
+    status: 'member',
+    blockers: [],
+    profileStatus: 'ready',
+  };
+  assert.equal(bookingAccount({ ...base, enabled: false }), 'off');
+  assert.equal(
+    bookingAccount({ ...base, status: 'unavailable' }),
+    'unavailable'
+  );
+  assert.equal(
+    bookingAccount({ ...base, blockers: null, profileStatus: 'error' }),
+    'error'
+  );
+  assert.equal(
+    bookingAccount({ ...base, blockers: null, profileStatus: 'loading' }),
+    'loading'
+  );
+  assert.equal(
+    bookingAccount({ ...base, status: 'loading', blockers: null }),
+    'loading'
+  );
+  // A guest needs no profile to be told to sign in.
+  assert.equal(
+    bookingAccount({ ...base, status: 'guest', blockers: null }),
+    'missing'
+  );
+  assert.deepEqual(missingSteps(null), ['anonymous_session']);
+  assert.equal(
+    bookingAccount({ ...base, blockers: ['phone_missing'] }),
+    'missing'
+  );
+  assert.equal(bookingAccount(base), 'ready');
+  // Firebase says « member », the profile is not loaded: never 'ready'.
+  assert.equal(bookingAccount({ ...base, blockers: null }), 'loading');
+});
+
+test('flow: one Idempotency-Key per intent, kept across unknown outcomes', () => {
+  let next = 0;
+  const intent = createBookingIntent(() => `key-${++next}`);
+  const first = intent.keyFor('s1', '2027-03-02T08:00:00.000Z');
+  // Retry after a network error / timeout: same key.
+  assert.equal(intent.keyFor('s1', '2027-03-02T08:00:00.000Z'), first);
+  // Another time or another service: a new intent.
+  assert.notEqual(intent.keyFor('s1', '2027-03-02T09:00:00.000Z'), first);
+  const other = intent.keyFor('s2', '2027-03-02T09:00:00.000Z');
+  assert.equal(other, 'key-3');
+  // After a definite refusal the same time is a new intent.
+  intent.end();
+  assert.equal(intent.keyFor('s2', '2027-03-02T09:00:00.000Z'), 'key-4');
+});
+
+test('flow: what a failed booking changes', () => {
+  assert.deepEqual(afterBookingError({ code: 'TIMEOUT', status: 0 }), {
+    keepIntent: true,
+    backToTimes: false,
+    resyncProfile: false,
+  });
+  assert.deepEqual(
+    afterBookingError({
+      code: 'SLOT_UNAVAILABLE',
+      status: 409,
+      details: { reason: 'taken' },
+    }),
+    { keepIntent: false, backToTimes: true, resyncProfile: false }
+  );
+  assert.deepEqual(
+    afterBookingError({ code: 'BOOKING_NOT_READY', status: 403 }),
+    {
+      keepIntent: false,
+      backToTimes: false,
+      resyncProfile: true,
+    }
+  );
+  assert.equal(
+    afterBookingError({ code: 'CALENDAR_BUSY', status: 503 }).keepIntent,
+    true
+  );
+  assert.equal(
+    afterBookingError({ code: 'TOKEN_EXPIRED', status: 401 }).keepIntent,
+    false
   );
 });

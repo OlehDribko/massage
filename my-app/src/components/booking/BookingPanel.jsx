@@ -14,6 +14,12 @@ import PillButton from '@/components/ui/PillButton';
 import { validatorFor } from '@/lib/api/contract';
 import { currentProfile } from '@/lib/auth/session';
 import {
+  afterBookingError,
+  bookingAccount,
+  createBookingIntent,
+  missingSteps,
+} from '@/lib/booking/flow';
+import {
   bookingErrorMessage,
   errorReference,
   isRetryable,
@@ -88,9 +94,9 @@ function SlotSummary({ startsAt, durationMinutes }) {
  * - step 3: only what `bookingReadiness.blockers` says is missing, inline
  *   (account, name and phone, email link). Sign-in comes back here with the
  *   chosen time (`?creneau=`) and the step (`?etape=coordonnees`);
- * - one Idempotency-Key per intent (service + time): a retry after a network
- *   error or CALENDAR_BUSY reuses it, so the server never books twice; a new
- *   choice gets a new key;
+ * - one Idempotency-Key per intent (service + time): a retry after an
+ *   unknown outcome reuses it, so the server never books twice; a new
+ *   choice gets a new key (lib/booking/flow.js, tested there);
  * - price and end are decided by the server; the booking is confirmed at
  *   once, then the confirmation page is shown.
  */
@@ -110,7 +116,8 @@ export default function BookingPanel({ service, intro }) {
   const [refreshKey, setRefreshKey] = useState(0);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState(null);
-  const intent = useRef(null); // { serviceId, startsAt, key }
+  const intent = useRef(null);
+  intent.current ??= createBookingIntent();
   const busyRef = useRef(false);
   const topRef = useRef(null);
 
@@ -133,21 +140,6 @@ export default function BookingPanel({ service, intro }) {
     setError(null);
   };
 
-  // One key per intent (this service + this time), kept with its body.
-  const keyFor = (startsAt) => {
-    if (
-      intent.current?.startsAt !== startsAt ||
-      intent.current?.serviceId !== service.id
-    ) {
-      intent.current = {
-        serviceId: service.id,
-        startsAt,
-        key: crypto.randomUUID(),
-      };
-    }
-    return intent.current.key;
-  };
-
   const book = async () => {
     if (!slot || busyRef.current) return;
     busyRef.current = true;
@@ -156,7 +148,9 @@ export default function BookingPanel({ service, intro }) {
     try {
       const { booking } = await controller.api('/api/bookings', {
         method: 'POST',
-        headers: { 'Idempotency-Key': keyFor(slot.startsAt) },
+        headers: {
+          'Idempotency-Key': intent.current.keyFor(service.id, slot.startsAt),
+        },
         body: { serviceId: service.id, startsAt: slot.startsAt },
         validate: validatorFor('booking'),
       });
@@ -164,41 +158,29 @@ export default function BookingPanel({ service, intro }) {
       return; // keep the button disabled while leaving
     } catch (caught) {
       setError(caught);
-      if (caught?.code === 'SLOT_UNAVAILABLE') {
-        // Back to the times, refreshed; the message stays above them.
+      const next = afterBookingError(caught);
+      if (next.backToTimes) {
+        // The message stays above the refreshed times.
         setSlot(null);
         setStage('time');
         setRefreshKey((value) => value + 1);
       }
-      if (caught?.code === 'BOOKING_NOT_READY') controller.retry();
-      // Unknown outcome (network, timeout, 5xx, CALENDAR_BUSY): the same
-      // key and body on the next try, so the server never books twice.
+      if (next.resyncProfile) controller.retry();
       // A definite refusal ends this intent: the next try is a new one.
-      if (!isRetryable(caught)) intent.current = null;
+      if (!next.keepIntent) intent.current.end();
     }
     busyRef.current = false;
     setPending(false);
   };
 
   // What the account allows, from the server profile only.
-  let account; // 'off' | 'unavailable' | 'error' | 'loading' | 'ready' | 'missing'
-  if (!enabled) account = 'off';
-  else if (status === 'unavailable') account = 'unavailable';
-  else if (
-    blockers === null &&
-    status !== 'guest' &&
-    state.profile.status === 'error'
-  ) {
-    account = 'error'; // permanent account whose profile did not load
-  } else if (
-    status === 'loading' ||
-    (blockers === null && status !== 'guest')
-  ) {
-    account = 'loading';
-  } else if (blockers === null || blockers.length) account = 'missing';
-  else account = 'ready';
-  // A guest whose profile did not load yet: the documented first step.
-  const missing = blockers ?? ['anonymous_session'];
+  const account = bookingAccount({
+    enabled,
+    status,
+    blockers,
+    profileStatus: state.profile.status,
+  });
+  const missing = missingSteps(blockers);
 
   const confirmButton = ({
     className = '',

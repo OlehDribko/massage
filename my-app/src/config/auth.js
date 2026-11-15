@@ -87,7 +87,9 @@ function resolveAuthEmulator(value) {
   if (!value) return null;
   const local = /^(localhost|127\.0\.0\.1|\[::1\]):\d+$/.test(value);
   if (!local || process.env.NODE_ENV !== 'development') {
-    console.warn(`[auth] NEXT_PUBLIC_FIREBASE_AUTH_EMULATOR_HOST ignored: ${value}`);
+    console.warn(
+      `[auth] NEXT_PUBLIC_FIREBASE_AUTH_EMULATOR_HOST ignored: ${value}`
+    );
     return null;
   }
   return `http://${value}`;

@@ -496,3 +496,24 @@ test('subscribeMarketing: own address, answer status applied to the profile', as
   assert.equal(view.marketing.subscribed, true);
   assert.equal(view.marketingAvailable, true);
 });
+
+test('an incomplete profile answer is rejected: no role, a profile error', async () => {
+  const { api, controller } = setup({
+    persisted: makeUser('member-1', { email: 'm@example.com' }),
+  });
+  controller.start();
+  await flush();
+
+  // 200, but without bookingReadiness: the contract check refuses it.
+  const { bookingReadiness, ...broken } = profileView('admin');
+  assert.ok(bookingReadiness);
+  api.pending[0].respond(200, broken);
+  await flush();
+
+  const snapshot = controller.getSnapshot();
+  assert.equal(snapshot.profile.status, 'error');
+  assert.equal(snapshot.profile.error.code, 'INVALID_RESPONSE');
+  assert.equal(snapshot.profile.data, null);
+  // Firebase still proves the account; the admin role never appears.
+  assert.equal(accountStatus(snapshot), 'member');
+});
