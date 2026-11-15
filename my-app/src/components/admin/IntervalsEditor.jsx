@@ -2,6 +2,8 @@
 
 import { useId } from 'react';
 
+import { useT } from '@/i18n/client';
+
 import {
   MAX_INTERVALS_PER_DAY,
   maskTimeInput,
@@ -77,6 +79,7 @@ function IconButton({ label, onClick, children }) {
 
 /** The ranges of a day as chips: [09:00] – [13:00] ×. */
 function Ranges({ intervals, errors, onChange, dayLabel }) {
+  const t = useT();
   const set = (index, field) => (value) =>
     onChange(
       intervals.map((item, i) =>
@@ -95,7 +98,10 @@ function Ranges({ intervals, errors, onChange, dayLabel }) {
             }`}
           >
             <TimeBox
-              label={`${dayLabel}, plage ${index + 1} : début`}
+              label={t('{day}, plage {n} : début', {
+                day: dayLabel,
+                n: index + 1,
+              })}
               value={interval.start}
               onChange={set(index, 'start')}
               invalid={Boolean(errors[index])}
@@ -104,14 +110,17 @@ function Ranges({ intervals, errors, onChange, dayLabel }) {
               –
             </span>
             <TimeBox
-              label={`${dayLabel}, plage ${index + 1} : fin`}
+              label={t('{day}, plage {n} : fin', {
+                day: dayLabel,
+                n: index + 1,
+              })}
               value={interval.end}
               onChange={set(index, 'end')}
               invalid={Boolean(errors[index])}
             />
             {intervals.length > 1 ? (
               <IconButton
-                label={`Retirer la plage ${index + 1}`}
+                label={t('Retirer la plage {n}', { n: index + 1 })}
                 onClick={() =>
                   onChange(intervals.filter((_, i) => i !== index))
                 }
@@ -140,8 +149,10 @@ function Ranges({ intervals, errors, onChange, dayLabel }) {
               <span aria-hidden className="text-lg leading-none">
                 +
               </span>
-              Plage
-              <span className="sr-only"> pour {dayLabel}</span>
+              {t('Plage')}
+              <span className="sr-only">
+                {t(' pour {day}', { day: dayLabel })}
+              </span>
             </button>
           </li>
         ) : null}
@@ -169,6 +180,7 @@ export default function IntervalsEditor({
   onChange,
   layout = 'row',
 }) {
+  const t = useT();
   const stateId = useId();
   const open = intervals.length > 0;
 
@@ -192,7 +204,7 @@ export default function IntervalsEditor({
         <div className="flex items-center gap-3">
           <Switch
             checked={open}
-            label={`${label} ouvert`}
+            label={t('{day} ouvert', { day: label })}
             describedBy={stateId}
             onChange={(next) => onChange(next ? [{ ...DEFAULT_INTERVAL }] : [])}
           />
@@ -200,7 +212,7 @@ export default function IntervalsEditor({
             id={stateId}
             className={`font-montserrat text-body-sm ${open ? 'text-gray-900' : 'text-gray-800'}`}
           >
-            {open ? 'Ouvert' : 'Repos'}
+            {open ? t('Ouvert') : t('Repos')}
           </span>
         </div>
       </div>
@@ -213,7 +225,7 @@ export default function IntervalsEditor({
         />
       ) : (
         <p className="font-montserrat text-body-sm text-gray-800 sm:py-3">
-          Aucune réservation possible ce jour-là.
+          {t('Aucune réservation possible ce jour-là.')}
         </p>
       )}
     </div>

@@ -7,7 +7,7 @@
 
 export const DEFAULT_LOCALE = 'fr';
 export const LOCALES = ['fr', 'en', 'uk', 'ru'];
-export const ADMIN_LOCALES = ['fr'];
+export const ADMIN_LOCALES = ['fr', 'uk'];
 
 /** Visitor's choice from the language switcher (public site). */
 export const LOCALE_COOKIE = 'site_locale';

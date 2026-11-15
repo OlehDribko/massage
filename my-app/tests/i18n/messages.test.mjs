@@ -75,3 +75,15 @@ test('translator: interpolation, plurals, French fallback', () => {
     '34 проверенных отзыва'
   );
 });
+
+test('admin Ukrainian: every admin key resolves in Ukrainian', () => {
+  const t = createTranslator('uk', { ...uk, ...adminUk });
+  assert.equal(
+    t('Calendrier du <accent>cabinet</accent>'),
+    'Календар <accent>кабінету</accent>'
+  );
+  assert.equal(
+    t('{n} date sélectionnée|{n} dates sélectionnées', { n: 2 }),
+    'Вибрано 2 дати'
+  );
+});

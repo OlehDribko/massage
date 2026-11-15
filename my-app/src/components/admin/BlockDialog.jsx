@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useId, useRef, useState } from 'react';
-import Link from 'next/link';
+import { Link, useFormat, useT } from '@/i18n/client';
 
 import { TimeBox } from '@/components/admin/IntervalsEditor';
 import DateField from '@/components/ui/DateField';
@@ -30,7 +30,7 @@ import {
   validateBlockForm,
 } from '@/lib/admin/blocks';
 import { errorReference, isRetryable } from '@/lib/booking/labels';
-import { addDays, formatDateTime, formatLocalDate } from '@/lib/format';
+import { addDays } from '@/lib/format';
 
 const checkBlock = validatorFor('scheduleBlock');
 const checkUpdate = validatorFor('scheduleBlockUpdate');
@@ -67,6 +67,8 @@ export default function BlockDialog({
   onGone,
   fallbackFocus,
 }) {
+  const t = useT();
+  const { formatDateTime, formatLocalDate } = useFormat();
   const dialogRef = useRef(null);
   const openerRef = useRef(null);
   const busyRef = useRef(false);
@@ -127,8 +129,8 @@ export default function BlockDialog({
     };
   }, [fallbackFocus]);
 
-  const hints = touched ? validateBlockForm(form, today) : {};
-  const server = failure ? fieldErrorsFrom(failure.error) : {};
+  const hints = touched ? validateBlockForm(form, today, t) : {};
+  const server = failure ? fieldErrorsFrom(failure.error, t) : {};
   const errors = { ...server, ...hints };
   const set = (field) => (value) => {
     setForm((current) => ({ ...current, [field]: value }));
@@ -184,7 +186,7 @@ export default function BlockDialog({
         onGone?.();
       }
       setFailure({ error, action });
-      const fields = fieldErrorsFrom(error);
+      const fields = fieldErrorsFrom(error, t);
       const first = FIELD_ORDER.find((field) => fields[field]);
       if (first) {
         setStep('form');
@@ -201,7 +203,7 @@ export default function BlockDialog({
   const submit = (event) => {
     event.preventDefault();
     setTouched(true);
-    const found = validateBlockForm(form, today);
+    const found = validateBlockForm(form, today, t);
     const first = FIELD_ORDER.find((field) => found[field]);
     if (first) {
       document.getElementById(ids[first])?.focus();
@@ -212,7 +214,7 @@ export default function BlockDialog({
 
   const conflicts = failure ? conflictsOf(failure.error) : [];
   const retryable = failure && isRetryable(failure.error);
-  const reference = failure ? errorReference(failure.error) : null;
+  const reference = failure ? errorReference(failure.error, t) : null;
   const errorId = `${titleId}-error`;
   const describe = (field) =>
     errors[field] ? `${ids[field]}-error` : undefined;
@@ -233,7 +235,7 @@ export default function BlockDialog({
       className="border-error/40 rounded-card flex flex-col gap-3 border bg-white px-4 py-3"
     >
       <p className="font-montserrat text-body-sm text-error">
-        {server.form ?? blockErrorMessage(failure.error)}
+        {server.form ?? blockErrorMessage(failure.error, t)}
       </p>
       {conflicts.length ? (
         <ul className="font-montserrat text-body-sm flex flex-col gap-1.5 text-gray-900">
@@ -246,7 +248,7 @@ export default function BlockDialog({
                 <span className="inline-block first-letter:uppercase">
                   {formatDateTime(item.startsAt)}
                 </span>{' '}
-                — {item.serviceName ?? 'Rendez-vous'}
+                — {item.serviceName ?? t('Rendez-vous')}
               </Link>
             </li>
           ))}
@@ -265,7 +267,7 @@ export default function BlockDialog({
           disabled={pending}
           className="self-start disabled:opacity-60"
         >
-          Réessayer
+          {t('Réessayer')}
         </PillButton>
       ) : null}
     </div>
@@ -280,7 +282,7 @@ export default function BlockDialog({
       {past && step === 'form' ? (
         <div className="flex flex-col gap-5 p-6 sm:p-8">
           <div className="flex flex-col gap-1">
-            <p className={LABEL}>Indisponibilité terminée</p>
+            <p className={LABEL}>{t('Indisponibilité terminée')}</p>
             <h2
               id={titleId}
               className="font-faustina text-title-sm text-third-900 break-words sm:text-[2rem] sm:leading-tight"
@@ -291,7 +293,7 @@ export default function BlockDialog({
               <span className="inline-block first-letter:uppercase">
                 {formatLocalDate(form.date, { year: true })}
               </span>
-              , {blockTimeLabel(block)}
+              , {blockTimeLabel(block, undefined, t)}
             </p>
           </div>
           {block.note ? (
@@ -300,10 +302,13 @@ export default function BlockDialog({
             </p>
           ) : null}
           <Notice>
-            Cette indisponibilité est terminée : elle ne peut plus être
-            modifiée. Vous pouvez la supprimer.
+            {t(
+              'Cette indisponibilité est terminée : elle ne peut plus être modifiée. Vous pouvez la supprimer.'
+            )}
           </Notice>
-          {gone ? <Notice>Le calendrier a été mis à jour.</Notice> : null}
+          {gone ? (
+            <Notice>{t('Le calendrier a été mis à jour.')}</Notice>
+          ) : null}
           <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-end">
             <PillButton
               type="button"
@@ -316,7 +321,7 @@ export default function BlockDialog({
               disabled={gone}
               className="text-error self-center disabled:opacity-60 sm:mr-auto"
             >
-              Supprimer
+              {t('Supprimer')}
             </PillButton>
             <PillButton
               type="button"
@@ -324,7 +329,7 @@ export default function BlockDialog({
               tone="dark"
               onClick={onClose}
             >
-              Fermer
+              {t('Fermer')}
             </PillButton>
           </div>
         </div>
@@ -334,15 +339,18 @@ export default function BlockDialog({
             id={titleId}
             className="font-faustina text-title-sm text-third-900 sm:text-[2rem] sm:leading-tight"
           >
-            Supprimer cette indisponibilité ?
+            {t('Supprimer cette indisponibilité ?')}
           </h2>
           <p className="font-montserrat text-body text-gray-800">
-            « {block.title} » —{' '}
+            {t('« {title} » —', { title: block.title })}{' '}
             <span className="first-letter:uppercase">
               {formatLocalDate(form.date, { year: true })}
             </span>
-            , {blockTimeLabel(block)}. Ce créneau redevient réservable par les
-            clients selon les horaires du cabinet.
+            ,{' '}
+            {t(
+              '{time}. Ce créneau redevient réservable par les clients selon les horaires du cabinet.',
+              { time: blockTimeLabel(block, undefined, t) }
+            )}
           </p>
           {failureBox}
           <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
@@ -357,7 +365,7 @@ export default function BlockDialog({
               disabled={pending}
               className="disabled:opacity-60"
             >
-              Retour
+              {t('Retour')}
             </PillButton>
             <PillButton
               type="button"
@@ -366,7 +374,7 @@ export default function BlockDialog({
               aria-busy={pending}
               className="disabled:opacity-60"
             >
-              {pending ? 'Un instant…' : 'Supprimer'}
+              {pending ? t('Un instant…') : t('Supprimer')}
             </PillButton>
           </div>
         </div>
@@ -382,27 +390,26 @@ export default function BlockDialog({
               id={titleId}
               className="font-faustina text-title-sm text-third-900 sm:text-[2rem] sm:leading-tight"
             >
-              {block ? 'Indisponibilité' : 'Ajouter une indisponibilité'}
+              {block ? t('Indisponibilité') : t('Ajouter une indisponibilité')}
             </h2>
             <p className="font-montserrat text-body-sm text-gray-800">
-              Temps déjà pris ailleurs (Planity, rendez-vous personnel…). Les
-              clients ne peuvent plus réserver sur ce créneau, ni dans la pause
-              de 15 min avant et après. Visible uniquement par l’administration.
+              {t(
+                'Temps déjà pris ailleurs (Planity, rendez-vous personnel…). Les clients ne peuvent plus réserver sur ce créneau, ni dans la pause de 15 min avant et après. Visible uniquement par l’administration.'
+              )}
             </p>
           </div>
 
           {form.lockedBounds ? (
             <div className="flex flex-col gap-2">
-              <p className={LABEL}>Date et horaires</p>
+              <p className={LABEL}>{t('Date et horaires')}</p>
               <p className="font-montserrat text-body text-gray-900 first-letter:uppercase">
                 {formatLocalDate(form.date, { year: true })},{' '}
-                {blockTimeLabel(block)}
+                {blockTimeLabel(block, undefined, t)}
               </p>
               <Notice>
-                Cette indisponibilité dépasse minuit (créée hors de ce
-                formulaire) : ses horaires restent tels quels. Vous pouvez
-                modifier le titre et la note, ou la supprimer puis en créer une
-                par jour.
+                {t(
+                  'Cette indisponibilité dépasse minuit (créée hors de ce formulaire) : ses horaires restent tels quels. Vous pouvez modifier le titre et la note, ou la supprimer puis en créer une par jour.'
+                )}
               </Notice>
             </div>
           ) : (
@@ -410,7 +417,7 @@ export default function BlockDialog({
               <div className="flex flex-col gap-1">
                 <DateField
                   buttonId={ids.date}
-                  label="Date"
+                  label={t('Date')}
                   value={form.date}
                   today={today}
                   min={today ?? undefined}
@@ -423,15 +430,15 @@ export default function BlockDialog({
               </div>
 
               <fieldset className="flex flex-col gap-2">
-                <legend className={`${LABEL} mb-1`}>Horaires</legend>
+                <legend className={`${LABEL} mb-1`}>{t('Horaires')}</legend>
                 <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
                   <label className="flex flex-col gap-1" htmlFor={ids.start}>
                     <span className="font-montserrat text-body-sm text-gray-800">
-                      Début
+                      {t('Début')}
                     </span>
                     <TimeBox
                       id={ids.start}
-                      label="Début (HH:MM)"
+                      label={t('Début (HH:MM)')}
                       value={form.start}
                       onChange={set('start')}
                       invalid={Boolean(errors.start)}
@@ -443,11 +450,11 @@ export default function BlockDialog({
                   </span>
                   <label className="flex flex-col gap-1" htmlFor={ids.end}>
                     <span className="font-montserrat text-body-sm text-gray-800">
-                      Fin
+                      {t('Fin')}
                     </span>
                     <TimeBox
                       id={ids.end}
-                      label="Fin (HH:MM, 24:00 pour minuit)"
+                      label={t('Fin (HH:MM, 24:00 pour minuit)')}
                       value={form.end}
                       onChange={set('end')}
                       invalid={Boolean(errors.end)}
@@ -463,8 +470,9 @@ export default function BlockDialog({
                   id={`${ids.end}-hint`}
                   className="font-montserrat text-xs text-gray-800"
                 >
-                  Un seul jour, heure de Paris, par pas de 5 min. Pour aller
-                  jusqu’à minuit, indiquez 24:00. Au moins 15 min.
+                  {t(
+                    'Un seul jour, heure de Paris, par pas de 5 min. Pour aller jusqu’à minuit, indiquez 24:00. Au moins 15 min.'
+                  )}
                 </p>
               </fieldset>
             </>
@@ -472,10 +480,13 @@ export default function BlockDialog({
 
           <TextField
             id={ids.title}
-            label={`Titre (${form.title.trim().length}/${TITLE_MAX})`}
+            label={t('Titre ({n}/{max})', {
+              n: form.title.trim().length,
+              max: TITLE_MAX,
+            })}
             value={form.title}
             maxLength={TITLE_MAX}
-            placeholder="Planity, rendez-vous personnel…"
+            placeholder={t('Planity, rendez-vous personnel…')}
             required
             error={errors.title}
             onChange={(event) => set('title')(event.target.value)}
@@ -483,9 +494,12 @@ export default function BlockDialog({
 
           <div className="flex flex-col gap-1">
             <label htmlFor={ids.note} className={LABEL}>
-              Note{' '}
+              {t('Note')}{' '}
               <span className="font-normal normal-case">
-                (facultatif, {form.note.trim().length}/{NOTE_MAX})
+                {t('(facultatif, {n}/{max})', {
+                  n: form.note.trim().length,
+                  max: NOTE_MAX,
+                })}
               </span>
             </label>
             <textarea
@@ -501,7 +515,9 @@ export default function BlockDialog({
             {fieldError('note')}
           </div>
 
-          {gone ? <Notice>Le calendrier a été mis à jour.</Notice> : null}
+          {gone ? (
+            <Notice>{t('Le calendrier a été mis à jour.')}</Notice>
+          ) : null}
           {failureBox}
 
           <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-end">
@@ -517,7 +533,7 @@ export default function BlockDialog({
                 disabled={pending || gone}
                 className="text-error self-center disabled:opacity-60 sm:mr-auto"
               >
-                Supprimer
+                {t('Supprimer')}
               </PillButton>
             ) : null}
             <PillButton
@@ -528,7 +544,7 @@ export default function BlockDialog({
               disabled={pending}
               className="disabled:opacity-60"
             >
-              {gone ? 'Fermer' : 'Annuler'}
+              {gone ? t('Fermer') : t('Annuler')}
             </PillButton>
             <PillButton
               type="submit"
@@ -536,7 +552,11 @@ export default function BlockDialog({
               aria-busy={pending}
               className="disabled:opacity-60"
             >
-              {pending ? 'Un instant…' : block ? 'Enregistrer' : 'Ajouter'}
+              {pending
+                ? t('Un instant…')
+                : block
+                  ? t('Enregistrer')
+                  : t('Ajouter')}
             </PillButton>
           </div>
         </form>

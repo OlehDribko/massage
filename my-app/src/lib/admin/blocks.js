@@ -20,6 +20,8 @@
  * Pure, relative imports only — tested with `node --test`.
  */
 
+import { frenchT, msg } from '../../i18n/translate.js';
+
 import { addDays, localDateOf } from '../format.js';
 import { bookingErrorMessage, isRetryable } from '../booking/labels.js';
 
@@ -88,7 +90,11 @@ export function blockDates(block) {
  * reads 24:00; a part of a block that runs over midnight says so:
  * "22:00–24:00 (jusqu’au lendemain 02:00)", "00:00–02:00 (depuis la veille)".
  */
-export function blockTimeLabel(block, date = splitLocal(block?.start)?.date) {
+export function blockTimeLabel(
+  block,
+  date = splitLocal(block?.start)?.date,
+  t = frenchT
+) {
   const span = blockSpanOn(block, date);
   if (!span) return '';
   const text = `${timeOf(span.start)}–${timeOf(span.end)}`;
@@ -96,9 +102,12 @@ export function blockTimeLabel(block, date = splitLocal(block?.start)?.date) {
   const end = splitLocal(block.end);
   const endsNextDayAfterMidnight =
     end.date > date && !(end.date === addDays(date, 1) && end.time === '00:00');
-  if (start.date < date) return `${text} (depuis la veille)`;
+  if (start.date < date) return t('{time} (depuis la veille)', { time: text });
   if (endsNextDayAfterMidnight)
-    return `${text} (jusqu’au lendemain ${end.time})`;
+    return t('{time} (jusqu’au lendemain {end})', {
+      time: text,
+      end: end.time,
+    });
   return text;
 }
 
@@ -198,21 +207,21 @@ export function patchBody(block, form) {
  * Hints before sending, by field (French). `today` is the studio date.
  * {} when nothing is wrong; the server still has the last word.
  */
-export function validateBlockForm(form, today) {
+export function validateBlockForm(form, today, t = frenchT) {
   const errors = {};
   const title = form.title.trim();
-  if (!title) errors.title = 'Indiquez un titre.';
+  if (!title) errors.title = t('Indiquez un titre.');
   else if (title.length > TITLE_MAX)
-    errors.title = `${TITLE_MAX} caractères maximum.`;
+    errors.title = t('{n} caractères maximum.', { n: TITLE_MAX });
   if (form.note.trim().length > NOTE_MAX)
-    errors.note = `${NOTE_MAX} caractères maximum.`;
+    errors.note = t('{n} caractères maximum.', { n: NOTE_MAX });
 
   if (!/^\d{4}-\d{2}-\d{2}$/.test(form.date)) {
-    errors.date = 'Choisissez une date.';
+    errors.date = t('Choisissez une date.');
   } else if (today && form.date < today) {
-    errors.date = 'La date ne peut pas être passée.';
+    errors.date = t('La date ne peut pas être passée.');
   } else if (today && form.date > addDays(today, HORIZON_DAYS)) {
-    errors.date = `Au plus ${HORIZON_DAYS} jours à l’avance.`;
+    errors.date = t('Au plus {n} jours à l’avance.', { n: HORIZON_DAYS });
   }
 
   // Times of a block over midnight are kept as they are (not editable).
@@ -220,22 +229,25 @@ export function validateBlockForm(form, today) {
   const start = minutesOf(form.start);
   const end = minutesOf(form.end);
   if (start === null || start === DAY) {
-    errors.start = 'Heure de début au format HH:MM (00:00–23:55).';
+    errors.start = t('Heure de début au format HH:MM (00:00–23:55).');
   } else if (start % STEP_MINUTES) {
-    errors.start = `Minutes par pas de ${STEP_MINUTES} (ex. 14:05).`;
+    errors.start = t('Minutes par pas de {n} (ex. 14:05).', {
+      n: STEP_MINUTES,
+    });
   }
   if (end === null) {
-    errors.end = 'Heure de fin au format HH:MM (24:00 pour minuit).';
+    errors.end = t('Heure de fin au format HH:MM (24:00 pour minuit).');
   } else if (end % STEP_MINUTES) {
-    errors.end = `Minutes par pas de ${STEP_MINUTES} (ex. 15:35).`;
+    errors.end = t('Minutes par pas de {n} (ex. 15:35).', { n: STEP_MINUTES });
   }
   if (!errors.start && !errors.end) {
     const length = end - start;
     if (length <= 0)
-      errors.end =
-        'La fin doit être après le début, le même jour (24:00 au plus).';
+      errors.end = t(
+        'La fin doit être après le début, le même jour (24:00 au plus).'
+      );
     else if (length < MIN_MINUTES)
-      errors.end = `Au moins ${MIN_MINUTES} minutes.`;
+      errors.end = t('Au moins {n} minutes.', { n: MIN_MINUTES });
   }
   return errors;
 }
@@ -243,11 +255,14 @@ export function validateBlockForm(form, today) {
 /* --- Server answers -------------------------------------------------------- */
 
 const FIELD_MESSAGES = {
-  title: `Indiquez un titre (${TITLE_MAX} caractères maximum).`,
-  note: `${NOTE_MAX} caractères maximum.`,
-  start:
-    'Début refusé : vérifiez la date et l’heure (pas de 5 min, horizon de 365 jours, heure qui n’existe pas ou existe deux fois au changement d’heure).',
-  end: 'Fin refusée par le serveur : vérifiez qu’elle n’est pas déjà passée, qu’elle reste le même jour (24:00 au plus), à au moins 15 minutes du début, minutes par pas de 5 (heure du changement d’heure non acceptée).',
+  title: [msg('Indiquez un titre ({n} caractères maximum).'), { n: TITLE_MAX }],
+  note: [msg('{n} caractères maximum.'), { n: NOTE_MAX }],
+  start: msg(
+    'Début refusé : vérifiez la date et l’heure (pas de 5 min, horizon de 365 jours, heure qui n’existe pas ou existe deux fois au changement d’heure).'
+  ),
+  end: msg(
+    'Fin refusée par le serveur : vérifiez qu’elle n’est pas déjà passée, qu’elle reste le même jour (24:00 au plus), à au moins 15 minutes du début, minutes par pas de 5 (heure du changement d’heure non acceptée).'
+  ),
 };
 
 /**
@@ -255,33 +270,45 @@ const FIELD_MESSAGES = {
  * messages by form field (the English message is never shown). A field
  * the form does not have is reported under `form`.
  */
-export function fieldErrorsFrom(error) {
+export function fieldErrorsFrom(error, t = frenchT) {
   if (error?.code !== 'VALIDATION_FAILED') return {};
   const found = {};
   for (const entry of error.details?.errors ?? []) {
     const field = Array.isArray(entry?.field) ? entry.field[0] : entry?.field;
-    if (FIELD_MESSAGES[field]) found[field] = FIELD_MESSAGES[field];
-    else found.form = bookingErrorMessage(error);
+    if (FIELD_MESSAGES[field]) {
+      const [key, vars] = [].concat(FIELD_MESSAGES[field]);
+      found[field] = t(key, vars);
+    } else found.form = bookingErrorMessage(error, t);
   }
-  if (!Object.keys(found).length) found.form = bookingErrorMessage(error);
+  if (!Object.keys(found).length) found.form = bookingErrorMessage(error, t);
   return found;
 }
 
 /** Message of a failed block request (French). */
-export function blockErrorMessage(error) {
+export function blockErrorMessage(error, t = frenchT) {
   switch (error?.code) {
     case 'BLOCK_CONFLICT':
-      return 'Des rendez-vous confirmés (avec leur pause de 15 min) se trouvent sur ce créneau. Rien n’a été enregistré : déplacez ou annulez-les d’abord, ou changez les horaires.';
+      return t(
+        'Des rendez-vous confirmés (avec leur pause de 15 min) se trouvent sur ce créneau. Rien n’a été enregistré : déplacez ou annulez-les d’abord, ou changez les horaires.'
+      );
     case 'BLOCK_DELETED':
-      return 'Cette indisponibilité a été supprimée entre-temps : elle n’a pas été recréée. Le calendrier est mis à jour.';
+      return t(
+        'Cette indisponibilité a été supprimée entre-temps : elle n’a pas été recréée. Le calendrier est mis à jour.'
+      );
     case 'BLOCK_NOT_FOUND':
-      return 'Cette indisponibilité n’existe plus (supprimée entre-temps). Le calendrier est mis à jour.';
+      return t(
+        'Cette indisponibilité n’existe plus (supprimée entre-temps). Le calendrier est mis à jour.'
+      );
     case 'IDEMPOTENCY_KEY_REUSED':
-      return 'Cette demande a déjà servi pour une autre indisponibilité. Vérifiez le calendrier, puis enregistrez à nouveau : une nouvelle demande sera envoyée.';
+      return t(
+        'Cette demande a déjà servi pour une autre indisponibilité. Vérifiez le calendrier, puis enregistrez à nouveau : une nouvelle demande sera envoyée.'
+      );
     case 'VALIDATION_FAILED':
-      return 'Certaines informations sont refusées. Vérifiez les champs signalés.';
+      return t(
+        'Certaines informations sont refusées. Vérifiez les champs signalés.'
+      );
     default:
-      return bookingErrorMessage(error);
+      return bookingErrorMessage(error, t);
   }
 }
 
@@ -449,5 +476,5 @@ export const isBlockOver = (block, now = Date.now()) =>
   Date.parse(block?.endsAt) <= now;
 
 /** "1 indisponibilité", "3 indisponibilités". */
-export const blocksCountLabel = (count) =>
-  `${count} indisponibilité${count > 1 ? 's' : ''}`;
+export const blocksCountLabel = (count, t = frenchT) =>
+  t('{n} indisponibilité|{n} indisponibilités', { n: count });

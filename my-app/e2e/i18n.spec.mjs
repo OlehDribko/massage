@@ -47,3 +47,40 @@ test('[real API] @mobile the switcher opens the same page in English, remembered
     'Massage sportif'
   );
 });
+
+test('[real API] the administration in Ukrainian, French and Ukrainian only', async ({
+  page,
+}) => {
+  const owner = await admin();
+  await signInOnSite(page, owner, '/admin/calendrier/jour');
+
+  await page.getByRole('button', { name: /^Langue/ }).click();
+  await expect(page.getByRole('button', { name: 'English' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Українська' }).click();
+
+  await page.waitForURL(/\/uk\/admin\/calendrier\/jour/);
+  await expect(page.locator('html')).toHaveAttribute('lang', 'uk');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(
+    'Розклад дня'
+  );
+  await page.getByRole('button', { name: 'Додати зайнятий час' }).click();
+  await expect(
+    page.getByRole('dialog', { name: 'Додати зайнятий час' })
+  ).toBeVisible();
+  await page.keyboard.press('Escape');
+
+  await page
+    .getByRole('navigation', { name: 'Адміністрування' })
+    .getByRole('link', { name: 'Календар' })
+    .click();
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(
+    'Календар кабінету'
+  );
+
+  // /en/admin does not exist: the administration's own language applies.
+  await page.goto('/en/admin/horaires');
+  await expect(page).toHaveURL(/\/uk\/admin\/horaires$/);
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(
+    'Графік кабінету'
+  );
+});

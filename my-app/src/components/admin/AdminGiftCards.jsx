@@ -1,15 +1,15 @@
 'use client';
 
 import { useId } from 'react';
-import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 
 import AdminShell, { AdminError } from '@/components/admin/AdminShell';
+import { Link, useFormat, useRouter, useT } from '@/i18n/client';
+import { rich } from '@/i18n/rich';
 import { useAccountData } from '@/components/auth/useAccountData';
 import Notice from '@/components/ui/Notice';
 import StatusBadge from '@/components/ui/StatusBadge';
 import { adminNotificationLabel } from '@/lib/booking/labels';
-import { formatDateTime, formatPrice } from '@/lib/format';
 import {
   GIFT_STATUSES,
   PAGE_SIZE,
@@ -26,6 +26,7 @@ const DATE_INPUT =
   'font-montserrat text-body focus:border-third-200 focus:ring-third-200/30 min-h-11 rounded-xl border border-black/20 bg-white px-3.5 text-gray-900 focus:ring-2 focus:outline-none';
 
 function Filters({ filters, onChange }) {
+  const t = useT();
   const fromId = useId();
   const toId = useId();
   const set = (changes) => onChange({ ...filters, ...changes, page: 1 });
@@ -33,10 +34,14 @@ function Filters({ filters, onChange }) {
 
   return (
     <div className="rounded-panel flex flex-col gap-5 border border-black/10 bg-white p-5 sm:p-6">
-      <div role="group" aria-label="Statut" className="flex flex-wrap gap-2">
+      <div
+        role="group"
+        aria-label={t('Statut')}
+        className="flex flex-wrap gap-2"
+      >
         {[
-          ['', 'Toutes'],
-          ...Object.entries(GIFT_STATUSES).map(([key, s]) => [key, s.label]),
+          ['', t('Toutes')],
+          ...Object.entries(GIFT_STATUSES).map(([key, s]) => [key, t(s.label)]),
         ].map(([value, label]) => (
           <button
             key={value || 'all'}
@@ -59,7 +64,7 @@ function Filters({ filters, onChange }) {
             htmlFor={fromId}
             className="font-montserrat text-body-sm font-medium text-gray-900"
           >
-            Reçues du
+            {t('Reçues du')}
           </label>
           <input
             id={fromId}
@@ -75,7 +80,7 @@ function Filters({ filters, onChange }) {
             htmlFor={toId}
             className="font-montserrat text-body-sm font-medium text-gray-900"
           >
-            au
+            {t('au')}
           </label>
           <input
             id={toId}
@@ -92,18 +97,20 @@ function Filters({ filters, onChange }) {
             onClick={() => onChange({ status: '', from: '', to: '', page: 1 })}
             className="font-montserrat text-body-sm hover:text-third-200 min-h-11 text-gray-800 underline underline-offset-4"
           >
-            Réinitialiser les filtres
+            {t('Réinitialiser les filtres')}
           </button>
         ) : null}
       </div>
       <p className="font-montserrat text-xs text-gray-800">
-        Dates de réception, heure de Paris, bornes incluses.
+        {t('Dates de réception, heure de Paris, bornes incluses.')}
       </p>
     </div>
   );
 }
 
 function RequestRow({ request, search }) {
+  const t = useT();
+  const { formatDateTime, formatPrice } = useFormat();
   const tone = GIFT_STATUSES[request.status]?.tone ?? 'muted';
   return (
     <li>
@@ -114,7 +121,8 @@ function RequestRow({ request, search }) {
         <div className="font-montserrat flex min-w-0 flex-col gap-1.5">
           <p className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
             <span className="font-faustina text-third-900 text-[1.375rem] leading-tight">
-              n° {request.number} · {formatPrice(request.amountCents)}
+              {t('n° {number}', { number: request.number })} ·{' '}
+              {formatPrice(request.amountCents)}
             </span>
             <span className="text-body-sm text-gray-800 first-letter:uppercase">
               {formatDateTime(request.createdAt)}
@@ -124,23 +132,26 @@ function RequestRow({ request, search }) {
             {request.client.name}
             <span className="text-gray-800">
               {' '}
-              · contact : {channelLabel(request.preferredContactChannel)}
+              {t('· contact : {channel}', {
+                channel: channelLabel(request.preferredContactChannel, t),
+              })}
             </span>
           </p>
           <p className="text-xs text-gray-800">
-            E-mail au cabinet :{' '}
+            {t('E-mail au cabinet :')}{' '}
             {request.notification
-              ? adminNotificationLabel(request.notification)
-              : 'envoi désactivé'}
+              ? adminNotificationLabel(request.notification, t)
+              : t('envoi désactivé')}
           </p>
         </div>
-        <StatusBadge tone={tone}>{statusLabel(request.status)}</StatusBadge>
+        <StatusBadge tone={tone}>{statusLabel(request.status, t)}</StatusBadge>
       </Link>
     </li>
   );
 }
 
 function List({ enabled }) {
+  const t = useT();
   const router = useRouter();
   const searchParams = useSearchParams();
   const filters = readListFilters(searchParams);
@@ -160,13 +171,13 @@ function List({ enabled }) {
   if (badRange) {
     body = (
       <Notice tone="error">
-        La date de début doit précéder la date de fin.
+        {t('La date de début doit précéder la date de fin.')}
       </Notice>
     );
   } else if (status === 'loading' || status === 'idle') {
     body = (
       <p role="status" className="font-montserrat text-body text-gray-800">
-        Chargement des demandes…
+        {t('Chargement des demandes…')}
       </p>
     );
   } else if (status === 'error' && !data) {
@@ -174,7 +185,7 @@ function List({ enabled }) {
       <AdminError
         error={error}
         onRetry={reload}
-        message={giftCardErrorMessage(error)}
+        message={giftCardErrorMessage(error, t)}
       />
     );
   } else {
@@ -184,8 +195,11 @@ function List({ enabled }) {
       <div className="flex flex-col gap-5">
         <p className="font-montserrat text-body-sm text-gray-800" role="status">
           {data.total === 0
-            ? 'Aucune demande pour ces filtres.'
-            : `${data.total} demande${data.total > 1 ? 's' : ''} · page ${data.page} sur ${pages}`}
+            ? t('Aucune demande pour ces filtres.')
+            : t(
+                '{n} demande · page {page} sur {pages}|{n} demandes · page {page} sur {pages}',
+                { n: data.total, page: data.page, pages }
+              )}
         </p>
         {requests.length ? (
           <ul className="flex flex-col gap-3">
@@ -195,19 +209,19 @@ function List({ enabled }) {
           </ul>
         ) : data.total > 0 ? (
           <Notice>
-            Cette page est vide.{' '}
+            {t('Cette page est vide.')}{' '}
             <button
               type="button"
               onClick={() => go({ ...filters, page: 1 })}
               className="underline underline-offset-4"
             >
-              Revenir à la première page
+              {t('Revenir à la première page')}
             </button>
           </Notice>
         ) : null}
         {pages > 1 ? (
           <nav
-            aria-label="Pages"
+            aria-label={t('Pages')}
             className="font-montserrat flex items-center justify-between gap-3"
           >
             <button
@@ -216,7 +230,7 @@ function List({ enabled }) {
               onClick={() => go({ ...filters, page: filters.page - 1 })}
               className="text-body-sm hover:border-third-200 min-h-11 rounded-full border border-black/15 bg-white px-5 text-gray-900 disabled:opacity-40"
             >
-              ← Précédente
+              {t('← Précédente')}
             </button>
             <span className="text-body-sm text-gray-800">
               {data.page} / {pages}
@@ -227,7 +241,7 @@ function List({ enabled }) {
               onClick={() => go({ ...filters, page: filters.page + 1 })}
               className="text-body-sm hover:border-third-200 min-h-11 rounded-full border border-black/15 bg-white px-5 text-gray-900 disabled:opacity-40"
             >
-              Suivante →
+              {t('Suivante →')}
             </button>
           </nav>
         ) : null}
@@ -238,9 +252,9 @@ function List({ enabled }) {
   return (
     <div className="flex flex-col gap-6">
       <p className="font-montserrat text-body max-w-3xl text-gray-800">
-        Demandes envoyées depuis le site. Elles sont traitées à la main :
-        contactez le client, convenez du règlement et de la remise de la carte,
-        puis mettez à jour le statut.
+        {t(
+          'Demandes envoyées depuis le site. Elles sont traitées à la main : contactez le client, convenez du règlement et de la remise de la carte, puis mettez à jour le statut.'
+        )}
       </p>
       <Filters filters={filters} onChange={go} />
       {body}
@@ -250,11 +264,16 @@ function List({ enabled }) {
 
 /** /admin/cartes-cadeaux — gift card requests, newest first. */
 export default function AdminGiftCards() {
+  const t = useT();
   return (
     <AdminShell
       title={
         <>
-          Cartes <span className="heading-accent">cadeaux</span>
+          {rich(t('Cartes <accent>cadeaux</accent>'), {
+            accent: (chunks) => (
+              <span className="heading-accent">{chunks}</span>
+            ),
+          })}
         </>
       }
       current="cartes-cadeaux"

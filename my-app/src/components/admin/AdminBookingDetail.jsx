@@ -1,7 +1,6 @@
 'use client';
 
 import { useId, useRef, useState } from 'react';
-import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 
 import AdminShell, { AdminError } from '@/components/admin/AdminShell';
@@ -17,7 +16,9 @@ import {
   NOTIFICATION_EVENTS,
   bookingErrorMessage,
 } from '@/lib/booking/labels';
-import { formatDateTime, localDateOf } from '@/lib/format';
+import { Link, useFormat, useT } from '@/i18n/client';
+import { rich } from '@/i18n/rich';
+import { localDateOf } from '@/lib/format';
 
 const MAX_REASON = 500;
 
@@ -29,6 +30,7 @@ const MAIL_TONE = {
 };
 
 function MailResult({ who, result }) {
+  const t = useT();
   return (
     <div className="flex flex-wrap items-center justify-between gap-2">
       <span className="text-body-sm text-gray-900">{who}</span>
@@ -36,17 +38,21 @@ function MailResult({ who, result }) {
         <span
           className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${MAIL_TONE[result?.status] ?? 'bg-secondary-50 text-gray-900'}`}
         >
-          {ADMIN_NOTIFICATION_STATUS[result?.status] ?? '—'}
+          {ADMIN_NOTIFICATION_STATUS[result?.status]
+            ? t(ADMIN_NOTIFICATION_STATUS[result.status])
+            : '—'}
         </span>
         {result?.reason || result?.attempts ? (
           <span className="text-xs text-gray-800">
             {[
               result.reason
-                ? (ADMIN_NOTIFICATION_REASONS[result.reason] ??
-                  ADMIN_NOTIFICATION_REASONS.other)
+                ? t(
+                    ADMIN_NOTIFICATION_REASONS[result.reason] ??
+                      ADMIN_NOTIFICATION_REASONS.other
+                  )
                 : null,
               result.attempts
-                ? `${result.attempts} tentative${result.attempts > 1 ? 's' : ''}`
+                ? t('{n} tentative|{n} tentatives', { n: result.attempts })
                 : null,
             ]
               .filter(Boolean)
@@ -59,11 +65,14 @@ function MailResult({ who, result }) {
 }
 
 function Notifications({ notifications }) {
+  const t = useT();
+  const { formatDateTime } = useFormat();
   if (!notifications.length) {
     return (
       <p className="font-montserrat text-body-sm text-gray-800">
-        Aucun e-mail enregistré (envoi désactivé sur ce serveur ou pas encore
-        traité).
+        {t(
+          'Aucun e-mail enregistré (envoi désactivé sur ce serveur ou pas encore traité).'
+        )}
       </p>
     );
   }
@@ -76,14 +85,14 @@ function Notifications({ notifications }) {
         >
           <p className="flex flex-wrap items-baseline justify-between gap-2">
             <span className="text-body font-medium text-gray-900">
-              {NOTIFICATION_EVENTS[entry.event] ?? 'Modification'}
+              {t(NOTIFICATION_EVENTS[entry.event] ?? 'Modification')}
             </span>
             <span className="text-xs text-gray-800 first-letter:uppercase">
               {formatDateTime(entry.occurredAt)}
             </span>
           </p>
-          <MailResult who="Client" result={entry.client} />
-          <MailResult who="Cabinet" result={entry.studio} />
+          <MailResult who={t('Client')} result={entry.client} />
+          <MailResult who={t('Cabinet')} result={entry.studio} />
         </li>
       ))}
     </ul>
@@ -132,6 +141,8 @@ function ContactRow({ href, icon, children }) {
 }
 
 function Detail({ bookingId, controller, enabled }) {
+  const t = useT();
+  const { formatDateTime } = useFormat();
   const searchParams = useSearchParams();
   const { status, data, error, reload, replace } = useAccountData(
     `/api/admin/bookings/${encodeURIComponent(bookingId)}`,
@@ -148,7 +159,7 @@ function Detail({ bookingId, controller, enabled }) {
   if (status === 'loading' || status === 'idle') {
     return (
       <p role="status" className="font-montserrat text-body text-gray-800">
-        Chargement du rendez-vous…
+        {t('Chargement du rendez-vous…')}
       </p>
     );
   }
@@ -159,8 +170,8 @@ function Detail({ bookingId, controller, enabled }) {
         onRetry={error?.status === 404 ? undefined : reload}
         message={
           error?.status === 404
-            ? 'Rendez-vous introuvable.'
-            : bookingErrorMessage(error)
+            ? t('Rendez-vous introuvable.')
+            : bookingErrorMessage(error, t)
         }
       />
     );
@@ -183,8 +194,8 @@ function Detail({ bookingId, controller, enabled }) {
       replace({ booking: result.booking });
       setDone(
         result.changed
-          ? 'Rendez-vous annulé.'
-          : 'Ce rendez-vous était déjà annulé.'
+          ? t('Rendez-vous annulé.')
+          : t('Ce rendez-vous était déjà annulé.')
       );
       setConfirming(false);
       setReason('');
@@ -203,13 +214,13 @@ function Detail({ bookingId, controller, enabled }) {
         href={`/admin/calendrier/jour?date=${day}`}
         className="font-montserrat text-body-sm hover:border-third-200 focus-visible:outline-third-200 flex min-h-11 w-fit items-center gap-2 rounded-full border border-black/15 bg-white px-5 text-gray-900 transition-colors focus-visible:outline-2"
       >
-        <span aria-hidden>←</span> Agenda du jour
+        <span aria-hidden>←</span> {t('Agenda du jour')}
       </Link>
 
       <div role="status">{done ? <Notice>{done}</Notice> : null}</div>
       {actionError && !confirming ? (
         <div role="alert">
-          <Notice tone="error">{bookingErrorMessage(actionError)}</Notice>
+          <Notice tone="error">{bookingErrorMessage(actionError, t)}</Notice>
         </div>
       ) : null}
 
@@ -219,13 +230,17 @@ function Detail({ bookingId, controller, enabled }) {
         </div>
         {booking.cancellation ? (
           <p className="font-montserrat text-body-sm mt-3 text-gray-800">
-            Annulé{' '}
-            {booking.cancellation.by === 'admin'
-              ? 'par le cabinet'
-              : 'par le client'}{' '}
-            le {formatDateTime(booking.cancellation.at)}
+            {t('Annulé {by} le {date}', {
+              by:
+                booking.cancellation.by === 'admin'
+                  ? t('par le cabinet')
+                  : t('par le client'),
+              date: formatDateTime(booking.cancellation.at),
+            })}
             {booking.cancellation.reason
-              ? ` — motif : ${booking.cancellation.reason}`
+              ? t(' — motif : {reason}', {
+                  reason: booking.cancellation.reason,
+                })
               : ''}
           </p>
         ) : null}
@@ -234,8 +249,8 @@ function Detail({ bookingId, controller, enabled }) {
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:items-start">
         <div className="flex flex-col gap-6">
           <Panel
-            eyebrow="Client"
-            title={booking.client.name ?? 'Nom non renseigné'}
+            eyebrow={t('Client')}
+            title={booking.client.name ?? t('Nom non renseigné')}
           >
             {booking.client.phone || booking.client.email ? (
               <div className="flex flex-col gap-2.5">
@@ -265,21 +280,21 @@ function Detail({ bookingId, controller, enabled }) {
               </div>
             ) : (
               <p className="font-montserrat text-body-sm text-gray-800">
-                Aucune coordonnée renseignée.
+                {t('Aucune coordonnée renseignée.')}
               </p>
             )}
           </Panel>
 
           {booking.allowedActions.cancel ? (
-            <Panel title="Annulation">
+            <Panel title={t('Annulation')}>
               <div className="flex flex-col gap-2">
                 <label
                   htmlFor={reasonId}
                   className="font-montserrat text-body-sm font-medium text-gray-900"
                 >
-                  Motif d’annulation{' '}
+                  {t('Motif d’annulation')}{' '}
                   <span className="font-normal text-gray-800">
-                    (facultatif)
+                    {t('(facultatif)')}
                   </span>
                 </label>
                 <textarea
@@ -302,17 +317,17 @@ function Detail({ bookingId, controller, enabled }) {
                 }}
                 className="font-montserrat text-label border-error text-error hover:bg-error/5 focus-visible:outline-error min-h-12 rounded-full border font-medium tracking-wide uppercase transition-colors focus-visible:outline-2 focus-visible:outline-offset-2"
               >
-                Annuler ce rendez-vous
+                {t('Annuler ce rendez-vous')}
               </button>
             </Panel>
           ) : null}
         </div>
 
         <div className="flex flex-col gap-6">
-          <Panel title="Historique">
+          <Panel title={t('Historique')}>
             <BookingHistory history={booking.history} admin />
           </Panel>
-          <Panel title="E-mails">
+          <Panel title={t('E-mails')}>
             <Notifications notifications={booking.notifications} />
           </Panel>
         </div>
@@ -320,20 +335,26 @@ function Detail({ bookingId, controller, enabled }) {
 
       <ConfirmDialog
         open={confirming}
-        title="Annuler ce rendez-vous ?"
-        confirmLabel="Oui, annuler"
-        cancelLabel="Garder"
+        title={t('Annuler ce rendez-vous ?')}
+        confirmLabel={t('Oui, annuler')}
+        cancelLabel={t('Garder')}
         pending={pending}
         error={
-          actionError && confirming ? bookingErrorMessage(actionError) : null
+          actionError && confirming ? bookingErrorMessage(actionError, t) : null
         }
         onConfirm={cancel}
         onClose={() => setConfirming(false)}
       >
-        Le rendez-vous du {formatDateTime(booking.startsAt)} (
-        {booking.client.name ?? 'client'}) sera annulé et l’horaire libéré. Le
-        client est prévenu par e-mail si l’envoi est activé. Action définitive.
-        {reason.trim() ? ` Motif : « ${reason.trim()} ».` : ''}
+        {t(
+          'Le rendez-vous du {date} ({client}) sera annulé et l’horaire libéré. Le client est prévenu par e-mail si l’envoi est activé. Action définitive.',
+          {
+            date: formatDateTime(booking.startsAt),
+            client: booking.client.name ?? t('client'),
+          }
+        )}
+        {reason.trim()
+          ? t(' Motif : « {reason} ».', { reason: reason.trim() })
+          : ''}
       </ConfirmDialog>
     </div>
   );
@@ -341,11 +362,16 @@ function Detail({ bookingId, controller, enabled }) {
 
 /** /admin/reservations/[id] — one booking with client, emails, cancel. */
 export default function AdminBookingDetail({ bookingId }) {
+  const t = useT();
   return (
     <AdminShell
       title={
         <>
-          Détail du <span className="heading-accent">rendez-vous</span>
+          {rich(t('Détail du <accent>rendez-vous</accent>'), {
+            accent: (chunks) => (
+              <span className="heading-accent">{chunks}</span>
+            ),
+          })}
         </>
       }
       current="calendrier"

@@ -1,5 +1,8 @@
 import { redirect } from 'next/navigation';
 
-export default function AdminPage() {
-  redirect('/admin/calendrier');
+import { localizePath } from '@/i18n/config';
+
+export default async function AdminPage({ params }) {
+  const { lang } = await params;
+  redirect(localizePath(lang, '/admin/calendrier'));
 }
