@@ -31,19 +31,18 @@ const variants = {
     header: 'absolute inset-x-0 top-0',
     text: 'text-on-dark',
     navTone: 'header',
-    divider: 'min-[90rem]:border-white/20',
   },
   solid: {
     header: 'relative border-b border-black/7 bg-background',
     text: 'text-third-900',
     navTone: 'headerSolid',
-    divider: 'min-[90rem]:border-black/10',
   },
 };
 
 // Hierarchy, left to right: logo · navigation (from 1440 px, where it fits
-// next to the actions) · account (secondary outlined pill, after a divider)
-// · menu below 1440 px. No action button in the bar: the hero holds
+// next to the actions) · account (secondary outlined pill)
+// · menu below 1440 px. Figma spacing: 40 px between links, 60 px before
+// the account (no divider). No action button in the bar: the hero holds
 // «Prendre rendez-vous» and «Offrir une carte cadeau»; the menu starts
 // with the booking action. Mobile keeps the Figma bar: account | centred
 // logo | language + menu, with 44 px targets. The language choice sits in
@@ -90,7 +89,7 @@ export default function Header({ variant = 'overlay', account: sample }) {
           aria-label="Navigation principale"
           className="hidden min-[90rem]:block"
         >
-          <ul className="flex items-center gap-5">
+          <ul className="flex items-center gap-10">
             {NAV_ITEMS.map((item) => (
               <li key={item.href}>
                 <NavLink
@@ -106,9 +105,7 @@ export default function Header({ variant = 'overlay', account: sample }) {
         </nav>
 
         {account ? (
-          <div
-            className={`col-start-1 row-start-1 justify-self-start min-[90rem]:border-l min-[90rem]:pl-6 ${styles.divider}`}
-          >
+          <div className="col-start-1 row-start-1 justify-self-start min-[90rem]:ml-11">
             <AccountControl account={account} variant={variant} />
           </div>
         ) : null}

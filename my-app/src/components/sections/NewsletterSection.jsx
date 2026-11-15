@@ -183,7 +183,15 @@ export default function NewsletterSection() {
                 </button>
               </div>
             ) : (
-              <div className="bg-base-white focus-within:outline-third-200 flex items-center gap-3 rounded-full py-2 pr-2 pl-5 focus-within:outline-2">
+              // UI kit « INPUTS extra »: the error state is a 1 px error
+              // border, the text in the error colour and the message below.
+              <div
+                className={`bg-base-white focus-within:outline-third-200 flex items-center gap-3 rounded-full border py-2 pr-2 pl-5 focus-within:outline-2 ${
+                  state.status === 'error'
+                    ? 'border-error'
+                    : 'border-transparent'
+                }`}
+              >
                 <label htmlFor={ids.field} className="sr-only">
                   Adresse e-mail
                 </label>
@@ -202,7 +210,9 @@ export default function NewsletterSection() {
                   }}
                   aria-invalid={state.status === 'error' || undefined}
                   aria-describedby={`${ids.consent} ${ids.status}`}
-                  className="font-montserrat min-w-0 flex-1 bg-transparent text-[14px] font-medium tracking-[0.14px] text-gray-900 placeholder:text-gray-100 focus:outline-none"
+                  className={`font-montserrat min-w-0 flex-1 bg-transparent text-[14px] font-medium tracking-[0.14px] placeholder:text-gray-100 focus:outline-none ${
+                    state.status === 'error' ? 'text-error' : 'text-gray-900'
+                  }`}
                 />
                 <button
                   type="submit"
@@ -216,21 +226,19 @@ export default function NewsletterSection() {
               </div>
             )}
             <p
-              id={ids.consent}
-              className="font-montserrat text-body-sm px-5 text-gray-200"
-            >
-              {MARKETING_CONSENT.text}
-            </p>
-            <p
               id={ids.status}
               role="status"
-              className={`font-montserrat text-body-sm px-5 ${state.status === 'error' ? 'text-error' : 'text-gray-900'}`}
+              className={`font-montserrat px-5 text-left text-[14px] leading-[1.5] font-medium tracking-[0.14px] empty:hidden ${state.status === 'error' ? 'text-error' : 'text-gray-900'}`}
             >
-              {state.status === 'done'
+              {state.status === 'done' || state.status === 'error'
                 ? state.text
-                : state.status === 'error'
-                  ? state.text
-                  : ''}
+                : ''}
+            </p>
+            <p
+              id={ids.consent}
+              className="font-montserrat text-body-sm px-5 text-left text-gray-200"
+            >
+              {MARKETING_CONSENT.text}
             </p>
           </form>
         </div>

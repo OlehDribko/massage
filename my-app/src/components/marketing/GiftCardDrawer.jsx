@@ -18,7 +18,7 @@ import {
   channelLabel,
   descriptionError,
   giftCardErrorMessage,
-  giftReadinessSteps,
+  giftBlockerView,
   keepsIdempotencyKey,
   giftDescription,
   messageLimit,
@@ -90,40 +90,6 @@ function DarkLink({ href, onClick, children }) {
 
 const SUBMIT =
   'rounded-pill bg-primary-200 font-montserrat hover:shadow-button-hover focus-visible:outline-primary-200 min-h-[54px] px-10 text-[14px] font-medium tracking-[0.05em] text-[#131212] uppercase focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-60';
-
-/** What is missing before a request can be sent, with the way to fix it. */
-export function Readiness({ blockers, onLeave }) {
-  // A guest first signs in; the other steps follow on the account page.
-  const guest = blockers.includes('anonymous_session');
-  const steps = giftReadinessSteps(guest ? ['anonymous_session'] : blockers, {
-    returnTo: RETURN_TO,
-  });
-  return (
-    <div className="flex flex-col gap-6">
-      <p className="font-montserrat text-body text-gray-100">
-        La demande se fait depuis votre compte client : nous utilisons votre
-        nom, votre e-mail et votre téléphone pour vous recontacter.
-        {guest
-          ? ' Il vous faudra une adresse e-mail confirmée, votre nom et un numéro de téléphone.'
-          : ''}
-      </p>
-      <ul className="flex flex-col gap-5">
-        {steps.map((step) => (
-          <li key={step.blocker} className="flex flex-col gap-3">
-            <p className="font-montserrat text-body text-gray-50">
-              {step.text}
-            </p>
-            {step.href ? (
-              <DarkLink href={step.href} onClick={onLeave}>
-                {step.action}
-              </DarkLink>
-            ) : null}
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
 
 /** Contacts of the profile, shown for information only (never sent). */
 function ProfileContacts({ profile, onLeave }) {
@@ -606,6 +572,9 @@ export default function GiftCardDrawer() {
   const blockers = readiness?.ready ? null : (blocked ?? readiness?.blockers);
 
   let content;
+  // A step the visitor must take first (Figma « Carte Cadeau »: guest,
+  // incomplete profile, admin): its text under the title, one action.
+  let step = null;
   if (!enabled || status === 'unavailable') {
     content = (
       <p className="font-montserrat text-body text-gray-100">
@@ -616,12 +585,7 @@ export default function GiftCardDrawer() {
   } else if (sent) {
     content = <Sent request={sent} onAgain={() => setSent(null)} />;
   } else if (status === 'guest') {
-    content = (
-      <Readiness
-        blockers={readiness?.blockers ?? ['anonymous_session']}
-        onLeave={leave}
-      />
-    );
+    step = giftBlockerView(['anonymous_session'], { returnTo: RETURN_TO });
   } else if (!view) {
     content =
       state.profile.status === 'error' ? (
@@ -643,7 +607,7 @@ export default function GiftCardDrawer() {
         </p>
       );
   } else if (blockers?.length) {
-    content = <Readiness blockers={blockers} onLeave={leave} />;
+    step = giftBlockerView(blockers, { returnTo: RETURN_TO });
   } else {
     content = (
       <RequestForm
@@ -659,6 +623,22 @@ export default function GiftCardDrawer() {
     );
   }
 
+  if (step) {
+    content = step.href ? (
+      <DarkLink href={step.href} onClick={leave}>
+        {step.action}
+      </DarkLink>
+    ) : null;
+  }
+  const form =
+    !step && !sent && Boolean(view) && enabled && status !== 'unavailable';
+  const intro = form
+    ? {
+        title: 'Demandez une carte cadeau',
+        text: 'Choisissez un montant ou une prestation et envoyez votre demande. Nous vous contacterons pour finaliser la commande.',
+      }
+    : { title: 'Offrez une carte cadeau', text: step?.text ?? null };
+
   return (
     <dialog
       ref={dialogRef}
@@ -669,14 +649,20 @@ export default function GiftCardDrawer() {
         if (event.target === dialogRef.current) close();
       }}
       data-lenis-prevent
-      className="gift-drawer bg-secondary-900 m-0 ml-auto h-dvh max-h-none w-full max-w-none overflow-y-auto overscroll-contain p-0 text-gray-100 backdrop:bg-[rgba(28,25,20,0.6)] sm:w-[545px]"
+      className="gift-drawer bg-secondary-900 m-0 mt-auto h-[calc(100dvh-42px)] max-h-none w-full max-w-none overflow-y-auto overscroll-contain rounded-t-[20px] p-0 text-gray-100 backdrop:bg-[rgba(28,25,20,0.6)] sm:m-auto sm:h-auto sm:max-h-[calc(100dvh-80px)] sm:w-[545px] sm:rounded-none lg:m-0 lg:ml-auto lg:h-dvh lg:max-h-none"
     >
-      <div className="relative flex min-h-full flex-col justify-between gap-10 px-4 pt-16 pb-8 sm:px-12 sm:pt-20 sm:pb-10">
+      <div className="relative flex min-h-full flex-col justify-between gap-10 px-4 pt-16 pb-8 sm:px-12 sm:pt-24 sm:pb-12">
+        {/* Mobile sheet handle (decorative: Escape, the backdrop and the
+            close button dismiss it). */}
+        <span
+          aria-hidden
+          className="absolute top-1 left-1/2 h-[5px] w-9 -translate-x-1/2 rounded-full bg-white/25 sm:hidden"
+        />
         <button
           type="button"
           onClick={close}
           aria-label="Fermer"
-          className="hover:text-base-white focus-visible:outline-primary-200 absolute top-6 right-4 flex size-11 items-center justify-center text-gray-800 transition-colors focus-visible:outline-2 sm:top-10 sm:right-10"
+          className="hover:text-base-white focus-visible:outline-primary-200 absolute top-3 right-4 flex size-11 items-center justify-center text-gray-800 transition-colors focus-visible:outline-2 sm:top-10 sm:right-10"
         >
           <MaskIcon src="/icons/close-modal.svg" className="size-7" />
         </button>
@@ -691,13 +677,13 @@ export default function GiftCardDrawer() {
               id={titleId}
               className="font-faustina text-[32px] leading-[1.15] text-gray-50 sm:text-[36px]"
             >
-              Offrir une carte cadeau
+              {intro.title}
             </h2>
-            <p className="font-montserrat text-body-sm text-gray-100">
-              Choisissez le montant, laissez un message si vous le souhaitez :
-              notre praticienne vous contactera pour l’achat. Vous pouvez aussi
-              nous joindre directement.
-            </p>
+            {intro.text ? (
+              <p className="font-montserrat text-body-sm text-gray-100">
+                {intro.text}
+              </p>
+            ) : null}
           </div>
 
           {content}
