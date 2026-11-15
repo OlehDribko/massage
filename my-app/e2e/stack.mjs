@@ -21,24 +21,12 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { E2E } from './env.mjs';
+import { BACKEND_DIR, E2E, PG, testDatabaseUrl } from './env.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-// E2E_BACKEND_DIR, else a checkout next to the repository or inside it.
-const backend = process.env.E2E_BACKEND_DIR
-  ? path.resolve(process.cwd(), process.env.E2E_BACKEND_DIR)
-  : (['../../Massage-backend', '../Massage-backend']
-      .map((candidate) => path.resolve(here, '..', candidate))
-      .find((candidate) => existsSync(path.join(candidate, 'package.json'))) ??
-    path.resolve(here, '../../Massage-backend'));
+const backend = BACKEND_DIR;
 const service = path.join(backend, 'services/booking');
 const container = `massage-fe-e2e-pg-${E2E.pgPort}`;
-// Local test values only (same as the backend's compose.yaml).
-const PG = {
-  admin: 'local-admin-password',
-  migrator: 'local-migrator-password',
-  app: 'local-app-password',
-};
 
 const children = [];
 let stopping = false;
@@ -167,8 +155,7 @@ async function main() {
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
 
-  const db = (role, password) =>
-    `postgresql://${role}:${password}@127.0.0.1:${E2E.pgPort}/booking`;
+  const db = testDatabaseUrl;
 
   await run(
     'npx',

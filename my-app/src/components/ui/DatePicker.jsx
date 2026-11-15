@@ -56,7 +56,7 @@ const navButton =
 
 /**
  * Inline month calendar in the site's style (studio dates "YYYY-MM-DD").
- * `min`: earlier dates are disabled. `marked`: dates with a small dot
+ * `min` / `max`: earlier / later dates are disabled. `marked`: dates with a small dot
  * (e.g. existing exceptions). `today` comes from the parent (browser only).
  */
 export default function DatePicker({
@@ -64,6 +64,7 @@ export default function DatePicker({
   onChange,
   today,
   min,
+  max,
   marked,
   label = 'Choisir une date',
 }) {
@@ -75,6 +76,7 @@ export default function DatePicker({
 
   const days = monthGrid(shown);
   const minMonth = min?.slice(0, 7);
+  const maxMonth = max?.slice(0, 7);
 
   return (
     <div
@@ -101,6 +103,7 @@ export default function DatePicker({
         <button
           type="button"
           onClick={() => setMonth(shiftMonth(shown, 1))}
+          disabled={Boolean(maxMonth) && shown >= maxMonth}
           aria-label="Mois suivant"
           className={navButton}
         >
@@ -120,7 +123,8 @@ export default function DatePicker({
         ))}
         {days.map((date) => {
           const inMonth = date.startsWith(shown);
-          const disabled = Boolean(min) && date < min;
+          const disabled =
+            (Boolean(min) && date < min) || (Boolean(max) && date > max);
           const selected = date === value;
           const isToday = date === today;
           return (

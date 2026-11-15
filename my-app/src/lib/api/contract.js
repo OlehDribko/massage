@@ -1,6 +1,7 @@
 /*
  * Runtime checks of the API answers the site depends on: catalogue,
- * availability, profile and a created booking.
+ * availability, profile, a created booking, and the admin schedule blocks
+ * (manual busy times) with the schedule days that list them.
  *
  * Source of truth: `docs/openapi.json` of Massage-backend (OpenAPI 3.1,
  * generated from the backend's Zod schemas; the backend CI fails when the
@@ -115,6 +116,50 @@ const booking = object(
 );
 
 /**
+ * components/schemas/ScheduleBlock — a manual busy time of the calendar.
+ * `start` / `end`: studio local time without offset ("2027-03-03T14:00");
+ * a block ending at midnight has the next date at "T00:00".
+ */
+const scheduleBlock = object({
+  id: string,
+  title: string,
+  note: nullable(string),
+  start: string,
+  end: string,
+  startsAt: string,
+  endsAt: string,
+});
+
+const timeZone = { type: 'string', enum: ['Europe/Paris'] };
+
+/**
+ * components/schemas/ScheduleDays — the calendar layers of each date.
+ * `blocks` is optional here: an API without blocks (staging before the
+ * migration) still shows the calendar, without busy times.
+ */
+const scheduleDays = object(
+  {
+    timeZone,
+    days: array(
+      object(
+        {
+          date: string,
+          closed: boolean,
+          intervals: array(object({ start: string, end: string })),
+          effective: object({
+            open: boolean,
+            intervals: array(object({ start: string, end: string })),
+          }),
+          blocks: array(scheduleBlock),
+        },
+        ['date', 'closed', 'intervals', 'effective']
+      )
+    ),
+  },
+  ['days']
+);
+
+/**
  * Checked schemas. `component` names the OpenAPI component it is a subset
  * of; `envelope` the property of the response that holds it, if any.
  */
@@ -131,6 +176,24 @@ export const CONTRACT = {
     component: 'Booking',
     schema: object({ booking }),
     envelope: 'booking',
+  },
+  scheduleDays: { component: 'ScheduleDays', schema: scheduleDays },
+  scheduleBlock: {
+    component: 'ScheduleBlockResult',
+    schema: object({ timeZone, block: scheduleBlock }),
+  },
+  scheduleBlockUpdate: {
+    component: 'ScheduleBlockUpdateResult',
+    schema: object({ timeZone, block: scheduleBlock, changed: boolean }),
+  },
+  scheduleBlocks: {
+    component: 'ScheduleBlockList',
+    schema: object({ timeZone, blocks: array(scheduleBlock) }),
+  },
+  scheduleBlockDeleted: {
+    // Inline in the operation (no named component).
+    response: 'DELETE /api/admin/schedule/blocks/{blockId} 200',
+    schema: object({ id: string, deleted: boolean }),
   },
 };
 

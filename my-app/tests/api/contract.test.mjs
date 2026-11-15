@@ -16,7 +16,12 @@ import {
   errorReference,
   isRetryable,
 } from '../../src/lib/booking/labels.js';
-import { COMPONENTS, subsetOf } from '../../scripts/contract-check.mjs';
+import {
+  COMPONENTS,
+  RESPONSES,
+  responsesOf,
+  subsetOf,
+} from '../../scripts/contract-check.mjs';
 
 const snapshot = JSON.parse(
   readFileSync(new URL('../../contracts/openapi-subset.json', import.meta.url))
@@ -81,13 +86,19 @@ function assertSubset(ours, theirs, where) {
 }
 
 for (const [name, entry] of Object.entries(CONTRACT)) {
-  test(`contract: ${name} is a subset of OpenAPI ${entry.component} (${snapshot.source.commit.slice(0, 7)})`, () => {
-    const component = snapshot.components[entry.component];
+  test(`contract: ${name} is a subset of OpenAPI ${entry.component ?? entry.response} (${snapshot.source.commit.slice(0, 7)})`, () => {
+    const component = entry.response
+      ? snapshot.responses[entry.response]
+      : snapshot.components[entry.component];
     const ours = entry.envelope
       ? entry.schema.properties[entry.envelope]
       : entry.schema;
     // Envelopes hold one item ({ booking }) or a list ({ services: [] }).
-    assertSubset(ours.items ?? ours, component, entry.component);
+    assertSubset(
+      ours.items ?? ours,
+      component,
+      entry.component ?? entry.response
+    );
   });
 }
 
@@ -551,4 +562,32 @@ test('labels: timeout and invalid answer have French messages and keep the inten
     errorReference({ code: 'SLOT_UNAVAILABLE', status: 409, requestId: 'r-2' }),
     null
   );
+});
+
+test('contract-check: inline responses (DELETE block) are compared too', () => {
+  const [entry] = RESPONSES;
+  const [method, route, status] = entry.split(' ');
+  const openapi = {
+    paths: {
+      [route]: {
+        [method.toLowerCase()]: {
+          responses: {
+            [status]: {
+              content: {
+                'application/json': {
+                  schema: structuredClone(snapshot.responses[entry]),
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  };
+  assert.deepEqual(responsesOf(openapi), snapshot.responses);
+  openapi.paths[route].delete.responses['200'].content[
+    'application/json'
+  ].schema.required = ['id'];
+  assert.notDeepEqual(responsesOf(openapi), snapshot.responses);
+  assert.deepEqual(responsesOf({}), { [entry]: null });
 });

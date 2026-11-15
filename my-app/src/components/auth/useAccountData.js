@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useAuth } from '@/components/auth/AuthProvider';
 
@@ -11,14 +11,20 @@ const IDLE = { status: 'idle', data: null, error: null, uid: null, key: null };
  * tied to the user's UID and path: after an account switch nothing of the
  * previous account is returned, and a late answer for an old request is
  * dropped. `enabled` false (guest, wrong role…) fetches nothing.
+ * `validate`: runtime contract check of the answer (src/lib/api/contract.js);
+ * keep it stable (module-level), it is not a dependency of the request.
  */
-export function useAccountData(path, { enabled = true } = {}) {
+export function useAccountData(path, { enabled = true, validate } = {}) {
   const { controller, state } = useAuth();
   const uid = state.user?.uid ?? null;
   const active = Boolean(enabled && controller && uid && path);
   const key = active ? `${uid}:${path}` : null;
   const [result, setResult] = useState(IDLE);
   const [version, setVersion] = useState(0);
+  const validateRef = useRef(validate);
+  useEffect(() => {
+    validateRef.current = validate;
+  });
 
   useEffect(() => {
     if (!key) return undefined;
@@ -26,7 +32,7 @@ export function useAccountData(path, { enabled = true } = {}) {
     let current = true;
 
     controller
-      .api(path, { signal: abort.signal })
+      .api(path, { signal: abort.signal, validate: validateRef.current })
       .then((data) => {
         if (current)
           setResult({ status: 'ready', data, error: null, uid, key });
