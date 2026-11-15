@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useId, useRef, useState } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 
 import { useLocale, useT } from '@/i18n/client';
 import {
@@ -87,7 +87,6 @@ export default function LanguageSwitcher({
 }) {
   const t = useT();
   const locale = useLocale();
-  const router = useRouter();
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const wrapperRef = useRef(null);
@@ -103,10 +102,13 @@ export default function LanguageSwitcher({
     triggerRef.current?.focus();
     rememberLanguage(admin ? ADMIN_LOCALE_COOKIE : LOCALE_COOKIE, code);
     if (code === current.code) return;
+    // A full page load, not a client navigation: another language changes
+    // the root layout (<html lang>, fonts, the head script), which React
+    // cannot swap on the client without warnings and stale font preloads.
     const { search, hash } = window.location;
-    router.push(`${switchLocalePath(pathname, code)}${search}${hash}`, {
-      scroll: false,
-    });
+    window.location.assign(
+      `${switchLocalePath(pathname, code)}${search}${hash}`
+    );
   };
 
   useEffect(() => {
