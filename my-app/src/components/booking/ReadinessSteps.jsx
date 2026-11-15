@@ -1,3 +1,6 @@
+'use client';
+
+import { useT } from '@/i18n/client';
 import PillButton from '@/components/ui/PillButton';
 import { readinessSteps } from '@/lib/booking/labels';
 
@@ -7,7 +10,8 @@ import { readinessSteps } from '@/lib/booking/labels';
  * page that fixes it and comes back to `returnTo`.
  */
 export default function ReadinessSteps({ blockers, returnTo }) {
-  const steps = readinessSteps(blockers, { returnTo });
+  const t = useT();
+  const steps = readinessSteps(blockers, { returnTo, t });
   if (!steps.length) return null;
   // One button per destination: name and phone are fixed on the same form.
   const actions = [
@@ -17,7 +21,7 @@ export default function ReadinessSteps({ blockers, returnTo }) {
   return (
     <div className="flex flex-col gap-4">
       <p className="font-montserrat text-body font-medium text-gray-900">
-        Avant de réserver :
+        {t('Avant de réserver :')}
       </p>
       <ul className="font-montserrat text-body flex list-disc flex-col gap-1 pl-5 text-gray-800">
         {steps.map((step) => (

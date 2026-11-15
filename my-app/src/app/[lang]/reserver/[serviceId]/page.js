@@ -1,5 +1,4 @@
 import { Suspense } from 'react';
-import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
 import BookingPanel from '@/components/booking/BookingPanel';
@@ -8,18 +7,26 @@ import Header from '@/components/layout/Header';
 import Notice from '@/components/ui/Notice';
 import { findPrestation, variantTexts } from '@/lib/booking/catalog';
 import { loadCatalog } from '@/lib/booking/loadCatalog';
-import { formatDuration } from '@/lib/format';
+import { Link } from '@/i18n/client';
+import { getFormat, getT, setRequestLocale } from '@/i18n/server';
 
 // One bookable variant (service id). Not indexed: /reserver is the public,
 // indexable entry; this step depends on the visitor's choice.
-export const metadata = {
-  title: 'Choisir un horaire',
-  robots: { index: false, follow: false },
-};
+export async function generateMetadata({ params }) {
+  const { lang } = await params;
+  const t = getT(lang);
+  return {
+    title: t('Choisir un horaire'),
+    robots: { index: false, follow: false },
+  };
+}
 
 export default async function ReserverServicePage({ params }) {
-  const { serviceId } = await params;
-  const { catalog } = await loadCatalog();
+  const { lang, serviceId } = await params;
+  setRequestLocale(lang);
+  const t = getT();
+  const { formatDuration } = getFormat();
+  const { catalog } = await loadCatalog({ locale: lang });
   const prestation = catalog ? findPrestation(catalog, serviceId) : null;
   // The API lists only bookable services: unknown or archived → 404.
   if (catalog && !prestation) notFound();
@@ -38,18 +45,19 @@ export default async function ReserverServicePage({ params }) {
                 href="/reserver"
                 className="font-montserrat text-body-sm hover:text-third-200 self-start text-gray-800 underline underline-offset-4"
               >
-                ← Toutes les prestations
+                {t('← Toutes les prestations')}
               </Link>
               <Notice tone="error">
-                Cette prestation ne peut pas être affichée pour le moment.
-                Réessayez dans quelques instants.
+                {t(
+                  'Cette prestation ne peut pas être affichée pour le moment. Réessayez dans quelques instants.'
+                )}
               </Notice>
             </>
           ) : (
             <Suspense
               fallback={
                 <p className="font-montserrat text-body text-gray-800">
-                  Chargement…
+                  {t('Chargement…')}
                 </p>
               }
             >
@@ -75,7 +83,10 @@ export default async function ReserverServicePage({ params }) {
                       </ul>
                     ) : null}
                     {prestation.variants.length > 1 ? (
-                      <nav aria-label="Durée" className="max-w-full self-start">
+                      <nav
+                        aria-label={t('Durée')}
+                        className="max-w-full self-start"
+                      >
                         <ul className="rounded-pill flex max-w-full [scrollbar-width:none] gap-1 overflow-x-auto border border-black/10 bg-white p-1">
                           {prestation.variants.map((variant) => {
                             const current = variant.id === service.id;

@@ -2,17 +2,17 @@
 
 import { useId, useState } from 'react';
 import Image from 'next/image';
-import Link from 'next/link';
+import { Link, useFormat, useT } from '@/i18n/client';
+import { msg } from '@/i18n/translate';
 
 import MaskIcon from '@/components/ui/MaskIcon';
 import { lowestPrice } from '@/lib/booking/catalog';
-import { formatPrice } from '@/lib/format';
 
 /** "60-90 min" (Figma) for the durations of a prestation. */
-function durationRange(variants) {
+function durationRange(variants, minutes = 'min') {
   const first = variants[0].durationMinutes;
   const last = variants.at(-1).durationMinutes;
-  return first === last ? `${first} min` : `${first}-${last} min`;
+  return first === last ? `${first} ${minutes}` : `${first}-${last} ${minutes}`;
 }
 
 /*
@@ -22,12 +22,12 @@ function durationRange(variants) {
 const PHOTOS = [
   {
     src: '/images/popular-neck.jpg',
-    alt: 'Massage du cou, cliente allongée en cabine',
+    alt: msg('Massage du cou, cliente allongée en cabine'),
     position: 'object-[50%_62%]',
   },
   {
     src: '/images/popular-back.jpg',
-    alt: 'Massage du dos et des épaules en cabine',
+    alt: msg('Massage du dos et des épaules en cabine'),
     position: 'object-[50%_35%]',
   },
 ];
@@ -46,6 +46,8 @@ const photoFor = (index) => PHOTOS[Math.max(index, 0) % PHOTOS.length];
  * item.
  */
 export default function PopularAccordion({ prestations }) {
+  const t = useT();
+  const { formatPrice } = useFormat();
   const [open, setOpen] = useState(0);
   const id = useId();
   const shown = open < 0 ? 0 : open;
@@ -102,24 +104,25 @@ export default function PopularAccordion({ prestations }) {
                     >
                       <p className="flex items-center gap-3 whitespace-nowrap">
                         <span className="font-semibold text-gray-800">
-                          à partir de{' '}
-                          {formatPrice(
-                            lowestPrice(prestation),
-                            prestation.variants[0].currency
-                          )}
+                          {t('à partir de {price}', {
+                            price: formatPrice(
+                              lowestPrice(prestation),
+                              prestation.variants[0].currency
+                            ),
+                          })}
                         </span>
                         <span aria-hidden className="text-gray-200">
                           •
                         </span>
                         <span className="text-gray-200">
-                          {durationRange(prestation.variants)}
+                          {durationRange(prestation.variants, t('min'))}
                         </span>
                       </p>
                       <Link
                         href={`/reserver/${prestation.variants[0].id}`}
                         className="text-primary-200 hover:text-third-200 focus-visible:outline-primary-200 border-b-[1.2px] border-current text-[14px] font-medium tracking-[0.01em] whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:outline-offset-4 motion-reduce:transition-none"
                       >
-                        Réserver ce soin
+                        {t('Réserver ce soin')}
                       </Link>
                     </div>
                   </div>
@@ -132,7 +135,7 @@ export default function PopularAccordion({ prestations }) {
                   <div className="relative mt-6 aspect-[358/398] w-full overflow-hidden rounded-[4px] sm:aspect-[4/3] lg:hidden">
                     <Image
                       src={photo.src}
-                      alt={isOpen ? photo.alt : ''}
+                      alt={isOpen ? t(photo.alt) : ''}
                       fill
                       loading="eager"
                       fetchPriority="low"
@@ -153,7 +156,7 @@ export default function PopularAccordion({ prestations }) {
           <Image
             key={photo.src}
             src={photo.src}
-            alt={index === shown % PHOTOS.length ? photo.alt : ''}
+            alt={index === shown % PHOTOS.length ? t(photo.alt) : ''}
             aria-hidden={index === shown % PHOTOS.length ? undefined : true}
             fill
             sizes="554px"

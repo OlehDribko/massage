@@ -1,39 +1,45 @@
 import Image from 'next/image';
 
+import { rich } from '@/i18n/rich';
+import { msg } from '@/i18n/translate';
+import { getT } from '@/i18n/server';
+
 import SectionEyebrow from '@/components/ui/SectionEyebrow';
 
 const COLUMNS = [
   {
     image: '/images/approach-hands.jpg',
-    imageAlt: 'Mains posées sur une serviette après un massage',
+    imageAlt: msg('Mains posées sur une serviette après un massage'),
     imageFirst: true,
-    heading: 'Qui est concerné',
+    heading: msg('Qui est concerné'),
     items: [
-      'Tensions chroniques du dos et de la nuque',
-      'Stress accumulé et sommeil perturbé',
-      'Manque d’énergie au quotidien',
+      msg('Tensions chroniques du dos et de la nuque'),
+      msg('Stress accumulé et sommeil perturbé'),
+      msg('Manque d’énergie au quotidien'),
     ],
   },
   {
     image: '/images/approach-cupping.jpg',
-    imageAlt: 'Pose de ventouses sur le dos pendant une séance',
+    imageAlt: msg('Pose de ventouses sur le dos pendant une séance'),
     imageFirst: false,
-    heading: 'Ce que vous recevez',
+    heading: msg('Ce que vous recevez'),
     items: [
-      'Spécialiste certifiée, formée à l’Institut de Vertébrologie',
-      'Un traitement personnalisé selon votre morphologie.',
-      'Des techniques professionnelles éprouvées',
+      msg('Spécialiste certifiée, formée à l’Institut de Vertébrologie'),
+      msg('Un traitement personnalisé selon votre morphologie.'),
+      msg('Des techniques professionnelles éprouvées'),
     ],
   },
   {
     image: '/images/approach-shoulder.jpg',
     imageAlt: '',
     imageFirst: true,
-    heading: 'Résultats',
+    heading: msg('Résultats'),
     items: [
-      'Dès la 1ère séance — soulagement immédiat',
-      'Après 3 séances — mobilité restaurée',
-      'Suivi régulier — bien-être durable, dans un cadre confortable et confidentiel',
+      msg('Dès la 1ère séance — soulagement immédiat'),
+      msg('Après 3 séances — mobilité restaurée'),
+      msg(
+        'Suivi régulier — bien-être durable, dans un cadre confortable et confidentiel'
+      ),
     ],
   },
 ];
@@ -46,6 +52,7 @@ const COLUMNS = [
  * (alternating sides). Phones: each text follows its photo.
  */
 export default function ApproachSection({ id }) {
+  const t = getT();
   return (
     <section
       id={id}
@@ -53,19 +60,27 @@ export default function ApproachSection({ id }) {
     >
       <div className="max-w-content mx-auto flex flex-col gap-12 lg:gap-20">
         <div className="flex flex-col gap-10 lg:gap-[60px]">
-          <SectionEyebrow>Pourquoi me choisir</SectionEyebrow>
+          <SectionEyebrow>{t('Pourquoi me choisir')}</SectionEyebrow>
           <h2 className="font-faustina text-third-900 text-h5 sm:text-h3 xl:text-h2 max-w-[879px] leading-[1.1] font-light tracking-[0.64px]">
-            Une approche pensée pour votre bien-être,{' '}
-            <span className="text-third-200 font-light italic">
-              pas juste une séance
-            </span>
+            {rich(
+              t(
+                'Une approche pensée pour votre bien-être, <accent>pas juste une séance</accent>'
+              ),
+              {
+                accent: (chunks) => (
+                  <span className="text-third-200 font-light italic">
+                    {chunks}
+                  </span>
+                ),
+              }
+            )}
           </h2>
         </div>
 
         <div className="rounded-panel grid overflow-hidden border border-black/7 bg-white/40 xl:grid-cols-3">
           {COLUMNS.map((column, index) => (
             <div
-              key={column.heading}
+              key={t(column.heading)}
               className={`grid sm:grid-cols-2 xl:grid-cols-1 ${index ? 'border-t border-black/7 xl:border-t-0 xl:border-l' : ''}`}
             >
               <div
@@ -73,7 +88,7 @@ export default function ApproachSection({ id }) {
               >
                 <Image
                   src={column.image}
-                  alt={column.imageAlt}
+                  alt={column.imageAlt ? t(column.imageAlt) : ''}
                   fill
                   sizes="(min-width: 1280px) 33vw, (min-width: 640px) 50vw, 100vw"
                   className="object-cover"
@@ -93,7 +108,7 @@ export default function ApproachSection({ id }) {
                         aria-hidden
                         className="bg-primary-200 mt-[0.6em] size-1.5 shrink-0 rounded-full"
                       />
-                      <span>{item}</span>
+                      <span>{t(item)}</span>
                     </li>
                   ))}
                 </ul>

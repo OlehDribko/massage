@@ -5,14 +5,15 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import PlanityBadge from '@/components/ui/PlanityBadge';
 import RatingStars from '@/components/ui/RatingStars';
 import { REVIEWS } from '@/content/reviews';
+import { useFormat, useT } from '@/i18n/client';
 
-const DATE = new Intl.DateTimeFormat('fr-FR', {
-  day: 'numeric',
-  month: 'long',
-  year: 'numeric',
-  timeZone: 'UTC',
-});
-const formatDate = (date) => DATE.format(new Date(`${date}T12:00:00Z`));
+const formatReviewDate = (intlLocale, date) =>
+  new Intl.DateTimeFormat(intlLocale, {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(new Date(`${date}T12:00:00Z`));
 
 function Arrow({ back = false }) {
   return (
@@ -82,6 +83,10 @@ const arrowButton =
  * with reduced motion. A changed review slides in.
  */
 export default function TestimonialsSection({ id }) {
+  const t = useT();
+  const { intlLocale } = useFormat();
+  // Reviews stay in their original language (French, from Planity).
+  const formatDate = (date) => formatReviewDate(intlLocale, date);
   const [current, setCurrent] = useState(0);
   const items = REVIEWS.items;
   const total = items.length;
@@ -183,7 +188,7 @@ export default function TestimonialsSection({ id }) {
       className="bg-secondary-100 px-page overflow-x-clip pt-40 pb-40 lg:pb-[200px]"
     >
       <h2 id={`${id}-title`} className="sr-only">
-        Avis clients
+        {t('Avis clients')}
       </h2>
       <div className="max-w-content mx-auto flex flex-col gap-16 lg:flex-row lg:items-start lg:justify-between">
         <div className="flex flex-col gap-12 lg:max-w-[661px] lg:flex-1 lg:gap-20">
@@ -196,11 +201,16 @@ export default function TestimonialsSection({ id }) {
               <figcaption className="flex min-w-0 flex-col">
                 <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
                   <span className="font-montserrat text-body-lg font-semibold text-gray-900">
-                    Avis Planity
+                    {t('Avis Planity')}
                   </span>
                   <RatingStars count={Math.round(featured.rating)} />
                   <span className="sr-only">
-                    {String(featured.rating).replace('.', ',')} sur 5
+                    {t('{rating} sur 5', {
+                      rating: String(featured.rating).replace(
+                        '.',
+                        t.locale === 'en' ? '.' : ','
+                      ),
+                    })}
                   </span>
                 </span>
                 <span
@@ -218,8 +228,8 @@ export default function TestimonialsSection({ id }) {
                     aria-pressed={paused}
                     aria-label={
                       paused
-                        ? 'Reprendre le défilement des avis'
-                        : 'Mettre en pause le défilement des avis'
+                        ? t('Reprendre le défilement des avis')
+                        : t('Mettre en pause le défilement des avis')
                     }
                     className="text-third-200 hover:bg-third-200/10 focus-visible:outline-third-200 flex size-10 shrink-0 items-center justify-center rounded-full transition-colors focus-visible:outline-2 focus-visible:outline-offset-2"
                   >
@@ -229,7 +239,7 @@ export default function TestimonialsSection({ id }) {
                 <button
                   type="button"
                   onClick={() => go(-1)}
-                  aria-label="Avis précédent"
+                  aria-label={t('Avis précédent')}
                   className={arrowButton}
                 >
                   <Arrow back />
@@ -237,7 +247,7 @@ export default function TestimonialsSection({ id }) {
                 <button
                   type="button"
                   onClick={() => go(1)}
-                  aria-label="Avis suivant"
+                  aria-label={t('Avis suivant')}
                   className={arrowButton}
                 >
                   <Arrow />
@@ -250,6 +260,7 @@ export default function TestimonialsSection({ id }) {
             <AutoHeight className="grid">
               {leaving && leaving.index !== current ? (
                 <blockquote
+                  lang="fr"
                   key={`out-${leaving.index}`}
                   aria-hidden
                   className={`slide-out-${leaving.side} font-faustina text-secondary-900 sm:text-h4 pointer-events-none text-[34px] leading-[1.12] font-light tracking-[-0.22px] break-words italic [grid-area:1/1]`}
@@ -258,6 +269,7 @@ export default function TestimonialsSection({ id }) {
                 </blockquote>
               ) : null}
               <blockquote
+                lang="fr"
                 key={current}
                 aria-live={running ? 'off' : 'polite'}
                 className={`slide-${direction} font-faustina text-secondary-900 sm:text-h4 text-[34px] leading-[1.12] font-light tracking-[-0.22px] break-words italic [grid-area:1/1]`}
@@ -279,7 +291,10 @@ export default function TestimonialsSection({ id }) {
               className={`slide-${direction} flex flex-col gap-8 ${index ? 'border-t border-black/7 pt-10' : ''}`}
             >
               <RatingStars count={Math.round(review.rating)} />
-              <blockquote className="font-montserrat text-body-lg text-gray-900">
+              <blockquote
+                lang="fr"
+                className="font-montserrat text-body-lg text-gray-900"
+              >
                 « {review.quote} »
               </blockquote>
               <p className="font-montserrat text-body-lg font-semibold text-gray-900">

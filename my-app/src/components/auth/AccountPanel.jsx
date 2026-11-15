@@ -1,13 +1,15 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 
 import EmailChangeForm from '@/components/account/EmailChangeForm';
 import MarketingStatus from '@/components/account/MarketingStatus';
 import ProfileForm from '@/components/account/ProfileForm';
 import AccountShell from '@/components/auth/AccountShell';
 import Notice from '@/components/ui/Notice';
+import { useRouter, useT } from '@/i18n/client';
+import { rich } from '@/i18n/rich';
 import PillButton from '@/components/ui/PillButton';
 import { AUTH_ROUTES } from '@/config/auth';
 import {
@@ -44,6 +46,7 @@ function Section({ id, title, children }) {
  * visitor back to an unfinished booking once nothing blocks it any more.
  */
 export default function AccountPanel() {
+  const t = useT();
   const router = useRouter();
   const searchParams = useSearchParams();
   const returnTo = searchParams.get('retour')
@@ -61,7 +64,7 @@ export default function AccountPanel() {
     try {
       await task();
     } catch (error) {
-      setMessage({ tone: 'error', text: authErrorMessage(error) });
+      setMessage({ tone: 'error', text: authErrorMessage(error, t) });
     } finally {
       busyRef.current = false;
       setPending(null);
@@ -72,7 +75,11 @@ export default function AccountPanel() {
     <AccountShell
       title={
         <>
-          Mon <span className="heading-accent">compte</span>
+          {rich(t('Mon <accent>compte</accent>'), {
+            accent: (chunks) => (
+              <span className="heading-accent">{chunks}</span>
+            ),
+          })}
         </>
       }
       current="profil"
@@ -88,7 +95,7 @@ export default function AccountPanel() {
           !profile.emailVerified &&
           profile.signInProvider === 'password';
         const blockers = view?.bookingReadiness?.blockers ?? [];
-        const remaining = readinessSteps(blockers);
+        const remaining = readinessSteps(blockers, { t });
 
         const signOut = () =>
           run('signout', async () => {
@@ -101,16 +108,17 @@ export default function AccountPanel() {
             {returnTo && view ? (
               remaining.length ? (
                 <Notice>
-                  Pour terminer votre réservation :{' '}
+                  {t('Pour terminer votre réservation :')}{' '}
                   {remaining.map((step) => step.text).join(' ')}
                 </Notice>
               ) : (
                 <div className="rounded-card flex flex-col gap-4 border border-black/10 bg-white p-6 sm:flex-row sm:items-center sm:justify-between">
                   <p className="font-montserrat text-body text-gray-900">
-                    Votre profil est complet : vous pouvez reprendre votre
-                    réservation.
+                    {t(
+                      'Votre profil est complet : vous pouvez reprendre votre réservation.'
+                    )}
                   </p>
-                  <PillButton href={returnTo}>Continuer</PillButton>
+                  <PillButton href={returnTo}>{t('Continuer')}</PillButton>
                 </div>
               )
             ) : null}
@@ -118,7 +126,7 @@ export default function AccountPanel() {
             {profileError ? (
               <div className="flex flex-col gap-4">
                 <Notice tone="error">
-                  {profileErrorMessage(profileError)}
+                  {profileErrorMessage(profileError, t)}
                 </Notice>
                 {profileError.code !== 'NOT_CONFIGURED' ? (
                   <PillButton
@@ -128,7 +136,7 @@ export default function AccountPanel() {
                     disabled={state.profile.status === 'loading'}
                     className="self-start"
                   >
-                    Réessayer
+                    {t('Réessayer')}
                   </PillButton>
                 ) : null}
               </div>
@@ -139,15 +147,17 @@ export default function AccountPanel() {
                 role="status"
                 className="font-montserrat text-body text-gray-800"
               >
-                Chargement de votre profil…
+                {t('Chargement de votre profil…')}
               </p>
             ) : null}
 
             {profile ? (
               <>
-                <Section id="profil" title="Coordonnées">
+                <Section id="profil" title={t('Coordonnées')}>
                   <p className="font-montserrat text-body text-gray-800">
-                    Votre nom et votre téléphone sont nécessaires pour réserver.
+                    {t(
+                      'Votre nom et votre téléphone sont nécessaires pour réserver.'
+                    )}
                   </p>
                   <ProfileForm
                     key={`${profile.name}|${profile.phone}`}
@@ -156,28 +166,28 @@ export default function AccountPanel() {
                   />
                 </Section>
 
-                <Section id="connexion" title="Connexion">
+                <Section id="connexion" title={t('Connexion')}>
                   <dl className="font-montserrat text-body flex flex-col gap-3">
                     <div className="flex flex-col gap-1 sm:flex-row sm:gap-6">
                       <dt className="text-label-sm font-medium text-gray-800 uppercase sm:w-44 sm:shrink-0 sm:pt-0.5">
-                        Adresse e-mail
+                        {t('Adresse e-mail')}
                       </dt>
                       <dd className="min-w-0 break-words text-gray-900">
                         {profile.email ?? '—'}{' '}
                         <span className="text-gray-800">
                           {profile.emailVerified
-                            ? '(confirmée)'
-                            : '(non confirmée)'}
+                            ? t('(confirmée)')
+                            : t('(non confirmée)')}
                         </span>
                       </dd>
                     </div>
                     {SIGN_IN_PROVIDERS[profile.signInProvider] ? (
                       <div className="flex flex-col gap-1 sm:flex-row sm:gap-6">
                         <dt className="text-label-sm font-medium text-gray-800 uppercase sm:w-44 sm:shrink-0 sm:pt-0.5">
-                          Mode de connexion
+                          {t('Mode de connexion')}
                         </dt>
                         <dd className="text-gray-900">
-                          {SIGN_IN_PROVIDERS[profile.signInProvider]}
+                          {t(SIGN_IN_PROVIDERS[profile.signInProvider])}
                         </dd>
                       </div>
                     ) : null}
@@ -186,12 +196,13 @@ export default function AccountPanel() {
                   {needsVerification ? (
                     <div className="rounded-card flex flex-col gap-4 border border-black/10 bg-white p-6">
                       <h3 className="font-montserrat text-body-lg font-semibold text-gray-900">
-                        Confirmez votre adresse e-mail
+                        {t('Confirmez votre adresse e-mail')}
                       </h3>
                       <p className="font-montserrat text-body text-gray-800">
-                        Un lien de confirmation a été envoyé à {profile.email}.
-                        Après l’avoir ouvert, revenez ici et actualisez votre
-                        statut.
+                        {t(
+                          'Un lien de confirmation a été envoyé à {email}. Après l’avoir ouvert, revenez ici et actualisez votre statut.',
+                          { email: profile.email }
+                        )}
                       </p>
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                         <PillButton
@@ -205,8 +216,8 @@ export default function AccountPanel() {
                           className="disabled:opacity-60"
                         >
                           {pending === 'refresh'
-                            ? 'Vérification…'
-                            : 'J’ai confirmé'}
+                            ? t('Vérification…')
+                            : t('J’ai confirmé')}
                         </PillButton>
                         <PillButton
                           variant="text"
@@ -215,7 +226,7 @@ export default function AccountPanel() {
                               await controller.resendVerification();
                               setMessage({
                                 tone: 'info',
-                                text: 'E-mail de confirmation renvoyé.',
+                                text: t('E-mail de confirmation renvoyé.'),
                               });
                             })
                           }
@@ -223,8 +234,8 @@ export default function AccountPanel() {
                           className="self-start disabled:opacity-60 sm:self-auto"
                         >
                           {pending === 'resend'
-                            ? 'Envoi…'
-                            : 'Renvoyer l’e-mail'}
+                            ? t('Envoi…')
+                            : t('Renvoyer l’e-mail')}
                         </PillButton>
                       </div>
                     </div>
@@ -238,7 +249,7 @@ export default function AccountPanel() {
                   ) : null}
                 </Section>
 
-                <Section id="newsletter" title="Newsletter">
+                <Section id="newsletter" title={t('Newsletter')}>
                   <MarketingStatus
                     marketing={view.marketing}
                     available={marketingAvailability({
@@ -270,7 +281,9 @@ export default function AccountPanel() {
                 aria-busy={pending === 'signout'}
                 className="disabled:opacity-60"
               >
-                {pending === 'signout' ? 'Déconnexion…' : 'Se déconnecter'}
+                {pending === 'signout'
+                  ? t('Déconnexion…')
+                  : t('Se déconnecter')}
               </PillButton>
             </div>
           </div>

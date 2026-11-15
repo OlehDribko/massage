@@ -1,5 +1,7 @@
 import PillButton from '@/components/ui/PillButton';
 import PopularAccordion from '@/components/sections/PopularAccordion';
+import { rich } from '@/i18n/rich';
+import { getT } from '@/i18n/server';
 
 /**
  * Figma «Nos soins populaires» (704:1296): title row, then a full-width
@@ -10,6 +12,7 @@ import PopularAccordion from '@/components/sections/PopularAccordion';
  * `prestations` null = catalogue unavailable: only the catalogue link.
  */
 export default function ServicesSection({ id, prestations }) {
+  const t = getT();
   return (
     <section
       id={id}
@@ -18,13 +21,20 @@ export default function ServicesSection({ id, prestations }) {
       <div className="px-page">
         <div className="max-w-content mx-auto flex flex-col gap-4 pb-12 lg:flex-row lg:items-center lg:justify-between lg:pb-20">
           <h2 className="font-faustina text-third-900 text-h5 sm:text-h3 xl:text-h2 font-normal">
-            Nos soins <span className="heading-accent">populaires</span>
+            {rich(t('Nos soins <accent>populaires</accent>'), {
+              accent: (chunks) => (
+                <span className="heading-accent">{chunks}</span>
+              ),
+            })}
           </h2>
           <p className="font-montserrat text-body-lg font-medium text-gray-800">
-            {prestations?.length ? `${prestations.length} soins` : 'Les soins'}{' '}
-            les plus demandés.
+            {prestations?.length
+              ? t('{n} soin le plus demandé.|{n} soins les plus demandés.', {
+                  n: prestations.length,
+                })
+              : t('Les soins les plus demandés.')}
             <br />
-            Un doute ? Consultation gratuite.
+            {t('Un doute ? Consultation gratuite.')}
           </p>
         </div>
       </div>
@@ -35,8 +45,9 @@ export default function ServicesSection({ id, prestations }) {
             <PopularAccordion prestations={prestations} />
           ) : (
             <p className="font-montserrat text-body py-10 text-gray-800">
-              Retrouvez tous nos soins, leurs durées et leurs tarifs sur la page
-              de réservation.
+              {t(
+                'Retrouvez tous nos soins, leurs durées et leurs tarifs sur la page de réservation.'
+              )}
             </p>
           )}
         </div>
@@ -45,7 +56,7 @@ export default function ServicesSection({ id, prestations }) {
       <div className="px-page">
         <div className="max-w-content mx-auto pt-10">
           <PillButton variant="text" tone="primary" href="/reserver">
-            Découvrir les services
+            {t('Découvrir les services')}
           </PillButton>
         </div>
       </div>

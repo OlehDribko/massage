@@ -1,7 +1,9 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import Link from 'next/link';
+import { Link, useFormat, useServiceName, useT } from '@/i18n/client';
+import { msg } from '@/i18n/translate';
+import { rich } from '@/i18n/rich';
 import { useSearchParams } from 'next/navigation';
 
 import AccountShell from '@/components/auth/AccountShell';
@@ -27,7 +29,19 @@ import {
   cancelledByLabel,
   clientNotificationText,
 } from '@/lib/booking/labels';
-import { formatDateTime, formatLocalDate, localDateOf } from '@/lib/format';
+import { localDateOf } from '@/lib/format';
+
+// « À mardi » on the confirmation, by weekday (0 = Sunday): one key per
+// day so each language can decline it.
+const SEE_YOU = [
+  msg('À dimanche'),
+  msg('À lundi'),
+  msg('À mardi'),
+  msg('À mercredi'),
+  msg('À jeudi'),
+  msg('À vendredi'),
+  msg('À samedi'),
+];
 
 const STUDIO = { name: SITE.name, address: BUSINESS.address };
 // Moving is allowed only while more than 12 h remain (docs/booking.md §2).
@@ -59,10 +73,19 @@ const ICONS = {
  * new tab (no file download). `size="sm"` for the detail actions row.
  */
 function AddToCalendar({ booking, size = 'md' }) {
+  const t = useT();
+  const serviceName = useServiceName();
   const small = size === 'sm';
   return (
     <a
-      href={googleCalendarUrl(booking, STUDIO)}
+      href={googleCalendarUrl(
+        {
+          ...booking,
+          service: { ...booking.service, name: serviceName(booking.service) },
+        },
+        STUDIO,
+        t
+      )}
       target="_blank"
       rel="noopener noreferrer"
       className={`rounded-pill font-montserrat focus-visible:outline-third-200 hover:border-third-200 flex items-center justify-center gap-3 border border-black/20 bg-white font-medium text-gray-900 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 motion-reduce:transition-none ${
@@ -70,8 +93,8 @@ function AddToCalendar({ booking, size = 'md' }) {
       }`}
     >
       <GoogleLogo className={small ? 'size-[18px]' : 'size-5'} />
-      Ajouter à Google Agenda
-      <span className="sr-only"> (nouvelle fenêtre)</span>
+      {t('Ajouter à Google Agenda')}
+      <span className="sr-only"> {t(' (nouvelle fenêtre)')}</span>
     </a>
   );
 }
@@ -85,6 +108,9 @@ const STALE = new Set([
 ]);
 
 function Detail({ bookingId, controller, enabled, firstName }) {
+  const t = useT();
+  const serviceName = useServiceName();
+  const { formatDateTime } = useFormat();
   const searchParams = useSearchParams();
   const justBooked = searchParams.get('confirmee') === '1';
   const { status, data, error, reload, replace } = useAccountData(
@@ -104,7 +130,7 @@ function Detail({ bookingId, controller, enabled, firstName }) {
   if (status === 'loading' || status === 'idle') {
     return (
       <p role="status" className="font-montserrat text-body text-gray-800">
-        Chargement du rendez-vous…
+        {t('Chargement du rendez-vous…')}
       </p>
     );
   }
@@ -114,7 +140,9 @@ function Detail({ bookingId, controller, enabled, firstName }) {
     return (
       <div className="flex flex-col gap-4">
         <Notice tone="error">
-          {missing ? 'Rendez-vous introuvable.' : bookingErrorMessage(error)}
+          {missing
+            ? t('Rendez-vous introuvable.')
+            : bookingErrorMessage(error, t)}
         </Notice>
         {missing ? (
           <PillButton
@@ -123,7 +151,7 @@ function Detail({ bookingId, controller, enabled, firstName }) {
             tone="dark"
             className="self-start"
           >
-            Mes réservations
+            {t('Mes réservations')}
           </PillButton>
         ) : (
           <PillButton
@@ -132,7 +160,7 @@ function Detail({ bookingId, controller, enabled, firstName }) {
             onClick={reload}
             className="self-start"
           >
-            Réessayer
+            {t('Réessayer')}
           </PillButton>
         )}
       </div>
@@ -140,7 +168,7 @@ function Detail({ bookingId, controller, enabled, firstName }) {
   }
 
   const booking = data.booking;
-  const notification = clientNotificationText(booking.notification);
+  const notification = clientNotificationText(booking.notification, t);
 
   // One write at a time; never repeated automatically.
   const write = async (kind, path, body, success) => {
@@ -173,8 +201,10 @@ function Detail({ bookingId, controller, enabled, firstName }) {
       { startsAt: newSlot.startsAt },
       (result) =>
         result.changed
-          ? `Rendez-vous déplacé au ${formatDateTime(result.booking.startsAt)}.`
-          : 'Le rendez-vous est déjà à cet horaire.'
+          ? t('Rendez-vous déplacé au {date}.', {
+              date: formatDateTime(result.booking.startsAt),
+            })
+          : t('Le rendez-vous est déjà à cet horaire.')
     );
     setConfirmMove(false);
     if (ok) {
@@ -188,7 +218,7 @@ function Detail({ bookingId, controller, enabled, firstName }) {
       'cancel',
       `/api/bookings/${booking.id}/cancel`,
       {},
-      () => 'Rendez-vous annulé.'
+      () => t('Rendez-vous annulé.')
     );
     if (ok) setConfirmCancel(false);
   };
@@ -201,7 +231,9 @@ function Detail({ bookingId, controller, enabled, firstName }) {
   const moveDeadline = new Date(
     Date.parse(booking.startsAt) - RESCHEDULE_NOTICE_MS
   );
-  const weekday = formatLocalDate(localDateOf(booking.startsAt)).split(' ')[0];
+  const weekday = new Date(
+    `${localDateOf(booking.startsAt)}T12:00:00Z`
+  ).getUTCDay();
 
   const openMove = () => {
     setConfirmCancel(false);
@@ -224,7 +256,8 @@ function Detail({ bookingId, controller, enabled, firstName }) {
             rel="noopener noreferrer"
             className="text-body-sm text-third-900 hover:text-third-200 self-start underline underline-offset-4"
           >
-            Itinéraire<span className="sr-only"> (nouvelle fenêtre)</span>
+            {t('Itinéraire')}
+            <span className="sr-only"> {t(' (nouvelle fenêtre)')}</span>
           </a>
         </div>
       </div>
@@ -234,12 +267,12 @@ function Detail({ bookingId, controller, enabled, firstName }) {
             <Icon path={ICONS.move} />
             <div className="font-montserrat flex flex-col gap-1">
               <p className="text-body font-semibold text-gray-900">
-                Report en ligne
+                {t('Report en ligne')}
               </p>
               <p className="text-body-sm text-gray-800">
                 {booking.allowedActions.reschedule
-                  ? `avant le ${formatDateTime(moveDeadline)}`
-                  : 'n’est plus possible (moins de 12 h)'}
+                  ? t('avant le {date}', { date: formatDateTime(moveDeadline) })
+                  : t('n’est plus possible (moins de 12 h)')}
               </p>
             </div>
           </div>
@@ -247,10 +280,10 @@ function Detail({ bookingId, controller, enabled, firstName }) {
             <Icon path={ICONS.cancel} />
             <div className="font-montserrat flex flex-col gap-1">
               <p className="text-body font-semibold text-gray-900">
-                Annulation en ligne
+                {t('Annulation en ligne')}
               </p>
               <p className="text-body-sm text-gray-800">
-                jusqu’à l’heure du rendez-vous
+                {t('jusqu’à l’heure du rendez-vous')}
               </p>
             </div>
           </div>
@@ -271,7 +304,7 @@ function Detail({ bookingId, controller, enabled, firstName }) {
               else openMove();
             }}
           >
-            {moving ? 'Fermer' : 'Déplacer'}
+            {moving ? t('Fermer') : t('Déplacer')}
           </PillButton>
         ) : null}
         {booking.allowedActions.cancel ? (
@@ -284,7 +317,7 @@ function Detail({ bookingId, controller, enabled, firstName }) {
               setConfirmCancel(true);
             }}
           >
-            Annuler le rendez-vous
+            {t('Annuler le rendez-vous')}
           </PillButton>
         ) : null}
         {active ? <AddToCalendar booking={booking} size="sm" /> : null}
@@ -296,7 +329,7 @@ function Detail({ bookingId, controller, enabled, firstName }) {
       <div role="status">{done ? <Notice>{done}</Notice> : null}</div>
       {actionError && !confirmMove && !confirmCancel ? (
         <div role="alert">
-          <Notice tone="error">{bookingErrorMessage(actionError)}</Notice>
+          <Notice tone="error">{bookingErrorMessage(actionError, t)}</Notice>
         </div>
       ) : null}
 
@@ -317,7 +350,7 @@ function Detail({ bookingId, controller, enabled, firstName }) {
               </svg>
             </span>
             <h1 className="text-section-title text-third-900">
-              À {weekday}
+              {t(SEE_YOU[weekday])}
               {firstName ? (
                 <>
                   , <span className="heading-accent">{firstName}</span>
@@ -325,8 +358,8 @@ function Detail({ bookingId, controller, enabled, firstName }) {
               ) : null}
             </h1>
             <p className="font-montserrat text-body-lg max-w-xl text-gray-800">
-              Votre rendez-vous est confirmé.{' '}
-              {notification ?? 'Le règlement se fait sur place.'}
+              {t('Votre rendez-vous est confirmé.')}{' '}
+              {notification ?? t('Le règlement se fait sur place.')}
             </p>
           </div>
           <BookingCard booking={booking}>{facts}</BookingCard>
@@ -337,7 +370,7 @@ function Detail({ bookingId, controller, enabled, firstName }) {
               variant="outline"
               tone="dark"
             >
-              Gérer le rendez-vous
+              {t('Gérer le rendez-vous')}
             </PillButton>
           </div>
         </>
@@ -348,7 +381,7 @@ function Detail({ bookingId, controller, enabled, firstName }) {
               href="/compte/reservations"
               className="font-montserrat text-body-sm hover:text-third-200 flex min-h-11 items-center text-gray-800 underline-offset-4 hover:underline"
             >
-              ← Mes réservations
+              ← {t('Mes réservations')}
             </Link>
             <BookingStatus phase={booking.phase} />
           </div>
@@ -365,10 +398,14 @@ function Detail({ bookingId, controller, enabled, firstName }) {
                   ) : null}
                   {booking.cancellation ? (
                     <p className="font-montserrat text-body-sm text-gray-800">
-                      Annulé {cancelledByLabel(booking.cancellation.by)} le{' '}
-                      {formatDateTime(booking.cancellation.at)}
+                      {t('Annulé {by} le {date}', {
+                        by: cancelledByLabel(booking.cancellation.by, t),
+                        date: formatDateTime(booking.cancellation.at),
+                      })}
                       {booking.cancellation.reason
-                        ? ` — motif : ${booking.cancellation.reason}`
+                        ? t(' — motif : {reason}', {
+                            reason: booking.cancellation.reason,
+                          })
                         : ''}
                     </p>
                   ) : null}
@@ -388,7 +425,7 @@ function Detail({ bookingId, controller, enabled, firstName }) {
                     onChange={setNewSlot}
                     exclude={booking.startsAt}
                     refreshKey={refreshKey}
-                    title="Choisissez un nouvel horaire"
+                    title={t('Choisissez un nouvel horaire')}
                   />
                   <PillButton
                     onClick={() => {
@@ -398,7 +435,7 @@ function Detail({ bookingId, controller, enabled, firstName }) {
                     disabled={!newSlot}
                     className="self-start disabled:opacity-60"
                   >
-                    Choisir cet horaire
+                    {t('Choisir cet horaire')}
                   </PillButton>
                 </div>
               ) : null}
@@ -412,7 +449,7 @@ function Detail({ bookingId, controller, enabled, firstName }) {
                 id={`${booking.id}-history`}
                 className="font-montserrat text-label-sm font-semibold text-gray-800 uppercase"
               >
-                Historique
+                {t('Historique')}
               </h2>
               <BookingHistory history={booking.history} />
             </section>
@@ -422,35 +459,41 @@ function Detail({ bookingId, controller, enabled, firstName }) {
 
       <ConfirmDialog
         open={confirmMove}
-        title="Déplacer le rendez-vous ?"
-        confirmLabel="Déplacer"
+        title={t('Déplacer le rendez-vous ?')}
+        confirmLabel={t('Déplacer')}
         pending={pending === 'move'}
         error={
-          actionError && confirmMove ? bookingErrorMessage(actionError) : null
+          actionError && confirmMove
+            ? bookingErrorMessage(actionError, t)
+            : null
         }
         onConfirm={move}
         onClose={() => setConfirmMove(false)}
       >
         {newSlot ? (
           <>
-            Nouvel horaire : {formatDateTime(newSlot.startsAt)}. La prestation
-            et le tarif restent les mêmes.
+            {t(
+              'Nouvel horaire : {date}. La prestation et le tarif restent les mêmes.',
+              { date: formatDateTime(newSlot.startsAt) }
+            )}
           </>
         ) : null}
       </ConfirmDialog>
 
       <ConfirmDialog
         open={confirmCancel}
-        title="Annuler ce rendez-vous ?"
-        confirmLabel="Oui, annuler"
-        cancelLabel="Garder"
+        title={t('Annuler ce rendez-vous ?')}
+        confirmLabel={t('Oui, annuler')}
+        cancelLabel={t('Garder')}
         secondaryLabel={
-          booking.allowedActions.reschedule ? 'Plutôt déplacer' : undefined
+          booking.allowedActions.reschedule ? t('Plutôt déplacer') : undefined
         }
         onSecondary={openMove}
         pending={pending === 'cancel'}
         error={
-          actionError && confirmCancel ? bookingErrorMessage(actionError) : null
+          actionError && confirmCancel
+            ? bookingErrorMessage(actionError, t)
+            : null
         }
         onConfirm={cancel}
         onClose={() => setConfirmCancel(false)}
@@ -459,13 +502,15 @@ function Detail({ bookingId, controller, enabled, firstName }) {
           <span className="font-semibold text-gray-900 first-letter:uppercase">
             {formatDateTime(booking.startsAt)}
           </span>
-          <span className="text-body-sm">{booking.service.name}</span>
+          <span className="text-body-sm">{serviceName(booking.service)}</span>
         </span>
-        L’horaire sera libéré pour quelqu’un d’autre. Cette action est
-        définitive
         {booking.allowedActions.reschedule
-          ? ' — vous pouvez aussi simplement le déplacer.'
-          : '.'}
+          ? t(
+              'L’horaire sera libéré pour quelqu’un d’autre. Cette action est définitive — vous pouvez aussi simplement le déplacer.'
+            )
+          : t(
+              'L’horaire sera libéré pour quelqu’un d’autre. Cette action est définitive.'
+            )}
       </ConfirmDialog>
     </div>
   );
@@ -473,6 +518,7 @@ function Detail({ bookingId, controller, enabled, firstName }) {
 
 /** /compte/reservations/[id] — one own booking with its actions. */
 export default function ClientBookingDetail({ bookingId }) {
+  const t = useT();
   const searchParams = useSearchParams();
   // Right after booking, the page is the confirmation (its own h1, no tabs).
   const justBooked = searchParams.get('confirmee') === '1';
@@ -481,7 +527,11 @@ export default function ClientBookingDetail({ bookingId }) {
       title={
         justBooked ? null : (
           <>
-            Mon <span className="heading-accent">rendez-vous</span>
+            {rich(t('Mon <accent>rendez-vous</accent>'), {
+              accent: (chunks) => (
+                <span className="heading-accent">{chunks}</span>
+              ),
+            })}
           </>
         )
       }

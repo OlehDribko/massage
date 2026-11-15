@@ -1,5 +1,8 @@
 import Image from 'next/image';
 
+import { rich } from '@/i18n/rich';
+import { getT } from '@/i18n/server';
+
 import PillButton from '@/components/ui/PillButton';
 import PlanityBadge from '@/components/ui/PlanityBadge';
 import SectionLabel from '@/components/ui/SectionLabel';
@@ -15,11 +18,12 @@ import SectionLabel from '@/components/ui/SectionLabel';
  *   edge on desktop.
  */
 export default function HeroSection() {
+  const t = getT();
   return (
     <section className="bg-secondary-900 relative flex min-h-[max(100svh,40rem)] flex-col overflow-hidden md:justify-end">
       <Image
         src="/images/hero-br.jpg"
-        alt="Massage du dos dans un cabinet de massage à Bordeaux"
+        alt={t('Massage du dos dans un cabinet de massage à Bordeaux')}
         fill
         preload
         sizes="100vw"
@@ -31,14 +35,19 @@ export default function HeroSection() {
         <div className="max-w-hero flex flex-col gap-10 max-md:items-center max-md:text-center md:gap-5 lg:gap-10">
           <div className="flex flex-col gap-5">
             <SectionLabel className="hero-in hidden text-gray-100 md:flex">
-              Soins professionnels du corps
+              {t('Soins professionnels du corps')}
             </SectionLabel>
             <h1
               style={{ '--hero-step': 1 }}
               className="hero-in font-faustina text-base-white lg:text-hero text-[54px] leading-[1.1] font-normal tracking-[-0.27px] md:text-[64px] lg:leading-[1.05] lg:tracking-[-0.84px]"
             >
-              Le massage qui vous{' '}
-              <span className="font-light text-gray-200 italic">ressource</span>
+              {rich(t('Le massage qui vous <accent>ressource</accent>'), {
+                accent: (chunks) => (
+                  <span className="font-light text-gray-200 italic">
+                    {chunks}
+                  </span>
+                ),
+              })}
             </h1>
           </div>
           <div
@@ -49,11 +58,11 @@ export default function HeroSection() {
               href="/reserver"
               className="max-md:min-h-12 max-md:w-full max-md:py-2.5"
             >
-              Prendre rendez-vous
+              {t('Prendre rendez-vous')}
             </PillButton>
             <div className="hidden md:block">
               <PillButton variant="text" href="#carte-cadeau" tone="light">
-                Offrir une carte cadeau
+                {t('Offrir une carte cadeau')}
               </PillButton>
             </div>
           </div>

@@ -6,6 +6,7 @@
  */
 
 import { describeFailure } from '../api/diagnostics.js';
+import { msg } from '../../i18n/translate.js';
 
 const byDuration = (a, b) => a.durationMinutes - b.durationMinutes;
 
@@ -131,16 +132,16 @@ export function lowestPrice(group) {
  * so the card can open on that duration.
  */
 export const DURATION_FILTERS = [
-  { key: '30', label: '30 min', min: 0, max: 40 },
-  { key: '60', label: '1 h', min: 41, max: 70 },
-  { key: '90', label: '1 h 30', min: 71, max: 100 },
-  { key: '120', label: '2 h', min: 101, max: Infinity },
+  { key: '30', label: msg('30 min'), min: 0, max: 40 },
+  { key: '60', label: msg('1 h'), min: 41, max: 70 },
+  { key: '90', label: msg('1 h 30'), min: 71, max: 100 },
+  { key: '120', label: msg('2 h'), min: 101, max: Infinity },
 ];
 
 export const BUDGET_FILTERS = [
-  { key: 'moins-60', label: 'Jusqu’à 60 €', min: 0, max: 6000 },
-  { key: '60-100', label: '60 – 100 €', min: 6001, max: 10000 },
-  { key: 'plus-100', label: '100 € et plus', min: 10001, max: Infinity },
+  { key: 'moins-60', label: msg('Jusqu’à 60 €'), min: 0, max: 6000 },
+  { key: '60-100', label: msg('60 – 100 €'), min: 6001, max: 10000 },
+  { key: 'plus-100', label: msg('100 € et plus'), min: 10001, max: Infinity },
 ];
 
 const within = (value, range) =>

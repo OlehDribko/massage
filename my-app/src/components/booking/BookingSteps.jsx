@@ -1,6 +1,14 @@
-import Link from 'next/link';
+'use client';
 
-const STEPS = ['Soin', 'Horaire', 'Coordonnées', 'Confirmation'];
+import { Link, useT } from '@/i18n/client';
+import { msg } from '@/i18n/translate';
+
+const STEPS = [
+  msg('Soin'),
+  msg('Horaire'),
+  msg('Coordonnées'),
+  msg('Confirmation'),
+];
 
 function Check() {
   return (
@@ -23,9 +31,10 @@ function Check() {
  * state: a hidden "(terminé)" / aria-current="step".
  */
 export default function BookingSteps({ current, links = [] }) {
+  const t = useT();
   return (
     <ol
-      aria-label="Étapes de la réservation"
+      aria-label={t('Étapes de la réservation')}
       className="font-montserrat text-body-sm flex flex-wrap gap-2 font-medium"
     >
       {STEPS.map((label, index) => {
@@ -48,8 +57,8 @@ export default function BookingSteps({ current, links = [] }) {
         );
         const text = (
           <>
-            {label}
-            {done ? <span className="sr-only"> (terminé)</span> : null}
+            {t(label)}
+            {done ? <span className="sr-only"> {t(' (terminé)')}</span> : null}
           </>
         );
 

@@ -1,7 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
+import { Link, useFormat, useServiceName, useT } from '@/i18n/client';
+import { msg } from '@/i18n/translate';
+import { rich } from '@/i18n/rich';
 
 import AccountShell from '@/components/auth/AccountShell';
 import { useAccountData } from '@/components/auth/useAccountData';
@@ -13,35 +15,31 @@ import { BUSINESS } from '@/config/site';
 import { splitBookings } from '@/lib/booking/bookings';
 import { directionsUrl } from '@/lib/booking/calendar';
 import { bookingErrorMessage } from '@/lib/booking/labels';
-import {
-  addDays,
-  formatDateTime,
-  formatDuration,
-  formatPrice,
-  localDateOf,
-  studioToday,
-} from '@/lib/format';
+import { addDays, localDateOf, studioToday } from '@/lib/format';
 
 const FILTERS = [
-  { key: 'all', label: 'Tout' },
-  { key: 'finished', label: 'Passés' },
-  { key: 'cancelled', label: 'Annulés' },
+  { key: 'all', label: msg('Tout') },
+  { key: 'finished', label: msg('Passés') },
+  { key: 'cancelled', label: msg('Annulés') },
 ];
 
 /** "Aujourd’hui", "Demain", "Dans 3 jours" (studio calendar days). */
-function whenLabel(startsAt) {
+function whenLabel(startsAt, t) {
   const today = studioToday();
   const date = localDateOf(startsAt);
-  if (date === today) return 'Aujourd’hui';
-  if (date === addDays(today, 1)) return 'Demain';
+  if (date === today) return t('Aujourd’hui');
+  if (date === addDays(today, 1)) return t('Demain');
   const days = Math.round(
     (Date.parse(`${date}T12:00:00Z`) - Date.parse(`${today}T12:00:00Z`)) /
       86_400_000
   );
-  return days > 1 ? `Dans ${days} jours` : null;
+  return days > 1 ? t('Dans {n} jours', { n: days }) : null;
 }
 
 function BookingRow({ booking, rebook }) {
+  const t = useT();
+  const serviceName = useServiceName();
+  const { formatDateTime, formatDuration, formatPrice } = useFormat();
   return (
     <li className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:gap-6 sm:px-6">
       <Link
@@ -52,7 +50,7 @@ function BookingRow({ booking, rebook }) {
           {formatDateTime(booking.startsAt)}
         </span>
         <span className="font-montserrat text-body-sm text-gray-800">
-          {booking.service.name} ·{' '}
+          {serviceName(booking.service)} ·{' '}
           {formatDuration(booking.service.durationMinutes)} ·{' '}
           {formatPrice(booking.service.priceCents, booking.service.currency)}
         </span>
@@ -64,8 +62,8 @@ function BookingRow({ booking, rebook }) {
             href={`/reserver/${booking.service.id}`}
             className="font-montserrat text-body-sm text-third-900 hover:text-third-200 flex min-h-11 items-center font-medium whitespace-nowrap underline underline-offset-4"
           >
-            Réserver à nouveau
-            <span className="sr-only"> — {booking.service.name}</span>
+            {t('Réserver à nouveau')}
+            <span className="sr-only"> — {serviceName(booking.service)}</span>
           </Link>
         ) : null}
       </div>
@@ -85,6 +83,7 @@ function SectionTitle({ id, children }) {
 }
 
 function BookingsContent({ enabled }) {
+  const t = useT();
   const { status, data, error, reload } = useAccountData('/api/bookings', {
     enabled,
   });
@@ -93,21 +92,21 @@ function BookingsContent({ enabled }) {
   if (status === 'loading' || status === 'idle') {
     return (
       <p role="status" className="font-montserrat text-body text-gray-800">
-        Chargement de vos réservations…
+        {t('Chargement de vos réservations…')}
       </p>
     );
   }
   if (status === 'error') {
     return (
       <div className="flex flex-col gap-4">
-        <Notice tone="error">{bookingErrorMessage(error)}</Notice>
+        <Notice tone="error">{bookingErrorMessage(error, t)}</Notice>
         <PillButton
           variant="outline"
           tone="dark"
           onClick={reload}
           className="self-start"
         >
-          Réessayer
+          {t('Réessayer')}
         </PillButton>
       </div>
     );
@@ -118,9 +117,9 @@ function BookingsContent({ enabled }) {
     return (
       <div className="rounded-panel flex flex-col items-start gap-5 border border-black/10 bg-white p-8">
         <p className="font-faustina text-third-900 text-[1.75rem] leading-tight">
-          Vous n’avez pas encore de réservation.
+          {t('Vous n’avez pas encore de réservation.')}
         </p>
-        <PillButton href="/reserver">Réserver un soin</PillButton>
+        <PillButton href="/reserver">{t('Réserver un soin')}</PillButton>
       </div>
     );
   }
@@ -133,19 +132,19 @@ function BookingsContent({ enabled }) {
   return (
     <div className="flex flex-col gap-10">
       <section aria-labelledby="prochain" className="flex flex-col gap-4">
-        <SectionTitle id="prochain">Prochain rendez-vous</SectionTitle>
+        <SectionTitle id="prochain">{t('Prochain rendez-vous')}</SectionTitle>
         {next ? (
           <BookingCard
             booking={next}
             eyebrow={
               next.phase === 'in_progress'
-                ? 'En cours'
-                : whenLabel(next.startsAt)
+                ? t('En cours')
+                : whenLabel(next.startsAt, t)
             }
           >
             <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
               <PillButton href={`/compte/reservations/${next.id}`} size="sm">
-                Gérer
+                {t('Gérer')}
               </PillButton>
               <PillButton
                 href={directionsUrl(BUSINESS.address)}
@@ -155,17 +154,18 @@ function BookingsContent({ enabled }) {
                 tone="dark"
                 size="sm"
               >
-                Itinéraire<span className="sr-only"> (nouvelle fenêtre)</span>
+                {t('Itinéraire')}
+                <span className="sr-only"> {t(' (nouvelle fenêtre)')}</span>
               </PillButton>
             </div>
           </BookingCard>
         ) : (
           <div className="rounded-panel flex flex-col items-start gap-4 border border-black/10 bg-white p-6">
             <p className="font-montserrat text-body text-gray-800">
-              Aucun rendez-vous à venir.
+              {t('Aucun rendez-vous à venir.')}
             </p>
             <PillButton href="/reserver" size="sm">
-              Réserver un soin
+              {t('Réserver un soin')}
             </PillButton>
           </div>
         )}
@@ -173,7 +173,7 @@ function BookingsContent({ enabled }) {
 
       {later.length ? (
         <section aria-labelledby="ensuite" className="flex flex-col gap-4">
-          <SectionTitle id="ensuite">Ensuite</SectionTitle>
+          <SectionTitle id="ensuite">{t('Ensuite')}</SectionTitle>
           <ul className="rounded-panel divide-y divide-black/10 border border-black/10 bg-white">
             {later.map((booking) => (
               <BookingRow key={booking.id} booking={booking} />
@@ -185,10 +185,10 @@ function BookingsContent({ enabled }) {
       {past.length ? (
         <section aria-labelledby="historique" className="flex flex-col gap-4">
           <div className="flex flex-wrap items-center justify-between gap-4">
-            <SectionTitle id="historique">Historique</SectionTitle>
+            <SectionTitle id="historique">{t('Historique')}</SectionTitle>
             <div
               role="group"
-              aria-label="Filtrer l’historique"
+              aria-label={t('Filtrer l’historique')}
               className="rounded-pill flex gap-1 border border-black/10 bg-white p-1"
             >
               {FILTERS.map((item) => (
@@ -203,7 +203,7 @@ function BookingsContent({ enabled }) {
                       : 'hover:text-third-200 text-gray-900'
                   }`}
                 >
-                  {item.label}
+                  {t(item.label)}
                 </button>
               ))}
             </div>
@@ -220,7 +220,7 @@ function BookingsContent({ enabled }) {
             </ul>
           ) : (
             <p className="font-montserrat text-body-sm text-gray-800">
-              Aucun rendez-vous dans cette catégorie.
+              {t('Aucun rendez-vous dans cette catégorie.')}
             </p>
           )}
         </section>
@@ -231,11 +231,16 @@ function BookingsContent({ enabled }) {
 
 /** /compte/reservations — own bookings (GET /api/bookings), all statuses. */
 export default function ClientBookings() {
+  const t = useT();
   return (
     <AccountShell
       title={
         <>
-          Mes <span className="heading-accent">réservations</span>
+          {rich(t('Mes <accent>réservations</accent>'), {
+            accent: (chunks) => (
+              <span className="heading-accent">{chunks}</span>
+            ),
+          })}
         </>
       }
       current="reservations"

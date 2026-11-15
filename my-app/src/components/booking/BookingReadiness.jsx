@@ -5,6 +5,8 @@ import { useEffect, useRef, useState } from 'react';
 import ProfileForm from '@/components/account/ProfileForm';
 import SignInPanel from '@/components/auth/SignInPanel';
 import Notice from '@/components/ui/Notice';
+import { useT } from '@/i18n/client';
+import { rich } from '@/i18n/rich';
 import PillButton from '@/components/ui/PillButton';
 import { authErrorMessage } from '@/lib/auth/session';
 import { SIGN_IN_PROVIDERS } from '@/lib/booking/labels';
@@ -29,6 +31,7 @@ function CheckIcon() {
 
 /** One step of the list: done (summary), active (open) or waiting. */
 function Step({ number, state, title, summary, action, children }) {
+  const t = useT();
   const active = state === 'active';
   return (
     <li
@@ -57,7 +60,7 @@ function Step({ number, state, title, summary, action, children }) {
           >
             {title}
             {state === 'done' ? (
-              <span className="sr-only"> (terminé)</span>
+              <span className="sr-only"> {t(' (terminé)')}</span>
             ) : null}
           </h3>
           {summary ? (
@@ -75,6 +78,7 @@ function Step({ number, state, title, summary, action, children }) {
 
 /** "Un lien vous attend…" + automatic re-check when the visitor comes back. */
 function EmailVerification({ controller, email }) {
+  const t = useT();
   const [pending, setPending] = useState(null); // 'refresh' | 'resend'
   const [message, setMessage] = useState(null);
   const lastCheck = useRef(0);
@@ -91,7 +95,7 @@ function EmailVerification({ controller, email }) {
       await task();
     } catch (error) {
       if (!silent) {
-        setMessage({ tone: 'error', text: authErrorMessage(error) });
+        setMessage({ tone: 'error', text: authErrorMessage(error, t) });
       }
     } finally {
       busyRef.current = false;
@@ -118,9 +122,19 @@ function EmailVerification({ controller, email }) {
   return (
     <div className="flex flex-col gap-4">
       <p className="font-montserrat text-body text-gray-800">
-        Un lien de confirmation a été envoyé à{' '}
-        <span className="font-medium break-all text-gray-900">{email}</span>.
-        Ouvrez-le, puis revenez ici : cette page se met à jour toute seule.
+        {rich(
+          t(
+            'Un lien de confirmation a été envoyé à <email>{email}</email>. Ouvrez-le, puis revenez ici : cette page se met à jour toute seule.',
+            { email }
+          ),
+          {
+            email: (chunks) => (
+              <span className="font-medium break-all text-gray-900">
+                {chunks}
+              </span>
+            ),
+          }
+        )}
       </p>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <PillButton
@@ -134,7 +148,7 @@ function EmailVerification({ controller, email }) {
           aria-busy={pending === 'refresh'}
           className="disabled:opacity-60"
         >
-          {pending === 'refresh' ? 'Vérification…' : 'J’ai confirmé'}
+          {pending === 'refresh' ? t('Vérification…') : t('J’ai confirmé')}
         </PillButton>
         <PillButton
           variant="text"
@@ -144,14 +158,14 @@ function EmailVerification({ controller, email }) {
               await controller.resendVerification();
               setMessage({
                 tone: 'info',
-                text: 'E-mail de confirmation renvoyé.',
+                text: t('E-mail de confirmation renvoyé.'),
               });
             })
           }
           disabled={pending !== null}
           className="text-third-900 self-start disabled:opacity-60 sm:self-auto"
         >
-          {pending === 'resend' ? 'Envoi…' : 'Renvoyer l’e-mail'}
+          {pending === 'resend' ? t('Envoi…') : t('Renvoyer l’e-mail')}
         </PillButton>
       </div>
       <div role="status">
@@ -173,14 +187,16 @@ export default function BookingReadiness({
   controller,
   returnTo,
 }) {
+  const t = useT();
   const missing = new Set(blockers);
   const profile = view?.profile ?? null;
 
   if (missing.has('not_a_client')) {
     return (
       <Notice>
-        Un compte administrateur ne peut pas réserver pour lui-même.
-        Connectez-vous avec un compte client.
+        {t(
+          'Un compte administrateur ne peut pas réserver pour lui-même. Connectez-vous avec un compte client.'
+        )}
       </Notice>
     );
   }
@@ -207,7 +223,7 @@ export default function BookingReadiness({
       : 'done';
 
   const provider = profile?.signInProvider
-    ? SIGN_IN_PROVIDERS[profile.signInProvider]
+    ? t(SIGN_IN_PROVIDERS[profile.signInProvider] ?? '')
     : null;
 
   return (
@@ -215,10 +231,12 @@ export default function BookingReadiness({
       <Step
         number={1}
         state={accountState}
-        title="Compte"
+        title={t('Compte')}
         summary={
           needsAccount
-            ? 'Pour reporter ou annuler en ligne, votre rendez-vous est lié à un compte.'
+            ? t(
+                'Pour reporter ou annuler en ligne, votre rendez-vous est lié à un compte.'
+              )
             : [profile.email, provider].filter(Boolean).join(' · ')
         }
       >
@@ -228,18 +246,18 @@ export default function BookingReadiness({
       <Step
         number={2}
         state={detailsState}
-        title="Vos coordonnées"
+        title={t('Vos coordonnées')}
         summary={
           detailsState === 'done'
             ? [profile.name, profile.phone].filter(Boolean).join(' · ')
-            : 'Pour vous joindre en cas d’imprévu concernant le rendez-vous.'
+            : t('Pour vous joindre en cas d’imprévu concernant le rendez-vous.')
         }
       >
         {profile ? (
           <ProfileForm
             profile={profile}
             onSave={(changes) => controller.updateProfile(changes)}
-            submitLabel="Enregistrer et continuer"
+            submitLabel={t('Enregistrer et continuer')}
           />
         ) : null}
       </Step>
@@ -247,12 +265,12 @@ export default function BookingReadiness({
       <Step
         number={3}
         state={emailState}
-        title="Confirmer votre e-mail"
+        title={t('Confirmer votre e-mail')}
         summary={
           emailState === 'done'
-            ? 'Adresse confirmée'
+            ? t('Adresse confirmée')
             : emailState === 'waiting'
-              ? 'Un lien vous sera envoyé par e-mail.'
+              ? t('Un lien vous sera envoyé par e-mail.')
               : null
         }
       >

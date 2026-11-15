@@ -1,7 +1,10 @@
 'use client';
 
 import { useEffect, useId, useState } from 'react';
-import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { Link, useT } from '@/i18n/client';
+import { isAdminPath, splitLocale } from '@/i18n/config';
+import { msg } from '@/i18n/translate';
 
 import { useHeaderAccount } from '@/components/auth/useHeaderAccount';
 import AccountControl from '@/components/layout/AccountControl';
@@ -11,16 +14,17 @@ import MaskIcon from '@/components/ui/MaskIcon';
 import NavLink from '@/components/ui/NavLink';
 import PillButton from '@/components/ui/PillButton';
 
+// Labels are French keys, translated at render (src/i18n).
 const NAV_ITEMS = [
-  { href: '/#about', label: 'À propos de moi' },
-  { href: '/#services', label: 'Massages populaires' },
-  { href: '/#approach', label: 'Mon approche' },
-  { href: '/#testimonials', label: 'Avis' },
+  { href: '/#about', label: msg('À propos de moi') },
+  { href: '/#services', label: msg('Massages populaires') },
+  { href: '/#approach', label: msg('Mon approche') },
+  { href: '/#testimonials', label: msg('Avis') },
 ];
 
 // The booking entry: first action of the menu (the hero and pages have
 // their own « Prendre rendez-vous »).
-const BOOKING_CTA = { href: '/reserver', label: 'Prendre rendez-vous' };
+const BOOKING_CTA = { href: '/reserver', label: msg('Prendre rendez-vous') };
 
 // Each page picks its variant explicitly (no guessing from the background):
 // - overlay: transparent over a dark hero, out of flow — the page itself
@@ -46,11 +50,14 @@ const variants = {
 // «Prendre rendez-vous» and «Offrir une carte cadeau»; the menu starts
 // with the booking action. Mobile keeps the Figma bar: account | centred
 // logo | language + menu, with 44 px targets. The language choice sits in
-// the top right corner at every width (LanguageSwitcher, French only yet).
+// the top right corner at every width (LanguageSwitcher).
 //
 // `account` comes from the shared session; the local preview passes sample
 // states instead (null = no account element).
 export default function Header({ variant = 'overlay', account: sample }) {
+  const t = useT();
+  // The administration has its own language choice (French / Ukrainian).
+  const admin = isAdminPath(splitLocale(usePathname()).path);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuId = useId();
   const styles = variants[variant];
@@ -86,7 +93,7 @@ export default function Header({ variant = 'overlay', account: sample }) {
         </Link>
 
         <nav
-          aria-label="Navigation principale"
+          aria-label={t('Navigation principale')}
           className="hidden min-[90rem]:block"
         >
           <ul className="flex items-center gap-10">
@@ -97,7 +104,7 @@ export default function Header({ variant = 'overlay', account: sample }) {
                   tone={styles.navTone}
                   className="whitespace-nowrap"
                 >
-                  {item.label}
+                  {t(item.label)}
                 </NavLink>
               </li>
             ))}
@@ -111,13 +118,16 @@ export default function Header({ variant = 'overlay', account: sample }) {
         ) : null}
 
         <div className="col-start-3 row-start-1 flex items-center justify-self-end sm:gap-1 lg:gap-2">
-          <LanguageSwitcher variant={variant} />
+          <LanguageSwitcher
+            variant={variant}
+            scope={admin ? 'admin' : 'site'}
+          />
           <button
             type="button"
             onClick={() => setMenuOpen(true)}
             aria-expanded={menuOpen}
             aria-controls={menuId}
-            aria-label="Ouvrir le menu"
+            aria-label={t('Ouvrir le menu')}
             className="flex size-11 items-center justify-center transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current motion-reduce:transition-none min-[90rem]:hidden"
           >
             <MaskIcon src="/icons/menu.svg" className="size-10" />
@@ -129,8 +139,8 @@ export default function Header({ variant = 'overlay', account: sample }) {
         id={menuId}
         open={menuOpen}
         onClose={() => setMenuOpen(false)}
-        items={NAV_ITEMS}
-        cta={BOOKING_CTA}
+        items={NAV_ITEMS.map((item) => ({ ...item, label: t(item.label) }))}
+        cta={{ ...BOOKING_CTA, label: t(BOOKING_CTA.label) }}
         account={account}
       />
     </header>

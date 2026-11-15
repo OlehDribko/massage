@@ -2,7 +2,10 @@
  * Pure session logic shared by the auth controller and the UI: how the
  * header status is derived, return-URL checks, French messages.
  * No React, no Firebase, relative imports only — tested with `node --test`.
+ * Messages take an optional `t` (src/i18n, French by default).
  */
+
+import { frenchT, msg } from '../../i18n/translate.js';
 
 /**
  * Header/account status from the controller snapshot.
@@ -48,7 +51,10 @@ export function safeReturnPath(value, fallback = '/') {
     const base = 'https://site.invalid';
     const url = new URL(value, base);
     if (url.origin !== base) return fallback;
-    if (url.pathname === '/connexion') return fallback;
+    // The sign-in page, in any language ("/connexion", "/en/connexion").
+    if (/^(?:\/(?:en|uk|ru|fr))?\/connexion\/?$/.test(url.pathname)) {
+      return fallback;
+    }
     return `${url.pathname}${url.search}${url.hash}`;
   } catch {
     return fallback;
@@ -245,41 +251,55 @@ export async function apiRequest({
 // Firebase Auth error codes → French messages for the sign-in form.
 // Wrong email and wrong password share one message (no account enumeration).
 const FIREBASE_MESSAGES = {
-  'auth/invalid-credential': 'Adresse e-mail ou mot de passe incorrect.',
-  'auth/invalid-login-credentials': 'Adresse e-mail ou mot de passe incorrect.',
-  'auth/wrong-password': 'Adresse e-mail ou mot de passe incorrect.',
-  'auth/user-not-found': 'Adresse e-mail ou mot de passe incorrect.',
-  'auth/invalid-email': 'Adresse e-mail invalide.',
-  'auth/missing-email': 'Indiquez votre adresse e-mail.',
-  'auth/missing-password': 'Indiquez votre mot de passe.',
-  'auth/weak-password': 'Mot de passe trop court : 6 caractères minimum.',
-  'auth/password-does-not-meet-requirements':
-    'Ce mot de passe ne respecte pas les règles de sécurité.',
-  'auth/email-already-in-use':
-    'Un compte existe déjà avec cette adresse. Connectez-vous à ce compte.',
-  'auth/credential-already-in-use':
-    'Ces identifiants sont déjà utilisés par un autre compte. Connectez-vous à ce compte.',
-  'auth/account-exists-with-different-credential':
-    'Un compte existe déjà avec cette adresse. Connectez-vous avec votre e-mail et votre mot de passe.',
-  'auth/user-disabled': 'Ce compte est désactivé.',
-  'auth/too-many-requests':
-    'Trop de tentatives. Patientez quelques minutes avant de réessayer.',
-  'auth/network-request-failed':
-    'Connexion impossible. Vérifiez votre accès à Internet et réessayez.',
-  'auth/popup-blocked':
-    'La fenêtre Google a été bloquée par le navigateur. Autorisez les fenêtres pop-up pour ce site et réessayez.',
-  'auth/unauthorized-domain':
-    'La connexion n’est pas autorisée sur ce domaine pour le moment.',
-  'auth/operation-not-allowed':
-    'Ce mode de connexion n’est pas disponible pour le moment.',
-  'auth/admin-restricted-operation':
-    'Ce mode de connexion n’est pas disponible pour le moment.',
-  'auth/requires-recent-login':
-    'Pour des raisons de sécurité, reconnectez-vous puis réessayez.',
+  'auth/invalid-credential': msg('Adresse e-mail ou mot de passe incorrect.'),
+  'auth/invalid-login-credentials': msg(
+    'Adresse e-mail ou mot de passe incorrect.'
+  ),
+  'auth/wrong-password': msg('Adresse e-mail ou mot de passe incorrect.'),
+  'auth/user-not-found': msg('Adresse e-mail ou mot de passe incorrect.'),
+  'auth/invalid-email': msg('Adresse e-mail invalide.'),
+  'auth/missing-email': msg('Indiquez votre adresse e-mail.'),
+  'auth/missing-password': msg('Indiquez votre mot de passe.'),
+  'auth/weak-password': msg('Mot de passe trop court : 6 caractères minimum.'),
+  'auth/password-does-not-meet-requirements': msg(
+    'Ce mot de passe ne respecte pas les règles de sécurité.'
+  ),
+  'auth/email-already-in-use': msg(
+    'Un compte existe déjà avec cette adresse. Connectez-vous à ce compte.'
+  ),
+  'auth/credential-already-in-use': msg(
+    'Ces identifiants sont déjà utilisés par un autre compte. Connectez-vous à ce compte.'
+  ),
+  'auth/account-exists-with-different-credential': msg(
+    'Un compte existe déjà avec cette adresse. Connectez-vous avec votre e-mail et votre mot de passe.'
+  ),
+  'auth/user-disabled': msg('Ce compte est désactivé.'),
+  'auth/too-many-requests': msg(
+    'Trop de tentatives. Patientez quelques minutes avant de réessayer.'
+  ),
+  'auth/network-request-failed': msg(
+    'Connexion impossible. Vérifiez votre accès à Internet et réessayez.'
+  ),
+  'auth/popup-blocked': msg(
+    'La fenêtre Google a été bloquée par le navigateur. Autorisez les fenêtres pop-up pour ce site et réessayez.'
+  ),
+  'auth/unauthorized-domain': msg(
+    'La connexion n’est pas autorisée sur ce domaine pour le moment.'
+  ),
+  'auth/operation-not-allowed': msg(
+    'Ce mode de connexion n’est pas disponible pour le moment.'
+  ),
+  'auth/admin-restricted-operation': msg(
+    'Ce mode de connexion n’est pas disponible pour le moment.'
+  ),
+  'auth/requires-recent-login': msg(
+    'Pour des raisons de sécurité, reconnectez-vous puis réessayez.'
+  ),
 };
 
-const DEFAULT_MESSAGE =
-  'Une erreur est survenue. Réessayez dans quelques instants.';
+const DEFAULT_MESSAGE = msg(
+  'Une erreur est survenue. Réessayez dans quelques instants.'
+);
 
 /** Codes that mean "the user closed the popup": nothing to show. */
 export const SILENT_AUTH_ERRORS = new Set([
@@ -288,24 +308,26 @@ export const SILENT_AUTH_ERRORS = new Set([
   'auth/user-cancelled',
 ]);
 
-export function authErrorMessage(error) {
-  return FIREBASE_MESSAGES[error?.code] ?? DEFAULT_MESSAGE;
+export function authErrorMessage(error, t = frenchT) {
+  return t(FIREBASE_MESSAGES[error?.code] ?? DEFAULT_MESSAGE);
 }
 
 /** French message for a failed profile sync (ApiError codes). */
-export function profileErrorMessage(error) {
+export function profileErrorMessage(error, t = frenchT) {
   switch (error?.code) {
     case 'AUTH_UNAVAILABLE':
-      return 'Le service de compte est momentanément indisponible.';
+      return t('Le service de compte est momentanément indisponible.');
     case 'NETWORK_ERROR':
-      return 'Impossible de joindre le service de compte. Vérifiez votre connexion.';
+      return t(
+        'Impossible de joindre le service de compte. Vérifiez votre connexion.'
+      );
     case 'TIMEOUT':
-      return 'Le service de compte met trop de temps à répondre.';
+      return t('Le service de compte met trop de temps à répondre.');
     case 'INVALID_RESPONSE':
-      return 'Le service de compte a envoyé une réponse incomplète.';
+      return t('Le service de compte a envoyé une réponse incomplète.');
     case 'NOT_CONFIGURED':
-      return 'Le service de compte n’est pas encore configuré.';
+      return t('Le service de compte n’est pas encore configuré.');
     default:
-      return 'Votre profil n’a pas pu être chargé.';
+      return t('Votre profil n’a pas pu être chargé.');
   }
 }

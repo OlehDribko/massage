@@ -7,6 +7,8 @@ import gsap from 'gsap';
 import { Flip } from 'gsap/Flip';
 
 import ServiceCard, { PopularBadge } from '@/components/booking/ServiceCard';
+import { useT } from '@/i18n/client';
+import { rich } from '@/i18n/rich';
 import { CATEGORIES } from '@/content/services';
 import {
   BUDGET_FILTERS,
@@ -27,6 +29,7 @@ const chipOn = 'border-third-900 bg-third-900 text-cream';
 const chipOff = 'border-black/15 bg-white text-gray-900 hover:border-third-200';
 
 function ChipGroup({ label, options, value, onChange, scroll = false }) {
+  const t = useT();
   return (
     <div className="flex flex-col gap-2.5">
       <p className="font-montserrat text-label-sm font-medium text-gray-800 uppercase">
@@ -51,7 +54,7 @@ function ChipGroup({ label, options, value, onChange, scroll = false }) {
               onClick={() => onChange(active ? null : option.key)}
               className={`${chip} ${active ? chipOn : chipOff}`}
             >
-              {option.label}
+              {t(option.label)}
             </button>
           );
         })}
@@ -76,6 +79,7 @@ const valid = (list, value) =>
  * Cards and filters rise in on arrival. Nothing moves with reduced motion.
  */
 export default function CatalogBrowser({ catalog }) {
+  const t = useT();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const rootRef = useRef(null);
@@ -205,11 +209,11 @@ export default function CatalogBrowser({ catalog }) {
     <div ref={rootRef} className="flex flex-col gap-8">
       <section
         data-rise
-        aria-label="Filtrer les soins"
+        aria-label={t('Filtrer les soins')}
         className="rounded-panel flex flex-col gap-6 border border-black/7 bg-white p-5 sm:p-7"
       >
         <ChipGroup
-          label="Type de soin"
+          label={t('Type de soin')}
           scroll
           value={filters.category}
           onChange={(value) => update('categorie', value)}
@@ -217,13 +221,13 @@ export default function CatalogBrowser({ catalog }) {
         />
         <div className="grid gap-6 lg:grid-cols-[auto_auto_1fr] lg:items-start lg:gap-10">
           <ChipGroup
-            label="Durée"
+            label={t('Durée')}
             value={filters.duration}
             onChange={(value) => update('duree', value)}
             options={DURATION_FILTERS}
           />
           <ChipGroup
-            label="Budget"
+            label={t('Budget')}
             value={filters.budget}
             onChange={(value) => update('budget', value)}
             options={BUDGET_FILTERS}
@@ -242,7 +246,7 @@ export default function CatalogBrowser({ catalog }) {
               >
                 <path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z" />
               </svg>
-              Populaires
+              {t('Populaires')}
             </button>
           </div>
         </div>
@@ -253,9 +257,17 @@ export default function CatalogBrowser({ catalog }) {
           aria-live="polite"
           className="font-montserrat text-body text-gray-900"
         >
-          <span className="font-semibold">{results.length}</span>{' '}
-          {results.length > 1 ? 'soins' : 'soin'}
-          {active ? ' correspondant à vos critères' : ' disponibles'}
+          {rich(
+            active
+              ? t(
+                  '<b>{n}</b> soin correspondant à vos critères|<b>{n}</b> soins correspondant à vos critères',
+                  { n: results.length }
+                )
+              : t('<b>{n}</b> soin disponible|<b>{n}</b> soins disponibles', {
+                  n: results.length,
+                }),
+            { b: (chunks) => <span className="font-semibold">{chunks}</span> }
+          )}
         </p>
         {active ? (
           <button
@@ -263,11 +275,11 @@ export default function CatalogBrowser({ catalog }) {
             onClick={() => navigate('')}
             className="font-montserrat text-body-sm hover:text-third-200 focus-visible:outline-third-200 min-h-10 text-gray-800 underline underline-offset-4 focus-visible:outline-2"
           >
-            Effacer les filtres
+            {t('Effacer les filtres')}
           </button>
         ) : (
           <p className="font-montserrat text-body-sm flex items-center gap-2 text-gray-800">
-            <PopularBadge /> les soins les plus demandés
+            <PopularBadge /> {t('les soins les plus demandés')}
           </p>
         )}
       </div>
@@ -300,17 +312,17 @@ export default function CatalogBrowser({ catalog }) {
             className="rounded-panel bg-secondary-50 flex flex-col items-center gap-3 border border-dashed border-black/15 px-6 py-12 text-center"
           >
             <p className="font-faustina text-third-900 text-2xl">
-              Aucun soin ne correspond
+              {t('Aucun soin ne correspond')}
             </p>
             <p className="font-montserrat text-body-sm max-w-md text-gray-800">
-              Essayez une autre durée ou un autre budget.
+              {t('Essayez une autre durée ou un autre budget.')}
             </p>
             <button
               type="button"
               onClick={() => navigate('')}
               className={`${chip} ${chipOff}`}
             >
-              Voir tous les soins
+              {t('Voir tous les soins')}
             </button>
           </div>
         )}

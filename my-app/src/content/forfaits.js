@@ -14,14 +14,16 @@
  * single-session price of the API gives the "au lieu de" amount; set
  * `compare: false` when there is no single session to compare with.
  */
+import { msg } from '../i18n/translate.js';
+
 export const FORFAITS = {
   endospheres: [
-    { label: '6 séances · demi-corps', sessions: 6, priceCents: 60000 },
-    { label: '12 séances · demi-corps', sessions: 12, priceCents: 108000 },
-    { label: '18 séances · demi-corps', sessions: 18, priceCents: 144000 },
-    { label: '24 séances · demi-corps', sessions: 24, priceCents: 168000 },
+    { label: msg('6 séances · demi-corps'), sessions: 6, priceCents: 60000 },
+    { label: msg('12 séances · demi-corps'), sessions: 12, priceCents: 108000 },
+    { label: msg('18 séances · demi-corps'), sessions: 18, priceCents: 144000 },
+    { label: msg('24 séances · demi-corps'), sessions: 24, priceCents: 168000 },
     {
-      label: '12 séances · corps complet',
+      label: msg('12 séances · corps complet'),
       sessions: 12,
       priceCents: 150000,
       compare: false,

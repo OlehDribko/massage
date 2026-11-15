@@ -9,13 +9,15 @@ import PillButton from '@/components/ui/PillButton';
 import { FORFAITS, bestOffer, forfaitRows } from '@/content/forfaits';
 import { CATEGORIES } from '@/content/services';
 import { variantTexts } from '@/lib/booking/catalog';
-import { formatDuration, formatPrice } from '@/lib/format';
+import { useFormat, useT } from '@/i18n/client';
+import { msg } from '@/i18n/translate';
 
 const CATEGORY_LABEL = Object.fromEntries(
   CATEGORIES.map((category) => [category.key, category.label])
 );
 
 export function PopularBadge({ className = '' }) {
+  const t = useT();
   return (
     <span
       className={`font-montserrat bg-primary-200 text-on-gold inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[0.6875rem] font-semibold tracking-wide uppercase ${className}`}
@@ -23,7 +25,7 @@ export function PopularBadge({ className = '' }) {
       <svg viewBox="0 0 24 24" aria-hidden className="size-3 fill-current">
         <path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z" />
       </svg>
-      Populaire
+      {t('Populaire')}
     </span>
   );
 }
@@ -32,18 +34,20 @@ export function PopularBadge({ className = '' }) {
  * One prestation of the catalogue as a card, in the site's style: category
  * eyebrow and « Populaire » badge, Faustina title, durations as pills, the
  * price and « Choisir l’horaire » under a hairline.
- * - the "Description" button opens the API text and features of the chosen
+ * - the « Description » button opens the API text and features of the chosen
  *   duration (each duration has its own; no button when it has none);
  * - the duration pills (radios) choose the variant — id, duration, price,
  *   texts;
  *   `initialServiceId` opens the card on a duration (e.g. a filter);
- * - "Choisir l’horaire" goes to step 2 with exactly that variant.
+ * - « Choisir l’horaire » goes to step 2 with exactly that variant.
  */
 export default function ServiceCard({
   prestation,
   headingLevel = 'h3',
   initialServiceId,
 }) {
+  const t = useT();
+  const { formatDuration, formatPrice } = useFormat();
   const { name, variants, featured, category } = prestation;
   const [open, setOpen] = useState(false);
   const [selectedId, setSelectedId] = useState(
@@ -72,7 +76,7 @@ export default function ServiceCard({
       <div className="flex flex-col gap-3">
         <div className="flex min-h-7 items-center justify-between gap-3">
           <p className="font-montserrat text-label-sm text-third-200 font-medium tracking-[0.12em] uppercase">
-            {CATEGORY_LABEL[category] ?? 'Soin'}
+            {t(CATEGORY_LABEL[category] ?? msg('Soin'))}
           </p>
           <span className="flex flex-wrap justify-end gap-1.5">
             {offer?.maxPercent ? (
@@ -97,7 +101,7 @@ export default function ServiceCard({
               onClick={() => setOpen((value) => !value)}
               className="font-montserrat text-label-sm hover:text-third-200 focus-visible:outline-third-200 -m-1 flex w-fit items-center gap-1.5 p-1 font-medium text-gray-800 uppercase focus-visible:outline-2"
             >
-              {open ? 'Masquer' : 'Description'}
+              {open ? t('Masquer') : t('Description')}
               <MaskIcon
                 src="/icons/arrow-up-right.svg"
                 className={`text-third-200 size-5 transition-transform duration-200 motion-reduce:transition-none ${open ? '' : 'rotate-90'}`}
@@ -125,7 +129,8 @@ export default function ServiceCard({
 
       <fieldset className="flex flex-col gap-2.5">
         <legend className="font-montserrat text-label-sm mb-2.5 font-medium text-gray-800 uppercase">
-          Durée<span className="sr-only"> — {name}</span>
+          {t('Durée')}
+          <span className="sr-only"> — {name}</span>
         </legend>
         <div className="flex flex-wrap gap-2">
           {variants.map((service) => (
@@ -146,7 +151,9 @@ export default function ServiceCard({
           ))}
           {offer?.minPerSessionCents ? (
             <span className="font-montserrat text-third-200 self-center text-xs font-semibold">
-              ou dès {formatPrice(offer.minPerSessionCents)} / séance en forfait
+              {t('ou dès {price} / séance en forfait', {
+                price: formatPrice(offer.minPerSessionCents),
+              })}
             </span>
           ) : null}
         </div>
@@ -155,14 +162,14 @@ export default function ServiceCard({
       <div className="mt-auto flex flex-wrap items-end justify-between gap-4 border-t border-black/7 pt-5">
         <p aria-live="polite" className="flex flex-col gap-0.5">
           <span className="font-montserrat text-label-sm font-medium text-gray-800 uppercase">
-            Tarif
+            {t('Tarif')}
           </span>
           <span className="font-faustina text-third-900 text-[1.875rem] leading-none">
             <PriceTag service={selected} />
           </span>
         </p>
         <PillButton href={`/reserver/${selected.id}`} size="sm">
-          Choisir l’horaire
+          {t('Choisir l’horaire')}
           <span className="sr-only">
             {' '}
             — {name}, {formatDuration(selected.durationMinutes)}

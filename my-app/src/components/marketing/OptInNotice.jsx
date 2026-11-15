@@ -1,5 +1,7 @@
 'use client';
 
+import { useT } from '@/i18n/client';
+
 import { useAuth } from '@/components/auth/AuthProvider';
 import { signupOptInMessage } from '@/lib/marketing';
 
@@ -10,8 +12,9 @@ import { signupOptInMessage } from '@/lib/marketing';
  * outcomes that promise nothing (no_action, unavailable).
  */
 export default function OptInNotice() {
+  const t = useT();
   const { controller, state } = useAuth();
-  const message = signupOptInMessage(state.optIn);
+  const message = signupOptInMessage(state.optIn, t);
   if (!controller || !message) return null;
 
   return (
@@ -31,7 +34,7 @@ export default function OptInNotice() {
           type="button"
           onClick={() => controller.clearOptIn()}
           className="hover:text-third-200 focus-visible:outline-third-200 -m-2 shrink-0 p-2 text-gray-800 focus-visible:outline-2"
-          aria-label="Fermer le message"
+          aria-label={t('Fermer le message')}
         >
           <svg
             viewBox="0 0 24 24"

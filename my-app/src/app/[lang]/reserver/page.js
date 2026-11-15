@@ -8,20 +8,31 @@ import Notice from '@/components/ui/Notice';
 import PillButton from '@/components/ui/PillButton';
 import { filterCatalog } from '@/lib/booking/catalog';
 import { loadCatalog } from '@/lib/booking/loadCatalog';
+import { rich } from '@/i18n/rich';
+import { getT, setRequestLocale } from '@/i18n/server';
 import { pageMetadata } from '@/lib/seo';
 
 // The single booking entry of the site: choose a prestation and its
 // duration here, then a time on /reserver/[serviceId]. Prices come from the
 // API at request time (sales start and end on their own).
-export const metadata = pageMetadata({
-  title: 'Réserver un massage à Bordeaux',
-  description:
-    'Prenez rendez-vous en ligne pour votre massage à Bordeaux, 23 rue Castéja : choisissez le soin et le créneau qui vous conviennent.',
-  path: '/reserver',
-});
+export async function generateMetadata({ params }) {
+  const { lang } = await params;
+  const t = getT(lang);
+  return pageMetadata({
+    title: t('Réserver un massage à Bordeaux'),
+    description: t(
+      'Prenez rendez-vous en ligne pour votre massage à Bordeaux, 23 rue Castéja : choisissez le soin et le créneau qui vous conviennent.'
+    ),
+    path: '/reserver',
+    locale: lang,
+  });
+}
 
-export default async function ReserverPage() {
-  const { catalog, error } = await loadCatalog();
+export default async function ReserverPage({ params }) {
+  const { lang } = await params;
+  setRequestLocale(lang);
+  const t = getT();
+  const { catalog, error } = await loadCatalog({ locale: lang });
 
   return (
     <>
@@ -32,13 +43,16 @@ export default async function ReserverPage() {
           <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div className="flex max-w-3xl flex-col gap-4">
               <h1 className="text-section-title text-third-900">
-                Réserver un massage{' '}
-                <span className="heading-accent">à Bordeaux</span>
+                {rich(t('Réserver un massage <accent>à Bordeaux</accent>'), {
+                  accent: (chunks) => (
+                    <span className="heading-accent">{chunks}</span>
+                  ),
+                })}
               </h1>
               <p className="font-montserrat text-body text-gray-800">
-                Choisissez votre soin et sa durée, puis l’horaire qui vous
-                convient. Le règlement se fait sur place, au cabinet, 23 rue
-                Castéja.
+                {t(
+                  'Choisissez votre soin et sa durée, puis l’horaire qui vous convient. Le règlement se fait sur place, au cabinet, 23 rue Castéja.'
+                )}
               </p>
             </div>
             <ul className="font-montserrat text-body-sm flex flex-wrap gap-x-6 gap-y-2 text-gray-900">
@@ -47,21 +61,21 @@ export default async function ReserverPage() {
                   aria-hidden
                   className="bg-primary-200 size-1.5 rounded-full"
                 />
-                Confirmation immédiate
+                {t('Confirmation immédiate')}
               </li>
               <li className="flex items-center gap-2">
                 <span
                   aria-hidden
                   className="bg-primary-200 size-1.5 rounded-full"
                 />
-                Paiement au cabinet
+                {t('Paiement au cabinet')}
               </li>
               <li className="flex items-center gap-2">
                 <span
                   aria-hidden
                   className="bg-primary-200 size-1.5 rounded-full"
                 />
-                Annulation en ligne
+                {t('Annulation en ligne')}
               </li>
             </ul>
           </div>
@@ -70,12 +84,14 @@ export default async function ReserverPage() {
             <div className="flex flex-col gap-4">
               <Notice tone="error">
                 {error?.kind === 'timeout'
-                  ? 'Le service de réservation met trop de temps à répondre.'
-                  : 'Les prestations ne peuvent pas être affichées pour le moment.'}{' '}
-                Réessayez dans quelques instants.
+                  ? t('Le service de réservation met trop de temps à répondre.')
+                  : t(
+                      'Les prestations ne peuvent pas être affichées pour le moment.'
+                    )}{' '}
+                {t('Réessayez dans quelques instants.')}
                 {error?.requestId ? (
                   <span className="mt-1 block text-xs">
-                    Référence : {error.requestId}
+                    {t('Référence : {id}', { id: error.requestId })}
                   </span>
                 ) : null}
               </Notice>
@@ -85,11 +101,13 @@ export default async function ReserverPage() {
                 tone="dark"
                 className="self-start"
               >
-                Réessayer
+                {t('Réessayer')}
               </PillButton>
             </div>
           ) : catalog.length === 0 ? (
-            <Notice>Aucune prestation n’est ouverte à la réservation.</Notice>
+            <Notice>
+              {t('Aucune prestation n’est ouverte à la réservation.')}
+            </Notice>
           ) : (
             // Filters read the URL: the plain list is the fallback while
             // the search params are not known (static render).

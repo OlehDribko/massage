@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { Link } from '@/i18n/client';
 
 // Figma UI kit «buttons» (546:151). Focus ring is not in the kit — added for
 // keyboard users in the button's own accent colour.

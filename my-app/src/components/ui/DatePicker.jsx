@@ -2,21 +2,19 @@
 
 import { useState } from 'react';
 
-import { addDays, formatLocalDate } from '@/lib/format';
+import { useFormat, useT } from '@/i18n/client';
+import { addDays } from '@/lib/format';
 
-const WEEKDAYS = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
-const WEEKDAY_NAMES = [
-  'lundi',
-  'mardi',
-  'mercredi',
-  'jeudi',
-  'vendredi',
-  'samedi',
-  'dimanche',
-];
+// Monday-first weekday names in the page's language (2024-01-01 = Monday).
+const weekdays = (intlLocale, weekday) =>
+  Array.from({ length: 7 }, (_, index) =>
+    new Intl.DateTimeFormat(intlLocale, { weekday, timeZone: 'UTC' }).format(
+      new Date(Date.UTC(2024, 0, 1 + index, 12))
+    )
+  );
 
-const monthLabel = (month) =>
-  new Intl.DateTimeFormat('fr-FR', {
+const monthLabel = (intlLocale, month) =>
+  new Intl.DateTimeFormat(intlLocale, {
     month: 'long',
     year: 'numeric',
     timeZone: 'UTC',
@@ -66,8 +64,12 @@ export default function DatePicker({
   min,
   max,
   marked,
-  label = 'Choisir une date',
+  label,
 }) {
+  const t = useT();
+  const { formatLocalDate, intlLocale } = useFormat();
+  const WEEKDAYS = weekdays(intlLocale, 'narrow');
+  const WEEKDAY_NAMES = weekdays(intlLocale, 'long');
   const [month, setMonth] = useState(
     () => (value ?? today ?? '').slice(0, 7) || null
   );
@@ -81,7 +83,7 @@ export default function DatePicker({
   return (
     <div
       role="group"
-      aria-label={label}
+      aria-label={label ?? t('Choisir une date')}
       className="rounded-panel flex w-full max-w-sm flex-col gap-4 border border-black/10 bg-white p-4 sm:p-5"
     >
       <div className="flex items-center justify-between gap-2">
@@ -89,7 +91,7 @@ export default function DatePicker({
           type="button"
           onClick={() => setMonth(shiftMonth(shown, -1))}
           disabled={Boolean(minMonth) && shown <= minMonth}
-          aria-label="Mois précédent"
+          aria-label={t('Mois précédent')}
           className={navButton}
         >
           <Chevron back />
@@ -98,13 +100,13 @@ export default function DatePicker({
           aria-live="polite"
           className="font-faustina text-third-900 text-xl first-letter:uppercase"
         >
-          {monthLabel(shown)}
+          {monthLabel(intlLocale, shown)}
         </p>
         <button
           type="button"
           onClick={() => setMonth(shiftMonth(shown, 1))}
           disabled={Boolean(maxMonth) && shown >= maxMonth}
-          aria-label="Mois suivant"
+          aria-label={t('Mois suivant')}
           className={navButton}
         >
           <Chevron />
@@ -133,7 +135,7 @@ export default function DatePicker({
               type="button"
               disabled={disabled}
               aria-pressed={selected}
-              aria-label={`${formatLocalDate(date, { year: true })}${isToday ? ' (aujourd’hui)' : ''}`}
+              aria-label={`${formatLocalDate(date, { year: true })}${isToday ? t(' (aujourd’hui)') : ''}`}
               onClick={() => onChange(date)}
               className={`font-montserrat focus-visible:outline-third-200 relative mx-auto flex size-10 items-center justify-center rounded-full text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 motion-reduce:transition-none ${
                 selected

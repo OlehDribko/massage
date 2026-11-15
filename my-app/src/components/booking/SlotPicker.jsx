@@ -7,12 +7,8 @@ import PillButton from '@/components/ui/PillButton';
 import { fetchAvailability } from '@/lib/api/public';
 import { bookingErrorMessage, errorReference } from '@/lib/booking/labels';
 import { WEEK, groupSlotsByPeriod, pickDay, weekOf } from '@/lib/booking/slots';
-import {
-  addDays,
-  formatLocalDate,
-  formatTime,
-  studioToday,
-} from '@/lib/format';
+import { useFormat, useT } from '@/i18n/client';
+import { addDays, studioToday } from '@/lib/format';
 
 const noopSubscribe = () => () => {};
 
@@ -52,12 +48,14 @@ export default function SlotPicker({
   onChange,
   exclude,
   refreshKey = 0,
-  title = 'Choisissez un horaire',
+  title,
 }) {
   const [weekChoice, setWeekChoice] = useState(null);
   const [dayChoice, setDayChoice] = useState(null);
   const [reload, setReload] = useState(0);
   const [result, setResult] = useState({ key: null });
+  const t = useT();
+  const { formatLocalDate, formatTime, formatWeekday } = useFormat();
   const headingId = useId();
   // "Today" in Paris exists only in the browser (null during server render).
   const today = useSyncExternalStore(noopSubscribe, studioToday, () => null);
@@ -128,19 +126,21 @@ export default function SlotPicker({
             id={headingId}
             className="font-montserrat text-body-lg font-semibold text-gray-900"
           >
-            {title}
+            {title ?? t('Choisissez un horaire')}
           </h2>
           {from ? (
             <p className="font-montserrat text-body-sm text-gray-800">
-              Du {formatLocalDate(from, { weekday: undefined })} au{' '}
-              {formatLocalDate(to, { weekday: undefined, year: true })}
+              {t('Du {from} au {to}', {
+                from: formatLocalDate(from, { weekday: undefined }),
+                to: formatLocalDate(to, { weekday: undefined, year: true }),
+              })}
             </p>
           ) : null}
         </div>
         <div className="flex items-center gap-2">
           <button
             type="button"
-            aria-label="Semaine précédente"
+            aria-label={t('Semaine précédente')}
             onClick={() => changeWeek(-1)}
             disabled={week === 0 || view.status === 'loading'}
             className={roundButton}
@@ -149,7 +149,7 @@ export default function SlotPicker({
           </button>
           <button
             type="button"
-            aria-label="Semaine suivante"
+            aria-label={t('Semaine suivante')}
             onClick={() => changeWeek(1)}
             disabled={lastWeek || view.status === 'loading'}
             className={roundButton}
@@ -161,7 +161,7 @@ export default function SlotPicker({
 
       {view.status === 'loading' ? (
         <div className="flex flex-col gap-6" role="status">
-          <span className="sr-only">Chargement des disponibilités…</span>
+          <span className="sr-only">{t('Chargement des disponibilités…')}</span>
           <div aria-hidden className="grid grid-cols-7 gap-2">
             {Array.from({ length: WEEK }, (_, index) => (
               <span
@@ -187,10 +187,10 @@ export default function SlotPicker({
       {view.status === 'error' ? (
         <div className="flex flex-col gap-3">
           <Notice tone="error">
-            {bookingErrorMessage(view.error)}
-            {errorReference(view.error) ? (
+            {bookingErrorMessage(view.error, t)}
+            {errorReference(view.error, t) ? (
               <span className="mt-1 block text-xs">
-                {errorReference(view.error)}
+                {errorReference(view.error, t)}
               </span>
             ) : null}
           </Notice>
@@ -201,7 +201,7 @@ export default function SlotPicker({
             onClick={() => setReload((count) => count + 1)}
             className="self-start"
           >
-            Réessayer
+            {t('Réessayer')}
           </PillButton>
         </div>
       ) : null}
@@ -210,7 +210,7 @@ export default function SlotPicker({
         <>
           <div
             role="group"
-            aria-label="Jour"
+            aria-label={t('Jour')}
             className="-mx-5 flex [scrollbar-width:none] gap-2 overflow-x-auto px-5 pb-1 sm:mx-0 sm:grid sm:grid-cols-7 sm:overflow-visible sm:px-0 sm:pb-0"
           >
             {days.map((day) => {
@@ -223,8 +223,8 @@ export default function SlotPicker({
                   aria-pressed={selected}
                   aria-label={`${formatLocalDate(day.date)} — ${
                     count
-                      ? `${count} horaire${count > 1 ? 's' : ''}`
-                      : 'aucun horaire'
+                      ? t('{n} horaire|{n} horaires', { n: count })
+                      : t('aucun horaire')
                   }`}
                   onClick={() => setDayChoice(day.date)}
                   className={`font-montserrat focus-visible:outline-third-200 flex min-h-[5.5rem] min-w-14 shrink-0 flex-col items-center justify-center gap-1.5 rounded-2xl border px-1 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 motion-reduce:transition-none sm:min-w-0 ${
@@ -239,11 +239,7 @@ export default function SlotPicker({
                     aria-hidden
                     className="text-xs tracking-wider uppercase"
                   >
-                    {
-                      formatLocalDate(day.date, { weekday: 'short' }).split(
-                        ' '
-                      )[0]
-                    }
+                    {formatWeekday(day.date, 'short')}
                   </span>
                   <span
                     aria-hidden
@@ -256,8 +252,8 @@ export default function SlotPicker({
                     className={`hidden text-[0.6875rem] sm:block ${selected ? 'text-primary-100' : 'text-gray-800'}`}
                   >
                     {count
-                      ? `${count} horaire${count > 1 ? 's' : ''}`
-                      : 'Aucun'}
+                      ? t('{n} horaire|{n} horaires', { n: count })
+                      : t('Aucun')}
                   </span>
                 </button>
               );
@@ -266,19 +262,21 @@ export default function SlotPicker({
 
           {!hasSlots ? (
             <Notice>
-              Aucun créneau disponible sur cette période.
-              {lastWeek ? '' : ' Consultez la semaine suivante.'}
+              {t('Aucun créneau disponible sur cette période.')}
+              {lastWeek ? '' : ` ${t('Consultez la semaine suivante.')}`}
             </Notice>
           ) : groups.length ? (
             <div
               role="group"
-              aria-label={`Horaires du ${formatLocalDate(activeDate)}`}
+              aria-label={t('Horaires du {date}', {
+                date: formatLocalDate(activeDate),
+              })}
               className="flex flex-col gap-5"
             >
               {groups.map((group) => (
                 <div key={group.key} className="flex flex-col gap-3">
                   <h3 className="font-montserrat text-label-sm font-semibold text-gray-800 uppercase">
-                    {group.label} · {group.slots.length}
+                    {t(group.label)} · {group.slots.length}
                   </h3>
                   <div className="grid grid-cols-4 gap-2 sm:grid-cols-[repeat(auto-fill,minmax(5.25rem,1fr))]">
                     {group.slots.map((slot) => {
@@ -306,7 +304,7 @@ export default function SlotPicker({
           ) : (
             <div className="bg-secondary-50 flex flex-col items-center gap-3 rounded-xl px-6 py-8 text-center">
               <p className="font-faustina text-third-900 text-2xl">
-                Aucun horaire ce jour-là
+                {t('Aucun horaire ce jour-là')}
               </p>
               {nextOpen ? (
                 <PillButton
@@ -315,13 +313,15 @@ export default function SlotPicker({
                   size="sm"
                   onClick={() => setDayChoice(nextOpen.date)}
                 >
-                  Voir le {formatLocalDate(nextOpen.date)}
+                  {t('Voir le {date}', {
+                    date: formatLocalDate(nextOpen.date),
+                  })}
                 </PillButton>
               ) : (
                 <p className="font-montserrat text-body-sm text-gray-800">
                   {lastWeek
-                    ? 'Plus aucun horaire ouvert cette semaine.'
-                    : 'Consultez la semaine suivante.'}
+                    ? t('Plus aucun horaire ouvert cette semaine.')
+                    : t('Consultez la semaine suivante.')}
                 </p>
               )}
             </div>
@@ -341,8 +341,9 @@ export default function SlotPicker({
           <circle cx="12" cy="12" r="9" />
           <path d="M12 7v5l3 2" />
         </svg>
-        Réservation au plus tard 12 h à l’avance, jusqu’à 45 jours. Horaires à
-        l’heure de Bordeaux.
+        {t(
+          'Réservation au plus tard 12 h à l’avance, jusqu’à 45 jours. Horaires à l’heure de Bordeaux.'
+        )}
       </p>
     </section>
   );

@@ -2,6 +2,8 @@
 
 import { useId, useRef, useState } from 'react';
 
+import { useT } from '@/i18n/client';
+
 import Notice from '@/components/ui/Notice';
 import PillButton from '@/components/ui/PillButton';
 import TextField from '@/components/ui/TextField';
@@ -18,11 +20,8 @@ import { bookingErrorMessage } from '@/lib/booking/labels';
  * verified (no SMS) and never used to sign in. Saved values come back from
  * the server and replace the shared profile.
  */
-export default function ProfileForm({
-  profile,
-  onSave,
-  submitLabel = 'Enregistrer',
-}) {
+export default function ProfileForm({ profile, onSave, submitLabel }) {
+  const t = useT();
   const [form, setForm] = useState({
     name: profile.name ?? '',
     phone: profile.phone ?? '',
@@ -42,9 +41,11 @@ export default function ProfileForm({
     event.preventDefault();
     if (busyRef.current) return;
     const local = {
-      ...(validateName(form.name) ? { name: validateName(form.name) } : {}),
-      ...(validatePhone(form.phone)
-        ? { phone: validatePhone(form.phone) }
+      ...(validateName(form.name, t)
+        ? { name: validateName(form.name, t) }
+        : {}),
+      ...(validatePhone(form.phone, t)
+        ? { phone: validatePhone(form.phone, t) }
         : {}),
     };
     setErrors(local);
@@ -54,7 +55,10 @@ export default function ProfileForm({
     }
     const changes = profileChanges(profile, form);
     if (!changes) {
-      setMessage({ tone: 'info', text: 'Aucune modification à enregistrer.' });
+      setMessage({
+        tone: 'info',
+        text: t('Aucune modification à enregistrer.'),
+      });
       return;
     }
 
@@ -67,15 +71,15 @@ export default function ProfileForm({
         name: view.profile.name ?? '',
         phone: view.profile.phone ?? '',
       });
-      setMessage({ tone: 'info', text: 'Profil enregistré.' });
+      setMessage({ tone: 'info', text: t('Profil enregistré.') });
     } catch (error) {
-      const fields = profileServerErrors(error);
+      const fields = profileServerErrors(error, t);
       setErrors(fields);
       setMessage({
         tone: 'error',
         text: Object.keys(fields).length
-          ? 'Certaines informations sont invalides.'
-          : bookingErrorMessage(error),
+          ? t('Certaines informations sont invalides.')
+          : bookingErrorMessage(error, t),
       });
     } finally {
       busyRef.current = false;
@@ -87,7 +91,7 @@ export default function ProfileForm({
     <form noValidate onSubmit={submit} className="flex flex-col gap-6">
       <TextField
         id={ids.name}
-        label="Nom et prénom"
+        label={t('Nom et prénom')}
         name="name"
         autoComplete="name"
         value={form.name}
@@ -97,7 +101,7 @@ export default function ProfileForm({
       />
       <TextField
         id={ids.phone}
-        label="Téléphone"
+        label={t('Téléphone')}
         name="phone"
         type="tel"
         autoComplete="tel"
@@ -106,7 +110,9 @@ export default function ProfileForm({
         value={form.phone}
         onChange={update('phone')}
         error={errors.phone}
-        hint="Format international. Utilisé uniquement pour vos rendez-vous."
+        hint={t(
+          'Format international. Utilisé uniquement pour vos rendez-vous.'
+        )}
       />
       <div role="status">
         {message ? <Notice tone={message.tone}>{message.text}</Notice> : null}
@@ -117,7 +123,7 @@ export default function ProfileForm({
         aria-busy={pending}
         className="self-start disabled:opacity-60"
       >
-        {pending ? 'Enregistrement…' : submitLabel}
+        {pending ? t('Enregistrement…') : (submitLabel ?? t('Enregistrer'))}
       </PillButton>
     </form>
   );

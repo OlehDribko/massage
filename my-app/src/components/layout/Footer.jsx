@@ -2,13 +2,15 @@ import Image from 'next/image';
 
 import NavLink from '@/components/ui/NavLink';
 import { BUSINESS, SITE } from '@/config/site';
+import { getT } from '@/i18n/server';
+import { msg } from '@/i18n/translate';
 
 const NAVIGATION = [
-  { href: '/#services', label: 'Ce que nous faisons' },
-  { href: '/#about', label: 'À propos' },
+  { href: '/#services', label: msg('Ce que nous faisons') },
+  { href: '/#about', label: msg('À propos') },
   // TODO: no "réalisations/portfolio" section exists yet in this design
-  { href: '#', label: 'Nos réalisations' },
-  { href: '/#testimonials', label: 'Avis' },
+  { href: '#', label: msg('Nos réalisations') },
+  { href: '/#testimonials', label: msg('Avis') },
 ];
 
 const ICON = 'size-[22px]';
@@ -57,6 +59,7 @@ const SOCIALS = [
 ];
 
 export default function Footer() {
+  const t = getT();
   return (
     <footer
       id="footer"
@@ -67,25 +70,26 @@ export default function Footer() {
           <div className="flex max-w-[325px] flex-col gap-6 max-sm:items-center sm:gap-8">
             <Image src="/massage.svg" alt={SITE.name} width={170} height={38} />
             <p className="font-montserrat text-[16px] tracking-[0.16px] text-gray-100">
-              Massage thérapeutique et bien-être, dans un cadre calme et
-              confidentiel à Bordeaux.
+              {t(
+                'Massage thérapeutique et bien-être, dans un cadre calme et confidentiel à Bordeaux.'
+              )}
             </p>
           </div>
 
           {/* Phones (Figma 704:2004): one centred column. */}
           <div className="flex flex-col gap-[60px] max-sm:items-center sm:flex-row sm:flex-wrap sm:gap-x-20 sm:gap-y-10">
             <nav
-              aria-label="Navigation du pied de page"
+              aria-label={t('Navigation du pied de page')}
               className="flex flex-col gap-6"
             >
               <p className="font-montserrat text-base-white text-[18px] font-medium">
-                NAVIGATION
+                {t('NAVIGATION')}
               </p>
               <ul className="flex flex-col gap-3">
                 {NAVIGATION.map((item) => (
                   <li key={item.label}>
                     <NavLink href={item.href} tone="footer">
-                      {item.label}
+                      {t(item.label)}
                     </NavLink>
                   </li>
                 ))}
@@ -94,7 +98,7 @@ export default function Footer() {
 
             <div className="flex flex-col gap-6">
               <p className="font-montserrat text-base-white text-[18px] font-medium">
-                CONTACT
+                {t('CONTACT')}
               </p>
               <ul className="font-montserrat flex flex-col gap-3 text-[16px] tracking-[0.16px] text-gray-100">
                 <li>
@@ -118,13 +122,13 @@ export default function Footer() {
                     {BUSINESS.address.street}, {BUSINESS.address.city}
                   </address>
                 </li>
-                <li>{BUSINESS.openingHours.display}</li>
+                <li>{t(BUSINESS.openingHours.display)}</li>
               </ul>
             </div>
 
             <div className="flex flex-col gap-6">
               <p className="font-montserrat text-base-white text-[18px] font-medium">
-                SUIVEZ-NOUS
+                {t('SUIVEZ-NOUS')}
               </p>
               <ul className="flex items-center gap-3">
                 {SOCIALS.map((social) => (
@@ -133,7 +137,9 @@ export default function Footer() {
                       href={social.href}
                       target="_blank"
                       rel="noopener noreferrer"
-                      aria-label={`${social.label} (nouvel onglet)`}
+                      aria-label={t('{name} (nouvel onglet)', {
+                        name: social.label,
+                      })}
                       title={social.label}
                       className="hover:border-base-white hover:text-base-white flex size-11 items-center justify-center rounded-full border border-white/20 text-gray-100 transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-current motion-reduce:transition-none"
                     >
@@ -148,7 +154,7 @@ export default function Footer() {
 
         <div className="flex flex-col gap-4 border-t border-white/10 pt-4 pb-2">
           <p className="font-montserrat text-center text-[14px] tracking-[0.14px] text-gray-800">
-            © 2026 {SITE.name}. Tous droits réservés.
+            {t('© 2026 {name}. Tous droits réservés.', { name: SITE.name })}
           </p>
         </div>
       </div>
