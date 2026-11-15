@@ -47,7 +47,8 @@ const LABEL =
 /**
  * «Ajouter une indisponibilité» / edit or delete one: a modal form (native
  * <dialog>: focus stays inside, Escape closes). `editor` is
- * `{ date }` to create on that date or `{ block }` to edit it.
+ * `{ date, start?, end? }` to create on that date (times proposed by a
+ * click in the calendar grid, still editable) or `{ block }` to edit it.
  *
  * - `start` / `end` are typed as HH:MM like the working hours (5-minute
  *   steps, 24:00 = midnight); they are sent as local times of the studio,
@@ -76,7 +77,7 @@ export default function BlockDialog({
   const [intent] = useState(() => createBlockIntent());
   const block = editor.block ?? null;
   const [form, setForm] = useState(() =>
-    block ? blockToForm(block) : newBlockForm(editor.date)
+    block ? blockToForm(block) : newBlockForm(editor.date, editor)
   );
   const [step, setStep] = useState('form'); // 'form' | 'delete'
   const [touched, setTouched] = useState(false);
