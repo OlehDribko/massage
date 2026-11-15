@@ -8,6 +8,7 @@ import MaskIcon from '@/components/ui/MaskIcon';
 import PillButton from '@/components/ui/PillButton';
 import { FORFAITS, bestOffer, forfaitRows } from '@/content/forfaits';
 import { CATEGORIES } from '@/content/services';
+import { variantTexts } from '@/lib/booking/catalog';
 import { formatDuration, formatPrice } from '@/lib/format';
 
 const CATEGORY_LABEL = Object.fromEntries(
@@ -31,8 +32,10 @@ export function PopularBadge({ className = '' }) {
  * One prestation of the catalogue as a card, in the site's style: category
  * eyebrow and « Populaire » badge, Faustina title, durations as pills, the
  * price and « Choisir l’horaire » under a hairline.
- * - the "Description" button opens the approved text (only when one exists);
- * - the duration pills (radios) choose the variant — id, duration, price;
+ * - the "Description" button opens the API text and features of the chosen
+ *   duration (each duration has its own; no button when it has none);
+ * - the duration pills (radios) choose the variant — id, duration, price,
+ *   texts;
  *   `initialServiceId` opens the card on a duration (e.g. a filter);
  * - "Choisir l’horaire" goes to step 2 with exactly that variant.
  */
@@ -41,7 +44,7 @@ export default function ServiceCard({
   headingLevel = 'h3',
   initialServiceId,
 }) {
-  const { name, description, variants, featured, category } = prestation;
+  const { name, variants, featured, category } = prestation;
   const [open, setOpen] = useState(false);
   const [selectedId, setSelectedId] = useState(
     initialServiceId ?? variants[0].id
@@ -49,6 +52,8 @@ export default function ServiceCard({
   const id = useId();
   const selected =
     variants.find((service) => service.id === selectedId) ?? variants[0];
+  const { description, features } = variantTexts(selected);
+  const hasTexts = Boolean(description) || features.length > 0;
   const Heading = headingLevel;
   // Packages make the card a promo card (content/forfaits.js).
   const forfaits = FORFAITS[prestation.key]
@@ -83,7 +88,7 @@ export default function ServiceCard({
         <Heading className="font-faustina text-third-900 text-[1.75rem] leading-[1.1] font-normal">
           {name}
         </Heading>
-        {description ? (
+        {hasTexts ? (
           <>
             <button
               type="button"
@@ -103,10 +108,15 @@ export default function ServiceCard({
               inert={!open}
               className={`grid transition-[grid-template-rows] duration-300 ease-out motion-reduce:transition-none ${open ? 'grid-rows-[1fr]' : '-mt-3 grid-rows-[0fr]'}`}
             >
-              <div className="overflow-hidden">
-                <p className="font-montserrat text-body-sm text-gray-800">
-                  {description}
-                </p>
+              <div className="font-montserrat text-body-sm flex flex-col gap-3 overflow-hidden text-gray-800">
+                {description ? <p>{description}</p> : null}
+                {features.length ? (
+                  <ul className="flex list-disc flex-col gap-1 pl-5">
+                    {features.map((feature) => (
+                      <li key={feature}>{feature}</li>
+                    ))}
+                  </ul>
+                ) : null}
               </div>
             </div>
           </>

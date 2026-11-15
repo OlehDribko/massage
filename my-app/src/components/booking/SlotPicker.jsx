@@ -5,32 +5,16 @@ import { useEffect, useId, useState, useSyncExternalStore } from 'react';
 import Notice from '@/components/ui/Notice';
 import PillButton from '@/components/ui/PillButton';
 import { fetchAvailability } from '@/lib/api/public';
-import { bookingErrorMessage } from '@/lib/booking/labels';
-import { groupSlotsByPeriod, pickDay } from '@/lib/booking/slots';
+import { bookingErrorMessage, errorReference } from '@/lib/booking/labels';
+import { WEEK, groupSlotsByPeriod, pickDay, weekOf } from '@/lib/booking/slots';
 import {
   addDays,
   formatLocalDate,
   formatTime,
-  localDateOf,
   studioToday,
 } from '@/lib/format';
 
-const WEEK = 7;
 const noopSubscribe = () => () => {};
-const DAY_MS = 24 * 60 * 60 * 1000;
-
-// Calendar days between two studio dates (both at noon UTC: no DST issue).
-const daysBetween = (from, to) =>
-  Math.round(
-    (Date.parse(`${to}T12:00:00Z`) - Date.parse(`${from}T12:00:00Z`)) / DAY_MS
-  );
-
-/** Week (0 = from today) that holds a start time, for a restored choice. */
-function weekOf(startsAt, today) {
-  if (!startsAt || !today) return 0;
-  const offset = daysBetween(today, localDateOf(startsAt));
-  return offset > 0 ? Math.floor(offset / WEEK) : 0;
-}
 
 function ChevronIcon({ direction }) {
   return (
@@ -202,7 +186,14 @@ export default function SlotPicker({
 
       {view.status === 'error' ? (
         <div className="flex flex-col gap-3">
-          <Notice tone="error">{bookingErrorMessage(view.error)}</Notice>
+          <Notice tone="error">
+            {bookingErrorMessage(view.error)}
+            {errorReference(view.error) ? (
+              <span className="mt-1 block text-xs">
+                {errorReference(view.error)}
+              </span>
+            ) : null}
+          </Notice>
           <PillButton
             variant="outline"
             tone="dark"
