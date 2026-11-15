@@ -4,6 +4,8 @@
  * `node --test`.
  */
 
+import { frenchT } from '../../i18n/translate.js';
+
 /** "2027-03-02T08:00:00.000Z" → "20270302T080000Z" (iCalendar / Google). */
 export function calendarStamp(instant) {
   return new Date(instant)
@@ -17,17 +19,17 @@ export function addressLine(address) {
   return `${address.street}, ${address.postalCode} ${address.city}`;
 }
 
-function eventText(booking, business) {
+function eventText(booking, business, t = frenchT) {
   return {
     title: `${booking.service.name} — ${business.name}`,
-    details: 'Règlement sur place, au cabinet.',
+    details: t('Règlement sur place, au cabinet.'),
     location: addressLine(business.address),
   };
 }
 
 /** Google Calendar "new event" link. */
-export function googleCalendarUrl(booking, business) {
-  const { title, details, location } = eventText(booking, business);
+export function googleCalendarUrl(booking, business, t = frenchT) {
+  const { title, details, location } = eventText(booking, business, t);
   const params = new URLSearchParams({
     action: 'TEMPLATE',
     text: title,
@@ -47,8 +49,8 @@ const icsText = (value) =>
     .replace(/\n/g, '\\n');
 
 /** .ics file content (Apple Calendar, Outlook…), CRLF line ends. */
-export function icsContent(booking, business, now = new Date()) {
-  const { title, details, location } = eventText(booking, business);
+export function icsContent(booking, business, now = new Date(), t = frenchT) {
+  const { title, details, location } = eventText(booking, business, t);
   return [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',

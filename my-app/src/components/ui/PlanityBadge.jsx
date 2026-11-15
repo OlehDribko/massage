@@ -1,6 +1,9 @@
+'use client';
+
 import Image from 'next/image';
 
 import RatingStars from '@/components/ui/RatingStars';
+import { useT } from '@/i18n/client';
 import { REVIEWS } from '@/content/reviews';
 
 /**
@@ -14,7 +17,16 @@ export default function PlanityBadge({
   className = '',
   style,
 }) {
-  const label = `Note ${REVIEWS.rating} sur 5 — ${REVIEWS.count} avis vérifiés sur Planity (nouvelle fenêtre)`;
+  const t = useT();
+  const rating =
+    t.locale === 'en' ? REVIEWS.rating.replace(',', '.') : REVIEWS.rating;
+  const label = t(
+    'Note {rating} sur 5 — {n} avis vérifiés sur Planity (nouvelle fenêtre)',
+    { rating, n: REVIEWS.count }
+  );
+  const verified = t('{n} avis vérifié|{n} avis vérifiés', {
+    n: REVIEWS.count,
+  });
   const link = {
     href: REVIEWS.url,
     target: '_blank',
@@ -40,12 +52,14 @@ export default function PlanityBadge({
           <span className="flex flex-col gap-1">
             <RatingStars />
             <span className="font-montserrat text-[16px] tracking-[0.16px] text-[#dacbcb]">
-              Note parfaite : {REVIEWS.rating.replace(',0', '')} / 5
+              {t('Note parfaite : {rating} / 5', {
+                rating: REVIEWS.rating.replace(',0', ''),
+              })}
             </span>
           </span>
         </span>
         <span className="font-montserrat text-[18px] font-medium tracking-[0.18px] text-[#ececec]">
-          {REVIEWS.count} avis vérifiés
+          {verified}
         </span>
       </a>
     );
@@ -68,12 +82,14 @@ export default function PlanityBadge({
           <span className="flex flex-col gap-0.5">
             <RatingStars />
             <span className="font-montserrat text-[12px] tracking-[0.12px] text-gray-100">
-              Note parfaite : {REVIEWS.rating.replace(',0', '')} / 5
+              {t('Note parfaite : {rating} / 5', {
+                rating: REVIEWS.rating.replace(',0', ''),
+              })}
             </span>
           </span>
         </span>
         <span className="font-montserrat text-[14px] tracking-[0.14px] text-[#ececec] underline-offset-4">
-          {REVIEWS.count} avis vérifiés
+          {verified}
         </span>
       </a>
     );
@@ -94,7 +110,7 @@ export default function PlanityBadge({
       <span className="flex flex-col gap-1">
         <RatingStars />
         <span className="font-montserrat text-body group-hover:text-third-200 text-gray-800 underline-offset-4 group-hover:underline">
-          {REVIEWS.count} avis vérifiés
+          {verified}
         </span>
       </span>
     </a>

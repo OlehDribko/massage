@@ -2,11 +2,19 @@ import Image from 'next/image';
 
 import PillButton from '@/components/ui/PillButton';
 import SectionEyebrow from '@/components/ui/SectionEyebrow';
+import { msg } from '@/i18n/translate';
+import { getT } from '@/i18n/server';
 
 const POINTS = [
-  'Idéale pour toute personne recherchant détente, récupération ou un moment rien qu’à elle.',
-  'Au choix : un montant libre, utilisable sur l’ensemble des soins, ou un soin précis à offrir.',
-  'Valable 1 an à compter de la date d’achat, envoyée par email prête à offrir.',
+  msg(
+    'Idéale pour toute personne recherchant détente, récupération ou un moment rien qu’à elle.'
+  ),
+  msg(
+    'Au choix : un montant libre, utilisable sur l’ensemble des soins, ou un soin précis à offrir.'
+  ),
+  msg(
+    'Valable 1 an à compter de la date d’achat, envoyée par email prête à offrir.'
+  ),
 ];
 
 // No online gift-card purchase: the request form (GiftCardDrawer) asks for
@@ -19,11 +27,12 @@ const REQUEST_HREF = '#carte-cadeau';
  * at 1440, drawn here in % so it scales) and the offer on the right.
  */
 export default function GiftCardSection() {
+  const t = getT();
   return (
     <section className="bg-secondary-50 py-20 lg:py-40">
       <div className="px-page">
         <SectionEyebrow className="max-w-content mx-auto mb-10 lg:mb-15">
-          Carte cadeau
+          {t('Carte cadeau')}
         </SectionEyebrow>
       </div>
 
@@ -45,7 +54,7 @@ export default function GiftCardSection() {
             <div className="rounded-card absolute top-0 left-0 h-[89.8%] w-[92.9%] overflow-hidden">
               <Image
                 src="/images/gift-card.jpg"
-                alt="Carte cadeau : massage dans une ambiance aux bougies"
+                alt={t('Carte cadeau : massage dans une ambiance aux bougies')}
                 fill
                 sizes="(min-width: 1024px) 614px, 93vw"
                 className="object-cover"
@@ -56,18 +65,18 @@ export default function GiftCardSection() {
 
           <div className="flex w-full flex-col gap-6 lg:flex-[554]">
             <h2 className="font-montserrat text-body-lg font-bold text-gray-800">
-              Offrez un moment de bien-être
+              {t('Offrez un moment de bien-être')}
             </h2>
             <ul className="font-montserrat text-body-lg flex list-disc flex-col gap-3 pl-[27px] text-gray-800">
               {POINTS.map((point) => (
-                <li key={point}>{point}</li>
+                <li key={point}>{t(point)}</li>
               ))}
             </ul>
             <PillButton
               href={REQUEST_HREF}
               className="mt-2 w-full sm:w-[276px]"
             >
-              Laisser une demande
+              {t('Laisser une demande')}
             </PillButton>
           </div>
         </div>

@@ -6,14 +6,16 @@
  * Pure — tested with `node --test`.
  */
 
+import { frenchT, msg } from '../../i18n/translate.js';
+
 export const WEEKDAYS = [
-  { value: 1, label: 'Lundi' },
-  { value: 2, label: 'Mardi' },
-  { value: 3, label: 'Mercredi' },
-  { value: 4, label: 'Jeudi' },
-  { value: 5, label: 'Vendredi' },
-  { value: 6, label: 'Samedi' },
-  { value: 7, label: 'Dimanche' },
+  { value: 1, label: msg('Lundi') },
+  { value: 2, label: msg('Mardi') },
+  { value: 3, label: msg('Mercredi') },
+  { value: 4, label: msg('Jeudi') },
+  { value: 5, label: msg('Vendredi') },
+  { value: 6, label: msg('Samedi') },
+  { value: 7, label: msg('Dimanche') },
 ];
 
 export const MAX_INTERVALS_PER_DAY = 6;
@@ -136,32 +138,36 @@ export function weeklyBody(days) {
  * Errors of one day's intervals, by index: `{ 0: 'message' }`; plus `day`
  * for errors of the whole day. Empty object when valid.
  */
-export function validateDay(intervals) {
+export function validateDay(intervals, t = frenchT) {
   const errors = {};
   const parsed = intervals.map(({ start, end }, index) => {
     const from = toMinutes(start);
     const to = toMinutes(end);
     if (from === null || to === null) {
-      errors[index] =
-        'Heure invalide : indiquez par exemple 9, 930 ou 09:30 (de 00:00 à 24:00).';
+      errors[index] = t(
+        'Heure invalide : indiquez par exemple 9, 930 ou 09:30 (de 00:00 à 24:00).'
+      );
       return null;
     }
     if (from >= to) {
-      errors[index] = 'L’heure de fin doit être après l’heure de début.';
+      errors[index] = t('L’heure de fin doit être après l’heure de début.');
       return null;
     }
     return { index, from, to };
   });
 
   if (intervals.length > MAX_INTERVALS_PER_DAY) {
-    errors.day = `${MAX_INTERVALS_PER_DAY} plages au maximum par jour.`;
+    errors.day = t('{n} plages au maximum par jour.', {
+      n: MAX_INTERVALS_PER_DAY,
+    });
   }
 
   const valid = parsed.filter(Boolean).sort((a, b) => a.from - b.from);
   for (let i = 1; i < valid.length; i += 1) {
     if (valid[i].from < valid[i - 1].to) {
-      errors[valid[i].index] =
-        'Cette plage chevauche une autre plage du même jour.';
+      errors[valid[i].index] = t(
+        'Cette plage chevauche une autre plage du même jour.'
+      );
     }
   }
   return errors;

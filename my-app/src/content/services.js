@@ -18,14 +18,16 @@
  *   tissus profonds — are in « Speciality massages » (spécifiques).
  */
 
-/** Catalogue categories, in display order. */
+import { msg } from '../i18n/translate.js';
+
+/** Catalogue categories, in display order (labels: French keys). */
 export const CATEGORIES = [
-  { key: 'chinois', label: 'Massages chinois' },
-  { key: 'detente', label: 'Massages relaxants' },
-  { key: 'specifiques', label: 'Massages spécifiques' },
-  { key: 'express', label: 'Soins express 30 min' },
-  { key: 'endospheres', label: 'Endosphères' },
-  { key: 'maderotherapie', label: 'Madérothérapie' },
+  { key: 'chinois', label: msg('Massages chinois') },
+  { key: 'detente', label: msg('Massages relaxants') },
+  { key: 'specifiques', label: msg('Massages spécifiques') },
+  { key: 'express', label: msg('Soins express 30 min') },
+  { key: 'endospheres', label: msg('Endosphères') },
+  { key: 'maderotherapie', label: msg('Madérothérapie') },
 ];
 export const SERVICE_GROUPS = [
   {

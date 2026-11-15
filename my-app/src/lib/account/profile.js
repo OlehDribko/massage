@@ -7,26 +7,30 @@
  * Pure — tested with `node --test`.
  */
 
+import { frenchT } from '../../i18n/translate.js';
+
 const NAME_PATTERN = /^[\p{L}\p{M}][\p{L}\p{M}' .-]*$/u;
 export const MAX_NAME_LENGTH = 80;
 
-export function validateName(value) {
+export function validateName(value, t = frenchT) {
   const name = value.trim();
   if (!name) return null; // empty = clear the field
   if (name.length > MAX_NAME_LENGTH) {
-    return `${MAX_NAME_LENGTH} caractères maximum.`;
+    return t('{n} caractères maximum.', { n: MAX_NAME_LENGTH });
   }
   if (!NAME_PATTERN.test(name)) {
-    return 'Lettres, espaces, apostrophes, points et tirets uniquement.';
+    return t('Lettres, espaces, apostrophes, points et tirets uniquement.');
   }
   return null;
 }
 
-export function validatePhone(value) {
+export function validatePhone(value, t = frenchT) {
   const phone = value.trim();
   if (!phone) return null;
   if (!/^\+[\d\s().-]{6,}$/.test(phone)) {
-    return 'Format international avec indicatif, par exemple +33 6 12 34 56 78.';
+    return t(
+      'Format international avec indicatif, par exemple +33 6 12 34 56 78.'
+    );
   }
   return null;
 }
@@ -47,14 +51,15 @@ export function profileChanges(profile, form) {
 }
 
 /** VALIDATION_FAILED `errors: [{ field: ['phone'], … }]` → { phone: text }. */
-export function profileServerErrors(error) {
+export function profileServerErrors(error, t = frenchT) {
   const result = {};
   for (const issue of error?.details?.errors ?? []) {
     const field = issue?.field?.[0];
-    if (field === 'name') result.name = 'Ce nom n’est pas accepté.';
+    if (field === 'name') result.name = t('Ce nom n’est pas accepté.');
     if (field === 'phone') {
-      result.phone =
-        'Numéro invalide : utilisez le format international, par exemple +33 6 12 34 56 78.';
+      result.phone = t(
+        'Numéro invalide : utilisez le format international, par exemple +33 6 12 34 56 78.'
+      );
     }
   }
   return result;

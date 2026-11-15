@@ -7,11 +7,19 @@ import {
   useState,
   useSyncExternalStore,
 } from 'react';
-import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 
 import { DAY_PATH } from '@/components/admin/AdminDayBookings';
 import AdminShell, { AdminError } from '@/components/admin/AdminShell';
+import {
+  Link,
+  useFormat,
+  useRouter,
+  useServiceName,
+  useT,
+} from '@/i18n/client';
+import { msg } from '@/i18n/translate';
+import { rich } from '@/i18n/rich';
 import BlockDialog, { BLOCK_STYLE } from '@/components/admin/BlockDialog';
 import { useAccountData } from '@/components/auth/useAccountData';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
@@ -36,38 +44,41 @@ import {
   shiftAnchor,
 } from '@/lib/admin/calendar';
 import { bookingErrorMessage } from '@/lib/booking/labels';
-import {
-  formatDateTime,
-  formatLocalDate,
-  formatMonthShort,
-  formatTime,
-  studioToday,
-} from '@/lib/format';
+import { studioToday } from '@/lib/format';
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const checkDays = validatorFor('scheduleDays');
 const noopSubscribe = () => () => {};
-const WEEKDAY_SHORT = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+// Monday-first short weekday names in the admin's language.
+const weekdayShort = (intlLocale) =>
+  Array.from({ length: 7 }, (_, index) =>
+    new Intl.DateTimeFormat(intlLocale, {
+      weekday: 'short',
+      timeZone: 'UTC',
+    })
+      .format(new Date(Date.UTC(2024, 0, 1 + index, 12)))
+      .replace('.', '')
+  );
 
 // Day states, styled like the rest of the site: white panels (20 px
 // radius), a closed day drawn dark with a lock, a day off muted.
 const STATE_STYLE = {
   open: {
-    label: 'Ouvert',
-    legend: 'Jour ouvert',
+    label: msg('Ouvert'),
+    legend: msg('Jour ouvert'),
     card: 'border-black/10 bg-white',
     swatch: 'border border-black/15 bg-white',
   },
   closed: {
-    label: 'Fermé aux réservations',
-    legend: 'Fermé aux nouvelles réservations',
+    label: msg('Fermé aux réservations'),
+    legend: msg('Fermé aux nouvelles réservations'),
     card: 'border-third-900 bg-[repeating-linear-gradient(135deg,var(--color-secondary-100)_0_10px,var(--color-secondary-50)_10px_20px)]',
     swatch:
       'border border-third-900 bg-[repeating-linear-gradient(135deg,var(--color-secondary-200)_0_3px,var(--color-secondary-50)_3px_6px)]',
   },
   off: {
-    label: 'Jour de repos',
-    legend: 'Jour de repos (planning)',
+    label: msg('Jour de repos'),
+    legend: msg('Jour de repos (planning)'),
     card: 'border-dashed border-black/15 bg-secondary-50',
     swatch: 'border border-dashed border-black/25 bg-secondary-50',
   },
@@ -110,14 +121,12 @@ function CheckIcon({ className = 'size-3.5' }) {
   );
 }
 
-const monthTitle = (month) =>
-  new Intl.DateTimeFormat('fr-FR', {
+const monthTitle = (intlLocale, month) =>
+  new Intl.DateTimeFormat(intlLocale, {
     month: 'long',
     year: 'numeric',
     timeZone: 'UTC',
   }).format(new Date(`${month}-15T12:00:00Z`));
-
-const plural = (count, one, many) => (count > 1 ? many : one);
 
 /** Bookings still to come (not cancelled, not finished). */
 const activeBookings = (list) =>
@@ -129,6 +138,9 @@ const activeBookings = (list) =>
   );
 
 function BookingItem({ booking, date }) {
+  const t = useT();
+  const serviceName = useServiceName();
+  const { formatTime } = useFormat();
   const cancelled = booking.status === 'cancelled';
   return (
     <Link
@@ -144,26 +156,27 @@ function BookingItem({ booking, date }) {
           {formatTime(booking.startsAt)} – {formatTime(booking.endsAt)}
         </span>
         {cancelled ? (
-          <span className="font-medium uppercase">Annulé</span>
+          <span className="font-medium uppercase">{t('Annulé')}</span>
         ) : null}
       </span>
       <span
         className={`text-sm leading-snug font-medium break-words ${cancelled ? 'line-through' : ''}`}
       >
-        {booking.client?.name ?? 'Nom non renseigné'}
+        {booking.client?.name ?? t('Nom non renseigné')}
       </span>
       <span
         className={`line-clamp-2 text-xs leading-snug ${cancelled ? 'line-through' : 'text-secondary-200'}`}
       >
-        {booking.service.name}
+        {serviceName(booking.service)}
       </span>
-      <span className="sr-only"> — voir le détail</span>
+      <span className="sr-only">{t(' — voir le détail')}</span>
     </Link>
   );
 }
 
 /** A busy time in a day column: a click opens it (edit, delete). */
 function BlockItem({ block, date, onOpen }) {
+  const t = useT();
   return (
     <button
       type="button"
@@ -171,21 +184,23 @@ function BlockItem({ block, date, onOpen }) {
       className={`font-montserrat focus-visible:outline-third-200 flex w-full flex-col gap-1 rounded-2xl px-3.5 py-3 text-left transition-shadow hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 ${BLOCK_STYLE}`}
     >
       <span className="text-[0.6875rem] font-medium tracking-wide uppercase">
-        Indisponible
+        {t('Indisponible')}
       </span>
       <span className="text-xs font-semibold break-words">
-        {blockTimeLabel(block, date)}
+        {blockTimeLabel(block, date, t)}
       </span>
       <span className="text-sm leading-snug font-medium break-words">
         {block.title}
       </span>
-      <span className="sr-only"> — modifier ou supprimer</span>
+      <span className="sr-only">{t(' — modifier ou supprimer')}</span>
     </button>
   );
 }
 
 /** Round checkbox in the corner of a day (today or later only). */
 function DayCheckbox({ date, checked, onToggle }) {
+  const t = useT();
+  const { formatLocalDate } = useFormat();
   return (
     <label className="relative -m-1.5 flex size-11 shrink-0 cursor-pointer items-center justify-center">
       <input
@@ -205,7 +220,9 @@ function DayCheckbox({ date, checked, onToggle }) {
         <CheckIcon />
       </span>
       <span className="sr-only">
-        Sélectionner le {formatLocalDate(date, { year: true })}
+        {t('Sélectionner le {date}', {
+          date: formatLocalDate(date, { year: true }),
+        })}
       </span>
     </label>
   );
@@ -213,18 +230,19 @@ function DayCheckbox({ date, checked, onToggle }) {
 
 /** One line: what the day is and, when open, its opening hours. */
 function DayStatus({ state }) {
+  const t = useT();
   if (state.kind === 'closed') {
     return (
       <p className="font-montserrat bg-third-900 text-cream flex w-fit items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium">
         <LockIcon />
-        {STATE_STYLE.closed.label}
+        {t(STATE_STYLE.closed.label)}
       </p>
     );
   }
   if (state.kind === 'off') {
     return (
       <p className="font-montserrat text-xs font-medium text-gray-800">
-        {STATE_STYLE.off.label}
+        {t(STATE_STYLE.off.label)}
       </p>
     );
   }
@@ -233,7 +251,7 @@ function DayStatus({ state }) {
       <p className="font-montserrat flex items-center gap-1.5 text-xs text-gray-800">
         <span aria-hidden className="bg-primary-200 size-2 rounded-full" />
         <span>
-          <span className="sr-only">Heures d’ouverture : </span>
+          <span className="sr-only">{t('Heures d’ouverture : ')}</span>
           {hoursLabel(state.hours)}
         </span>
       </p>
@@ -258,6 +276,8 @@ function WeekView({
   onOpenBlock,
   onAddBlock,
 }) {
+  const t = useT();
+  const { formatLocalDate, formatMonthShort, formatWeekday } = useFormat();
   const scrollerRef = useRef(null);
 
   // When the row scrolls, start it at today's column.
@@ -308,9 +328,7 @@ function WeekView({
                       className={`font-montserrat text-[0.6875rem] tracking-[0.12em] uppercase ${isToday ? 'text-primary-300 font-semibold' : 'text-gray-800'}`}
                       aria-hidden
                     >
-                      {isToday
-                        ? 'Aujourd’hui'
-                        : formatLocalDate(date).split(' ')[0]}
+                      {isToday ? t('Aujourd’hui') : formatWeekday(date)}
                     </span>
                     <span aria-hidden className="flex items-baseline gap-1.5">
                       <span
@@ -325,7 +343,8 @@ function WeekView({
                     </span>
                     <span className="sr-only">
                       {formatLocalDate(date, { year: true })}
-                      {isToday ? ' (aujourd’hui)' : ''} — voir la journée
+                      {isToday ? t(' (aujourd’hui)') : ''}
+                      {t(' — voir la journée')}
                     </span>
                   </Link>
                 </h3>
@@ -358,7 +377,7 @@ function WeekView({
                 </ul>
               ) : (
                 <p className="font-montserrat mt-auto pb-1 text-center text-xs text-gray-800/80">
-                  Aucun rendez-vous
+                  {t('Aucun rendez-vous')}
                 </p>
               )}
               {selectable ? (
@@ -370,10 +389,12 @@ function WeekView({
                   <span aria-hidden className="text-lg leading-none">
                     +
                   </span>
-                  Indisponibilité
+                  {t('Indisponibilité')}
                   <span className="sr-only">
                     {' '}
-                    le {formatLocalDate(date, { year: true })}
+                    {t('le {date}', {
+                      date: formatLocalDate(date, { year: true }),
+                    })}
                   </span>
                 </button>
               ) : null}
@@ -396,10 +417,12 @@ function MonthView({
   selecting,
   onToggle,
 }) {
+  const t = useT();
+  const { formatLocalDate, intlLocale } = useFormat();
   return (
     <div className="flex flex-col gap-2">
       <div aria-hidden className="grid grid-cols-7 gap-1.5 sm:gap-2.5">
-        {WEEKDAY_SHORT.map((label) => (
+        {weekdayShort(intlLocale).map((label) => (
           <span
             key={label}
             className="font-montserrat text-center text-[0.6875rem] tracking-[0.12em] text-gray-800 uppercase"
@@ -417,9 +440,9 @@ function MonthView({
           const isToday = date === today;
           const selectable = isSelectable(date, today);
           const isSelected = selected.has(date);
-          const label = `${formatLocalDate(date, { year: true })} — ${STATE_STYLE[state.kind].legend}${
+          const label = `${formatLocalDate(date, { year: true })} — ${t(STATE_STYLE[state.kind].legend)}${
             state.kind === 'open' ? ` (${hoursLabel(state.hours)})` : ''
-          } — ${active ? `${active} rendez-vous` : 'aucun rendez-vous'}${busy ? ` — ${blocksCountLabel(busy)}` : ''}`;
+          } — ${active ? t('{n} rendez-vous|{n} rendez-vous', { n: active }) : t('aucun rendez-vous')}${busy ? ` — ${blocksCountLabel(busy, t)}` : ''}`;
           const cellClass = `relative flex aspect-square w-full flex-col justify-between rounded-2xl border p-1.5 text-left sm:aspect-auto sm:min-h-28 sm:rounded-panel sm:p-3 ${STATE_STYLE[state.kind].card} ${
             isSelected
               ? 'ring-primary-200 ring-2 ring-offset-1 sm:ring-offset-2'
@@ -460,15 +483,15 @@ function MonthView({
                   {state.kind === 'open'
                     ? hoursLabel(state.hours)
                     : state.kind === 'closed'
-                      ? 'Fermé'
+                      ? t('Fermé')
                       : state.kind === 'off'
-                        ? 'Repos'
+                        ? t('Repos')
                         : ''}
                 </span>
                 <span className="ml-auto flex items-center gap-1">
                   {busy ? (
                     <span
-                      title={blocksCountLabel(busy)}
+                      title={blocksCountLabel(busy, t)}
                       className={`font-montserrat flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[0.6875rem] font-semibold sm:h-6 sm:min-w-6 ${BLOCK_STYLE}`}
                     >
                       {busy}
@@ -488,7 +511,7 @@ function MonthView({
               <li key={date} className="min-w-0">
                 <Link
                   href={`${DAY_PATH}?date=${date}`}
-                  aria-label={`${label} — voir la journée`}
+                  aria-label={`${label}${t(' — voir la journée')}`}
                   className={`${cellClass} hover:border-third-200 focus-visible:outline-third-200 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2`}
                 >
                   {content}
@@ -522,6 +545,7 @@ function MonthView({
 }
 
 function Legend({ view }) {
+  const t = useT();
   return (
     <ul className="font-montserrat flex flex-wrap gap-x-5 gap-y-2 text-xs text-gray-800">
       {['open', 'closed', 'off'].map((kind) => (
@@ -530,7 +554,7 @@ function Legend({ view }) {
             aria-hidden
             className={`size-4 rounded-md ${STATE_STYLE[kind].swatch}`}
           />
-          {STATE_STYLE[kind].legend}
+          {t(STATE_STYLE[kind].legend)}
         </li>
       ))}
       {view === 'month' ? (
@@ -542,7 +566,7 @@ function Legend({ view }) {
             >
               2
             </span>
-            Rendez-vous à venir
+            {t('Rendez-vous à venir')}
           </li>
           <li className="flex items-center gap-2">
             <span
@@ -551,13 +575,13 @@ function Legend({ view }) {
             >
               1
             </span>
-            Indisponibilités
+            {t('Indisponibilités')}
           </li>
         </>
       ) : (
         <li className="flex items-center gap-2">
           <span aria-hidden className={`size-4 rounded-md ${BLOCK_STYLE}`} />
-          Indisponibilité (temps pris ailleurs)
+          {t('Indisponibilité (temps pris ailleurs)')}
         </li>
       )}
     </ul>
@@ -566,6 +590,8 @@ function Legend({ view }) {
 
 /** What the last bulk action did, from the server answer. */
 function ActionResult({ result, onDismiss }) {
+  const t = useT();
+  const { formatDateTime, formatLocalDate } = useFormat();
   return (
     <div
       role="status"
@@ -574,30 +600,44 @@ function ActionResult({ result, onDismiss }) {
       {result.kind === 'reopen' ? (
         <>
           <p className="font-montserrat text-body font-semibold text-gray-900">
-            Fermeture retirée pour {result.dates.length}{' '}
-            {plural(result.dates.length, 'date', 'dates')}.
+            {t(
+              'Fermeture retirée pour {n} date.|Fermeture retirée pour {n} dates.',
+              {
+                n: result.dates.length,
+              }
+            )}
           </p>
           <p className="font-montserrat text-body text-gray-800">
-            Chaque date reprend son planning habituel.
+            {t('Chaque date reprend son planning habituel.')}
             {result.stillOff.length
-              ? ` Jour de repos dans le planning, ${plural(result.stillOff.length, 'cette date reste fermée', 'ces dates restent fermées')} : ${result.stillOff
-                  .map((date) => formatLocalDate(date, { weekday: undefined }))
-                  .join(', ')}. Pour y travailler, modifiez les horaires.`
+              ? ` ${t(
+                  'Jour de repos dans le planning, cette date reste fermée : {dates}. Pour y travailler, modifiez les horaires.|Jour de repos dans le planning, ces dates restent fermées : {dates}. Pour y travailler, modifiez les horaires.',
+                  {
+                    n: result.stillOff.length,
+                    dates: result.stillOff
+                      .map((date) =>
+                        formatLocalDate(date, { weekday: undefined })
+                      )
+                      .join(', '),
+                  }
+                )}`
               : ''}
           </p>
         </>
       ) : (
         <>
           <p className="font-montserrat text-body font-semibold text-gray-900">
-            {result.dates.length}{' '}
-            {plural(result.dates.length, 'date fermée', 'dates fermées')} aux
-            nouvelles réservations.
+            {t(
+              '{n} date fermée aux nouvelles réservations.|{n} dates fermées aux nouvelles réservations.',
+              { n: result.dates.length }
+            )}
           </p>
           {result.bookings.length ? (
             <>
               <p className="font-montserrat text-body text-gray-800">
-                Ces rendez-vous sont conservés, aucun n’a été annulé. Vous
-                pouvez les assurer ou contacter les clients vous-même.
+                {t(
+                  'Ces rendez-vous sont conservés, aucun n’a été annulé. Vous pouvez les assurer ou contacter les clients vous-même.'
+                )}
               </p>
               <ul className="font-montserrat text-body-sm flex flex-col gap-1.5 text-gray-900">
                 {result.bookings.map((booking) => (
@@ -617,19 +657,21 @@ function ActionResult({ result, onDismiss }) {
             </>
           ) : (
             <p className="font-montserrat text-body text-gray-800">
-              Aucun rendez-vous n’était prévu ces jours-là.
+              {t('Aucun rendez-vous n’était prévu ces jours-là.')}
             </p>
           )}
         </>
       )}
       <PillButton variant="text" onClick={onDismiss} className="self-start">
-        Fermer ce message
+        {t('Fermer ce message')}
       </PillButton>
     </div>
   );
 }
 
 function CalendarContent({ controller, enabled }) {
+  const t = useT();
+  const { formatLocalDate, intlLocale } = useFormat();
   const router = useRouter();
   const searchParams = useSearchParams();
   const today = useSyncExternalStore(noopSubscribe, studioToday, () => null);
@@ -690,7 +732,7 @@ function CalendarContent({ controller, enabled }) {
   if (!range) {
     return (
       <p role="status" className="font-montserrat text-body text-gray-800">
-        Chargement…
+        {t('Chargement…')}
       </p>
     );
   }
@@ -715,10 +757,14 @@ function CalendarContent({ controller, enabled }) {
     setEditor(null);
     setBlockNotice(
       action === 'deleted'
-        ? 'Indisponibilité supprimée : le créneau est de nouveau réservable selon les horaires.'
+        ? t(
+            'Indisponibilité supprimée : le créneau est de nouveau réservable selon les horaires.'
+          )
         : action === 'created'
-          ? 'Indisponibilité ajoutée : les clients ne peuvent plus réserver ce créneau.'
-          : 'Indisponibilité modifiée.'
+          ? t(
+              'Indisponibilité ajoutée : les clients ne peuvent plus réserver ce créneau.'
+            )
+          : t('Indisponibilité modifiée.')
     );
   };
 
@@ -775,8 +821,11 @@ function CalendarContent({ controller, enabled }) {
 
   const title =
     view === 'month'
-      ? monthTitle(range.month)
-      : `Du ${formatLocalDate(range.from, { weekday: undefined })} au ${formatLocalDate(range.to, { weekday: undefined, year: true })}`;
+      ? monthTitle(intlLocale, range.month)
+      : t('Du {from} au {to}', {
+          from: formatLocalDate(range.from, { weekday: undefined }),
+          to: formatLocalDate(range.to, { weekday: undefined, year: true }),
+        });
   const showsToday =
     view === 'week'
       ? range.dates.includes(today)
@@ -800,7 +849,7 @@ function CalendarContent({ controller, enabled }) {
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="flex flex-col gap-1">
           <p className="font-montserrat text-label-sm font-medium text-gray-800 uppercase">
-            {view === 'month' ? 'Vue du mois' : 'Semaine affichée'}
+            {view === 'month' ? t('Vue du mois') : t('Semaine affichée')}
           </p>
           <h2
             aria-live="polite"
@@ -811,12 +860,12 @@ function CalendarContent({ controller, enabled }) {
         </div>
         <div
           role="group"
-          aria-label="Affichage"
+          aria-label={t('Affichage')}
           className="font-montserrat text-label flex w-fit rounded-full border border-black/15 bg-white p-1 uppercase"
         >
           {[
-            ['week', 'Semaine'],
-            ['month', 'Mois'],
+            ['week', t('Semaine')],
+            ['month', t('Mois')],
           ].map(([key, label]) => (
             <button
               key={key}
@@ -836,7 +885,9 @@ function CalendarContent({ controller, enabled }) {
       </div>
 
       <nav
-        aria-label={view === 'month' ? 'Changer de mois' : 'Changer de semaine'}
+        aria-label={
+          view === 'month' ? t('Changer de mois') : t('Changer de semaine')
+        }
         className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 rounded-full border border-black/10 bg-white p-1"
       >
         <button
@@ -846,10 +897,10 @@ function CalendarContent({ controller, enabled }) {
         >
           <span aria-hidden>←</span>
           <span aria-hidden className="sm:hidden">
-            Préc.
+            {t('Préc.')}
           </span>
           <span className="sr-only sm:not-sr-only">
-            {view === 'month' ? 'Mois précédent' : 'Semaine précédente'}
+            {view === 'month' ? t('Mois précédent') : t('Semaine précédente')}
           </span>
         </button>
         <button
@@ -858,7 +909,7 @@ function CalendarContent({ controller, enabled }) {
           disabled={!today || showsToday}
           className="font-montserrat text-label focus-visible:outline-third-200 bg-third-900 text-cream min-h-11 rounded-full px-5 font-medium uppercase focus-visible:outline-2 disabled:bg-transparent disabled:text-gray-800"
         >
-          Aujourd’hui
+          {t('Aujourd’hui')}
         </button>
         <button
           type="button"
@@ -866,10 +917,10 @@ function CalendarContent({ controller, enabled }) {
           className={`${navButton} justify-self-end`}
         >
           <span aria-hidden className="sm:hidden">
-            Suiv.
+            {t('Suiv.')}
           </span>
           <span className="sr-only sm:not-sr-only">
-            {view === 'month' ? 'Mois suivant' : 'Semaine suivante'}
+            {view === 'month' ? t('Mois suivant') : t('Semaine suivante')}
           </span>
           <span aria-hidden>→</span>
         </button>
@@ -881,9 +932,15 @@ function CalendarContent({ controller, enabled }) {
           <p className="font-montserrat text-body-sm text-gray-800">
             {view === 'month'
               ? selecting
-                ? 'Touchez les dates (à partir d’aujourd’hui) pour les sélectionner, puis choisissez l’action en bas.'
-                : 'Touchez une date pour ouvrir l’agenda du jour. Pour fermer ou rouvrir des dates, passez en sélection.'
-              : 'Touchez une date pour ouvrir l’agenda du jour. Cochez des jours pour les fermer aux nouvelles réservations ou retirer leur fermeture.'}
+                ? t(
+                    'Touchez les dates (à partir d’aujourd’hui) pour les sélectionner, puis choisissez l’action en bas.'
+                  )
+                : t(
+                    'Touchez une date pour ouvrir l’agenda du jour. Pour fermer ou rouvrir des dates, passez en sélection.'
+                  )
+              : t(
+                  'Touchez une date pour ouvrir l’agenda du jour. Cochez des jours pour les fermer aux nouvelles réservations ou retirer leur fermeture.'
+                )}
           </p>
           <div className="flex flex-wrap gap-2">
             <button
@@ -896,7 +953,8 @@ function CalendarContent({ controller, enabled }) {
               disabled={!today}
               className="font-montserrat text-body-sm hover:border-third-200 focus-visible:outline-third-200 min-h-11 shrink-0 rounded-full border border-black/20 bg-white px-5 font-medium text-gray-900 transition-colors focus-visible:outline-2 disabled:opacity-50"
             >
-              <span aria-hidden>+ </span>Ajouter une indisponibilité
+              <span aria-hidden>+ </span>
+              {t('Ajouter une indisponibilité')}
             </button>
             {view === 'month' ? (
               <button
@@ -912,7 +970,9 @@ function CalendarContent({ controller, enabled }) {
                     : 'hover:border-third-200 border-black/20 bg-white text-gray-900'
                 }`}
               >
-                {selecting ? 'Terminer la sélection' : 'Sélectionner des dates'}
+                {selecting
+                  ? t('Terminer la sélection')
+                  : t('Sélectionner des dates')}
               </button>
             ) : null}
           </div>
@@ -934,11 +994,11 @@ function CalendarContent({ controller, enabled }) {
             days.reload();
             bookings.reload();
           }}
-          message={bookingErrorMessage(failed.error)}
+          message={bookingErrorMessage(failed.error, t)}
         />
       ) : loading ? (
         <div role="status">
-          <span className="sr-only">Chargement du calendrier…</span>
+          <span className="sr-only">{t('Chargement du calendrier…')}</span>
           <div
             aria-hidden
             className={`grid gap-2 overflow-hidden ${view === 'month' ? 'grid-cols-7' : 'grid-cols-[repeat(7,minmax(13.5rem,1fr))] xl:grid-cols-7'}`}
@@ -985,26 +1045,23 @@ function CalendarContent({ controller, enabled }) {
       {selected.size ? (
         <div
           role="region"
-          aria-label="Dates sélectionnées"
+          aria-label={t('Dates sélectionnées')}
           className="px-page fixed inset-x-0 bottom-0 z-20 border-t border-black/10 bg-white/95 py-3 shadow-[0_-8px_24px_rgba(0,0,0,0.08)] backdrop-blur-sm sm:py-4"
         >
           <div className="max-w-content mx-auto flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between lg:gap-3">
             <div className="flex items-center justify-between gap-4 lg:justify-start">
               <p className="font-montserrat text-body font-medium whitespace-nowrap text-gray-900">
-                {selected.size}{' '}
-                {plural(
-                  selected.size,
-                  'date sélectionnée',
-                  'dates sélectionnées'
-                )}
+                {t('{n} date sélectionnée|{n} dates sélectionnées', {
+                  n: selected.size,
+                })}
               </p>
               <button
                 type="button"
                 onClick={() => setSelected(new Set())}
                 className="font-montserrat text-body-sm hover:text-third-200 focus-visible:outline-third-200 min-h-11 text-gray-800 underline underline-offset-4 focus-visible:outline-2"
               >
-                Réinitialiser
-                <span className="hidden sm:inline"> la sélection</span>
+                {t('Réinitialiser')}
+                <span className="hidden sm:inline">{t(' la sélection')}</span>
               </button>
             </div>
             <div className="grid gap-2 sm:flex sm:flex-wrap sm:items-center">
@@ -1017,7 +1074,7 @@ function CalendarContent({ controller, enabled }) {
                 disabled={!summary.open.length}
                 className="disabled:opacity-50"
               >
-                Fermer aux nouvelles réservations
+                {t('Fermer aux nouvelles réservations')}
               </PillButton>
               <PillButton
                 variant="outline"
@@ -1030,7 +1087,7 @@ function CalendarContent({ controller, enabled }) {
                 disabled={!summary.closed.length}
                 className="disabled:opacity-50"
               >
-                Retirer la fermeture
+                {t('Retirer la fermeture')}
               </PillButton>
             </div>
           </div>
@@ -1054,14 +1111,14 @@ function CalendarContent({ controller, enabled }) {
         open={dialog !== null}
         title={
           dialog === 'close'
-            ? 'Fermer aux nouvelles réservations ?'
-            : 'Retirer la fermeture ?'
+            ? t('Fermer aux nouvelles réservations ?')
+            : t('Retirer la fermeture ?')
         }
         confirmLabel={
-          dialog === 'close' ? 'Fermer ces dates' : 'Retirer la fermeture'
+          dialog === 'close' ? t('Fermer ces dates') : t('Retirer la fermeture')
         }
         pending={pending}
-        error={actionError ? bookingErrorMessage(actionError) : null}
+        error={actionError ? bookingErrorMessage(actionError, t) : null}
         onConfirm={apply}
         onClose={() => setDialog(null)}
       >
@@ -1075,52 +1132,54 @@ function CalendarContent({ controller, enabled }) {
         {dialog === 'close' ? (
           <>
             <span className="block">
-              Plus aucune nouvelle réservation ni aucun déplacement vers{' '}
-              {plural(targets.length, 'cette date', 'ces dates')}.
+              {t(
+                'Plus aucune nouvelle réservation ni aucun déplacement vers cette date.|Plus aucune nouvelle réservation ni aucun déplacement vers ces dates.',
+                { n: targets.length }
+              )}
             </span>
             <span className="mt-2 block font-medium text-gray-900">
-              Les rendez-vous existants ne sont pas annulés
               {keptBookings.length
-                ? ` (${keptBookings.length} à venir) : leur liste s’affichera ensuite.`
-                : '.'}
+                ? t(
+                    'Les rendez-vous existants ne sont pas annulés ({n} à venir) : leur liste s’affichera ensuite.',
+                    { n: keptBookings.length }
+                  )
+                : t('Les rendez-vous existants ne sont pas annulés.')}
             </span>
           </>
         ) : (
           <>
             <span className="block">
-              Seule la fermeture est retirée : chaque date reprend son planning
-              habituel.
+              {t(
+                'Seule la fermeture est retirée : chaque date reprend son planning habituel.'
+              )}
             </span>
             {staysOff.length ? (
               <span className="mt-2 block">
-                Jour de repos dans le planning,{' '}
-                {plural(
-                  staysOff.length,
-                  'cette date restera fermée',
-                  'ces dates resteront fermées'
-                )}{' '}
-                :{' '}
-                {staysOff
-                  .map((date) => formatLocalDate(date, { weekday: undefined }))
-                  .join(', ')}
-                .
+                {t(
+                  'Jour de repos dans le planning, cette date restera fermée : {dates}.|Jour de repos dans le planning, ces dates resteront fermées : {dates}.',
+                  {
+                    n: staysOff.length,
+                    dates: staysOff
+                      .map((date) =>
+                        formatLocalDate(date, { weekday: undefined })
+                      )
+                      .join(', '),
+                  }
+                )}
               </span>
             ) : null}
           </>
         )}
         {skipped.length ? (
           <span className="text-body-sm mt-2 block">
-            {skipped.length}{' '}
             {dialog === 'close'
-              ? plural(
-                  skipped.length,
-                  'date déjà fermée, inchangée.',
-                  'dates déjà fermées, inchangées.'
+              ? t(
+                  '{n} date déjà fermée, inchangée.|{n} dates déjà fermées, inchangées.',
+                  { n: skipped.length }
                 )
-              : plural(
-                  skipped.length,
-                  'date non fermée, inchangée.',
-                  'dates non fermées, inchangées.'
+              : t(
+                  '{n} date non fermée, inchangée.|{n} dates non fermées, inchangées.',
+                  { n: skipped.length }
                 )}
           </span>
         ) : null}
@@ -1138,11 +1197,16 @@ function CalendarContent({ controller, enabled }) {
  * never cancelled and are listed after a closure.
  */
 export default function AdminCalendar() {
+  const t = useT();
   return (
     <AdminShell
       title={
         <>
-          Calendrier du <span className="heading-accent">cabinet</span>
+          {rich(t('Calendrier du <accent>cabinet</accent>'), {
+            accent: (chunks) => (
+              <span className="heading-accent">{chunks}</span>
+            ),
+          })}
         </>
       }
       current="calendrier"

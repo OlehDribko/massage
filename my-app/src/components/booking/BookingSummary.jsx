@@ -1,11 +1,8 @@
+'use client';
+
+import { useFormat, useServiceName, useT } from '@/i18n/client';
 import BookingStatus from '@/components/booking/BookingStatus';
 import { cancelledByLabel } from '@/lib/booking/labels';
-import {
-  formatDateTime,
-  formatDuration,
-  formatPrice,
-  formatTime,
-} from '@/lib/format';
 
 function Row({ label, children }) {
   return (
@@ -26,37 +23,45 @@ function Row({ label, children }) {
  * catalogue). `admin` switches "par vous" to "par le client".
  */
 export default function BookingSummary({ booking, admin = false }) {
+  const t = useT();
+  const serviceName = useServiceName();
+  const { formatDateTime, formatDuration, formatPrice, formatTime } =
+    useFormat();
   const by = (who) =>
     admin
       ? who === 'admin'
-        ? 'par le cabinet'
-        : 'par le client'
-      : cancelledByLabel(who);
+        ? t('par le cabinet')
+        : t('par le client')
+      : cancelledByLabel(who, t);
 
   return (
     <div className="flex flex-col gap-6">
       <BookingStatus phase={booking.phase} />
       <dl className="divide-y divide-black/10 border-y border-black/10">
-        <Row label="Date">
+        <Row label={t('Date')}>
           <span className="first-letter:uppercase">
             {formatDateTime(booking.startsAt)} – {formatTime(booking.endsAt)}
           </span>
         </Row>
-        <Row label="Prestation">
-          {booking.service.name} ·{' '}
+        <Row label={t('Prestation')}>
+          {serviceName(booking.service)} ·{' '}
           {formatDuration(booking.service.durationMinutes)}
         </Row>
-        <Row label="Tarif">
+        <Row label={t('Tarif')}>
           {formatPrice(booking.service.priceCents, booking.service.currency)}{' '}
-          <span className="text-gray-800">· règlement sur place</span>
+          <span className="text-gray-800">{t('· règlement sur place')}</span>
         </Row>
         {booking.cancellation ? (
-          <Row label="Annulation">
-            Annulé {by(booking.cancellation.by)} le{' '}
-            {formatDateTime(booking.cancellation.at)}
+          <Row label={t('Annulation')}>
+            {t('Annulé {by} le {date}', {
+              by: by(booking.cancellation.by),
+              date: formatDateTime(booking.cancellation.at),
+            })}
             {booking.cancellation.reason ? (
               <span className="block text-gray-800">
-                Motif : {booking.cancellation.reason}
+                {t('Motif : {reason}', {
+                  reason: booking.cancellation.reason,
+                })}
               </span>
             ) : null}
           </Row>
@@ -67,14 +72,15 @@ export default function BookingSummary({ booking, admin = false }) {
 }
 
 // "mer. 11 nov., 09:15" — short enough for the move chips on phones.
-const SHORT_STAMP = new Intl.DateTimeFormat('fr-FR', {
-  weekday: 'short',
-  day: 'numeric',
-  month: 'short',
-  hour: '2-digit',
-  minute: '2-digit',
-  timeZone: 'Europe/Paris',
-});
+const shortStamp = (intlLocale, instant) =>
+  new Intl.DateTimeFormat(intlLocale, {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'Europe/Paris',
+  }).format(new Date(instant));
 
 const HISTORY_ICONS = {
   created: 'M5 12l5 5 9-10',
@@ -94,18 +100,23 @@ const HISTORY_TONES = {
  * cancellation. Oldest first, the latest change at the bottom.
  */
 export function BookingHistory({ history, admin = false }) {
+  const t = useT();
+  const { formatDateTime, intlLocale } = useFormat();
   const title = (entry) => {
     switch (entry.type) {
       case 'created':
-        return 'Réservation créée';
+        return t('Réservation créée');
       case 'rescheduled':
-        return 'Rendez-vous déplacé';
+        return t('Rendez-vous déplacé');
       case 'cancelled':
         return admin
-          ? `Annulé ${entry.by === 'admin' ? 'par le cabinet' : 'par le client'}`
-          : `Annulé ${cancelledByLabel(entry.by)}`;
+          ? t('Annulé {by}', {
+              by:
+                entry.by === 'admin' ? t('par le cabinet') : t('par le client'),
+            })
+          : t('Annulé {by}', { by: cancelledByLabel(entry.by, t) });
       default:
-        return 'Modification';
+        return t('Modification');
     }
   };
 
@@ -148,20 +159,20 @@ export function BookingHistory({ history, admin = false }) {
               {entry.type === 'rescheduled' ? (
                 <p className="text-body-sm flex flex-wrap items-center gap-2">
                   <span className="bg-secondary-50 rounded-full px-3 py-1 whitespace-nowrap text-gray-800 line-through decoration-black/30">
-                    {SHORT_STAMP.format(new Date(entry.from.startsAt))}
+                    {shortStamp(intlLocale, entry.from.startsAt)}
                   </span>
                   <span aria-hidden className="text-third-200">
                     →
                   </span>
-                  <span className="sr-only">vers</span>
+                  <span className="sr-only">{t('vers')}</span>
                   <span className="bg-primary-50 text-third-900 rounded-full px-3 py-1 font-medium whitespace-nowrap">
-                    {SHORT_STAMP.format(new Date(entry.to.startsAt))}
+                    {shortStamp(intlLocale, entry.to.startsAt)}
                   </span>
                 </p>
               ) : null}
               {entry.type === 'cancelled' && entry.reason ? (
                 <p className="text-body-sm bg-secondary-50 rounded-xl px-3 py-2 text-gray-800">
-                  Motif : {entry.reason}
+                  {t('Motif : {reason}', { reason: entry.reason })}
                 </p>
               ) : null}
             </div>

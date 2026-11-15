@@ -4,8 +4,11 @@
  * docs/frontend-handoff.md §5. The studio handles each request by hand:
  * no online payment, no card code, no automatic issue — no text here may
  * say the card is paid or issued.
- * No React, relative imports only — tested with `node --test`.
+ * No React, relative imports only — tested with `node --test`. Texts are
+ * French keys: functions take an optional `t` (src/i18n, French by default).
  */
+
+import { frenchT, msg } from '../i18n/translate.js';
 
 /** Largest amount the API stores (INTEGER column), in cents. */
 export const MAX_AMOUNT_CENTS = 2147483647;
@@ -16,25 +19,27 @@ export const MAX_DESCRIPTION = 1000;
  * Accepts "150", "150,5", "150.50", "1 500", "1 500,00 €".
  * Returns `{ cents }` or `{ error }` (French message).
  */
-export function parseEuroAmount(input) {
+export function parseEuroAmount(input, t = frenchT) {
   const text = String(input ?? '')
     .replace(/[\s  ]/g, '')
     .replace(/€$/, '')
     .replace(/^€/, '');
-  if (!text) return { error: 'Indiquez le montant de la carte cadeau.' };
+  if (!text) return { error: t('Indiquez le montant de la carte cadeau.') };
   const match = /^(\d+)(?:[.,](\d{1,2}))?$/.exec(text);
   if (!match) {
     return {
-      error:
-        'Montant invalide : indiquez un nombre en euros, par exemple 80 ou 80,50.',
+      error: t(
+        'Montant invalide : indiquez un nombre en euros, par exemple 80 ou 80,50.'
+      ),
     };
   }
   const euros = match[1].replace(/^0+(?=\d)/, '');
   const fraction = (match[2] ?? '').padEnd(2, '0');
-  if (euros.length > 8) return { error: 'Ce montant est trop élevé.' };
+  if (euros.length > 8) return { error: t('Ce montant est trop élevé.') };
   const cents = Number(euros) * 100 + Number(fraction);
-  if (cents <= 0) return { error: 'Le montant doit être supérieur à 0 €.' };
-  if (cents > MAX_AMOUNT_CENTS) return { error: 'Ce montant est trop élevé.' };
+  if (cents <= 0) return { error: t('Le montant doit être supérieur à 0 €.') };
+  if (cents > MAX_AMOUNT_CENTS)
+    return { error: t('Ce montant est trop élevé.') };
   return { cents };
 }
 
@@ -56,13 +61,13 @@ export function requestBody({ amountCents, description, channel }) {
  * Text the server refuses (control characters other than line breaks and
  * tabs) — checked before sending.
  */
-export function descriptionError(description) {
+export function descriptionError(description, t = frenchT) {
   const text = (description ?? '').trim();
   if (text.length > MAX_DESCRIPTION) {
-    return `${MAX_DESCRIPTION} caractères maximum.`;
+    return t('{n} caractères maximum.', { n: MAX_DESCRIPTION });
   }
   if (/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(text)) {
-    return 'Ce message contient des caractères non autorisés.';
+    return t('Ce message contient des caractères non autorisés.');
   }
   return null;
 }
@@ -74,8 +79,8 @@ export function descriptionError(description) {
  * reads it there).
  */
 export const GIFT_KINDS = [
-  { value: 'amount', label: 'Un montant' },
-  { value: 'soin', label: 'Un soin' },
+  { value: 'amount', label: msg('Un montant') },
+  { value: 'soin', label: msg('Un soin') },
 ];
 
 /**
@@ -90,6 +95,7 @@ export function soinOptions(catalog) {
         .filter((variant) => Number.isInteger(variant.effectivePriceCents))
         .map((variant) => ({
           id: variant.id,
+          minutes: variant.durationMinutes,
           label: `${variant.durationMinutes} min`,
           title: `${prestation.name} — ${variant.durationMinutes} min`,
           cents: variant.effectivePriceCents,
@@ -114,88 +120,91 @@ export function giftDescription(option, message) {
 
 export const CONTACT_CHANNELS = [
   { value: 'email', label: 'E-mail' },
-  { value: 'phone', label: 'Téléphone' },
+  { value: 'phone', label: msg('Téléphone') },
   { value: 'whatsapp', label: 'WhatsApp' },
 ];
 
-export function channelLabel(value) {
-  return (
-    CONTACT_CHANNELS.find((channel) => channel.value === value)?.label ?? '—'
-  );
+export function channelLabel(value, t = frenchT) {
+  const label = CONTACT_CHANNELS.find(
+    (channel) => channel.value === value
+  )?.label;
+  return label ? t(label) : '—';
 }
 
 /** Request status → label and badge tone (StatusBadge). */
 export const GIFT_STATUSES = {
-  new: { label: 'Nouvelle', tone: 'accent' },
-  in_progress: { label: 'En cours', tone: 'accent' },
-  completed: { label: 'Traitée', tone: 'muted' },
-  cancelled: { label: 'Clôturée', tone: 'muted' },
+  new: { label: msg('Nouvelle'), tone: 'accent' },
+  in_progress: { label: msg('En cours'), tone: 'accent' },
+  completed: { label: msg('Traitée'), tone: 'muted' },
+  cancelled: { label: msg('Clôturée'), tone: 'muted' },
 };
 
-export function statusLabel(status) {
-  return GIFT_STATUSES[status]?.label ?? 'Statut inconnu';
+export function statusLabel(status, t = frenchT) {
+  return t(GIFT_STATUSES[status]?.label ?? msg('Statut inconnu'));
 }
 
 /**
  * Button for a target status, from the current one. `completed` means the
  * manual handling is finished — never "paid" or "card issued".
  */
-export function statusAction(from, to) {
+export function statusAction(from, to, t = frenchT) {
   if (to === 'in_progress') {
     return from === 'new'
-      ? { label: 'Prendre en charge', tone: 'primary' }
-      : { label: 'Rouvrir', tone: 'outline' };
+      ? { label: t('Prendre en charge'), tone: 'primary' }
+      : { label: t('Rouvrir'), tone: 'outline' };
   }
   if (to === 'completed') {
-    return { label: 'Marquer comme traitée', tone: 'primary' };
+    return { label: t('Marquer comme traitée'), tone: 'primary' };
   }
-  if (to === 'cancelled') return { label: 'Clôturer', tone: 'danger' };
-  return { label: statusLabel(to), tone: 'outline' };
+  if (to === 'cancelled') return { label: t('Clôturer'), tone: 'danger' };
+  return { label: statusLabel(to, t), tone: 'outline' };
 }
 
 /** History entry → "Demande reçue" / "Nouvelle → En cours". */
-export function historyTitle(entry) {
-  if (!entry.fromStatus) return 'Demande reçue';
+export function historyTitle(entry, t = frenchT) {
+  if (!entry.fromStatus) return t('Demande reçue');
   if (entry.toStatus === 'in_progress' && entry.fromStatus !== 'new') {
-    return `Rouverte (${statusLabel(entry.fromStatus).toLowerCase()} → en cours)`;
+    return t('Rouverte ({from} → en cours)', {
+      from: statusLabel(entry.fromStatus, t).toLowerCase(),
+    });
   }
-  return `${statusLabel(entry.fromStatus)} → ${statusLabel(entry.toStatus).toLowerCase()}`;
+  return `${statusLabel(entry.fromStatus, t)} → ${statusLabel(entry.toStatus, t).toLowerCase()}`;
 }
 
 /**
  * `blockers` (GIFT_CARD_REQUEST_NOT_READY or bookingReadiness) → what the
  * visitor must do. `returnTo` brings them back to the open form.
  */
-export function giftReadinessSteps(blockers, { returnTo } = {}) {
+export function giftReadinessSteps(blockers, { returnTo, t = frenchT } = {}) {
   const back = returnTo ? `?retour=${encodeURIComponent(returnTo)}` : '';
   const steps = {
     not_a_client: {
-      text: 'Un compte administrateur ne peut pas demander de carte cadeau.',
+      text: t('Un compte administrateur ne peut pas demander de carte cadeau.'),
     },
     anonymous_session: {
-      text: 'Connectez-vous ou créez un compte client.',
+      text: t('Connectez-vous ou créez un compte client.'),
       href: `/connexion${back}`,
-      action: 'Se connecter',
+      action: t('Se connecter'),
     },
     email_not_verified: {
-      text: 'Confirmez votre adresse e-mail.',
+      text: t('Confirmez votre adresse e-mail.'),
       href: `/compte${back}`,
-      action: 'Confirmer mon e-mail',
+      action: t('Confirmer mon e-mail'),
     },
     name_missing: {
-      text: 'Indiquez votre nom.',
+      text: t('Indiquez votre nom.'),
       href: `/compte${back}#profil`,
-      action: 'Compléter mon profil',
+      action: t('Compléter mon profil'),
     },
     phone_missing: {
-      text: 'Indiquez votre numéro de téléphone.',
+      text: t('Indiquez votre numéro de téléphone.'),
       href: `/compte${back}#profil`,
-      action: 'Compléter mon profil',
+      action: t('Compléter mon profil'),
     },
     phone_invalid: {
-      text: 'Le numéro de téléphone de votre profil n’est pas valide.',
+      text: t('Le numéro de téléphone de votre profil n’est pas valide.'),
       href: `/compte${back}#profil`,
-      action: 'Modifier mon numéro',
+      action: t('Modifier mon numéro'),
     },
   };
   return (blockers ?? [])
@@ -210,22 +219,29 @@ export function giftReadinessSteps(blockers, { returnTo } = {}) {
  * shows the rest.
  */
 const BLOCKER_VIEW = {
-  not_a_client:
-    'Un compte administrateur ne peut pas demander de carte cadeau.',
-  anonymous_session:
-    'Connectez-vous ou créez un compte pour demander une carte cadeau.',
-  email_not_verified:
-    'Pour envoyer votre demande, confirmez d’abord votre adresse e-mail.',
-  name_missing:
-    'Pour envoyer votre demande, ajoutez votre prénom et votre numéro de téléphone à votre profil.',
-  phone_missing:
-    'Pour envoyer votre demande, ajoutez votre prénom et votre numéro de téléphone à votre profil.',
-  phone_invalid:
-    'Pour envoyer votre demande, corrigez le numéro de téléphone de votre profil.',
+  not_a_client: msg(
+    'Un compte administrateur ne peut pas demander de carte cadeau.'
+  ),
+  anonymous_session: msg(
+    'Connectez-vous ou créez un compte pour demander une carte cadeau.'
+  ),
+  email_not_verified: msg(
+    'Pour envoyer votre demande, confirmez d’abord votre adresse e-mail.'
+  ),
+  name_missing: msg(
+    'Pour envoyer votre demande, ajoutez votre prénom et votre numéro de téléphone à votre profil.'
+  ),
+  phone_missing: msg(
+    'Pour envoyer votre demande, ajoutez votre prénom et votre numéro de téléphone à votre profil.'
+  ),
+  phone_invalid: msg(
+    'Pour envoyer votre demande, corrigez le numéro de téléphone de votre profil.'
+  ),
 };
 const BLOCKER_ORDER = Object.keys(BLOCKER_VIEW);
 
-export function giftBlockerView(blockers, options) {
+export function giftBlockerView(blockers, options = {}) {
+  const t = options.t ?? frenchT;
   if (!blockers?.length) return null;
   const known = blockers.filter((blocker) => BLOCKER_VIEW[blocker]);
   if (!known.length) {
@@ -235,59 +251,80 @@ export function giftBlockerView(blockers, options) {
       : '';
     return {
       blocker: blockers[0],
-      text: 'Pour envoyer votre demande, complétez d’abord votre compte.',
+      text: t('Pour envoyer votre demande, complétez d’abord votre compte.'),
       href: `/compte${back}`,
-      action: 'Mon compte',
+      action: t('Mon compte'),
     };
   }
   const first = BLOCKER_ORDER.find((blocker) => known.includes(blocker));
   const [step] = giftReadinessSteps([first], options);
   return {
     blocker: first,
-    text: BLOCKER_VIEW[first],
+    text: t(BLOCKER_VIEW[first]),
     href: step?.href ?? null,
     action: step?.action ?? null,
   };
 }
 
-function waitText(seconds) {
-  if (!seconds) return 'plus tard';
-  if (seconds < 90) return 'dans quelques instants';
+function waitText(seconds, t) {
+  if (!seconds) return t('plus tard');
+  if (seconds < 90) return t('dans quelques instants');
   const hours = Math.ceil(seconds / 3600);
-  if (seconds < 3600) return `dans ${Math.ceil(seconds / 60)} minutes`;
-  return hours === 1 ? 'dans 1 heure' : `dans ${hours} heures`;
+  if (seconds < 3600) {
+    return t('dans {n} minute|dans {n} minutes', {
+      n: Math.ceil(seconds / 60),
+    });
+  }
+  return t('dans {n} heure|dans {n} heures', { n: hours });
 }
 
 /** API error of a gift card call → French message. */
-export function giftCardErrorMessage(error) {
+export function giftCardErrorMessage(error, t = frenchT) {
   switch (error?.code) {
     case 'GIFT_CARD_REQUEST_NOT_READY':
-      return 'Votre compte doit être complété avant d’envoyer la demande.';
+      return t('Votre compte doit être complété avant d’envoyer la demande.');
     case 'GIFT_CARD_REQUEST_LIMIT_REACHED':
-      return `Vous avez envoyé plusieurs demandes aujourd’hui. Réessayez ${waitText(error.retryAfterSeconds)}.`;
+      return t(
+        'Vous avez envoyé plusieurs demandes aujourd’hui. Réessayez {wait}.',
+        {
+          wait: waitText(error.retryAfterSeconds, t),
+        }
+      );
     case 'GIFT_CARD_REQUEST_BUSY':
-      return 'Le service est momentanément occupé. Réessayez dans quelques secondes.';
+      return t(
+        'Le service est momentanément occupé. Réessayez dans quelques secondes.'
+      );
     case 'IDEMPOTENCY_KEY_REUSED':
-      return 'La demande a changé pendant l’envoi. Vérifiez-la puis renvoyez-la.';
+      return t(
+        'La demande a changé pendant l’envoi. Vérifiez-la puis renvoyez-la.'
+      );
     case 'VALIDATION_FAILED':
-      return 'Certaines informations sont invalides. Vérifiez le formulaire.';
+      return t(
+        'Certaines informations sont invalides. Vérifiez le formulaire.'
+      );
     case 'GIFT_CARD_REQUEST_NOT_FOUND':
-      return 'Demande introuvable.';
+      return t('Demande introuvable.');
     case 'GIFT_CARD_STATUS_TRANSITION_NOT_ALLOWED':
-      return 'Ce changement de statut n’est plus possible : la demande vient d’être mise à jour.';
+      return t(
+        'Ce changement de statut n’est plus possible : la demande vient d’être mise à jour.'
+      );
     case 'FORBIDDEN':
-      return 'Vous n’avez pas accès à cette page.';
+      return t('Vous n’avez pas accès à cette page.');
     case 'AUTH_REQUIRED':
     case 'INVALID_TOKEN':
     case 'TOKEN_EXPIRED':
     case 'SESSION_REVOKED':
-      return 'Votre session a expiré. Veuillez vous reconnecter.';
+      return t('Votre session a expiré. Veuillez vous reconnecter.');
     case 'AUTH_UNAVAILABLE':
-      return 'Le service de compte est momentanément indisponible. Réessayez dans quelques instants.';
+      return t(
+        'Le service de compte est momentanément indisponible. Réessayez dans quelques instants.'
+      );
     case 'NETWORK_ERROR':
-      return 'Impossible de joindre le service. Vérifiez votre connexion et réessayez.';
+      return t(
+        'Impossible de joindre le service. Vérifiez votre connexion et réessayez.'
+      );
     default:
-      return 'Une erreur est survenue. Réessayez dans quelques instants.';
+      return t('Une erreur est survenue. Réessayez dans quelques instants.');
   }
 }
 

@@ -1,10 +1,18 @@
 'use client';
 
 import { useId, useRef, useState, useSyncExternalStore } from 'react';
-import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 
 import AdminShell, { AdminError } from '@/components/admin/AdminShell';
+import {
+  Link,
+  useFormat,
+  useRouter,
+  useServiceName,
+  useT,
+} from '@/i18n/client';
+import { msg } from '@/i18n/translate';
+import { rich } from '@/i18n/rich';
 import BlockDialog, { BLOCK_STYLE } from '@/components/admin/BlockDialog';
 import { useAccountData } from '@/components/auth/useAccountData';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
@@ -29,15 +37,7 @@ import {
   cancelledByLabel,
 } from '@/lib/booking/labels';
 import { toMinutes } from '@/lib/booking/schedule';
-import {
-  addDays,
-  formatDateTime,
-  formatDuration,
-  formatPrice,
-  formatTime,
-  localDateOf,
-  studioToday,
-} from '@/lib/format';
+import { addDays, localDateOf, studioToday } from '@/lib/format';
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 /** The day agenda lives inside the calendar (no separate tab). */
@@ -49,14 +49,14 @@ const BREAK_MINUTES = 15; // docs/booking.md §2: one break after each session
 const checkDays = validatorFor('scheduleDays');
 
 const PHASE_LABEL = {
-  upcoming: 'confirmé',
-  in_progress: 'en cours',
-  finished: 'terminé',
-  cancelled: 'annulé',
+  upcoming: msg('confirmé'),
+  in_progress: msg('en cours'),
+  finished: msg('terminé'),
+  cancelled: msg('annulé'),
 };
 
 /** "4 rendez-vous · 5 h réservées · 1 annulé · 1 indisponibilité". */
-function daySummary(bookings, blockCount = 0) {
+function daySummary(bookings, blockCount = 0, t) {
   const confirmed = bookings.filter((b) => b.status !== 'cancelled');
   const minutes = confirmed.reduce(
     (sum, b) => sum + (Date.parse(b.endsAt) - Date.parse(b.startsAt)) / 60_000,
@@ -66,13 +66,13 @@ function daySummary(bookings, blockCount = 0) {
   const hours = Math.floor(minutes / 60);
   const rest = Math.round(minutes % 60);
   const time = hours
-    ? `${hours} h${rest ? ` ${String(rest).padStart(2, '0')}` : ''}`
-    : `${rest} min`;
+    ? `${hours} ${t('h')}${rest ? ` ${String(rest).padStart(2, '0')}` : ''}`
+    : `${rest} ${t('min')}`;
   return [
-    `${confirmed.length} rendez-vous`,
-    confirmed.length ? `${time} réservées` : null,
-    cancelled ? `${cancelled} annulé${cancelled > 1 ? 's' : ''}` : null,
-    blockCount ? blocksCountLabel(blockCount) : null,
+    t('{n} rendez-vous|{n} rendez-vous', { n: confirmed.length }),
+    confirmed.length ? t('{time} réservées', { time }) : null,
+    cancelled ? t('{n} annulé|{n} annulés', { n: cancelled }) : null,
+    blockCount ? blocksCountLabel(blockCount, t) : null,
   ]
     .filter(Boolean)
     .join(' · ');
@@ -114,6 +114,9 @@ function DayTimeline({
   onSelect,
   onOpenBlock,
 }) {
+  const t = useT();
+  const serviceName = useServiceName();
+  const { formatDuration, formatTime } = useFormat();
   const state = dayState(scheduleDay);
   const spans = layoutLanes(agendaItems(bookings, blocks, date, timeZone));
   const hoursOpen = state.kind === 'open' ? state.hours : [];
@@ -137,10 +140,10 @@ function DayTimeline({
   );
   const closedLabel =
     state.kind === 'closed'
-      ? 'Fermé aux nouvelles réservations'
+      ? t('Fermé aux nouvelles réservations')
       : state.kind === 'off'
-        ? 'Jour de repos'
-        : 'Pause · fermé';
+        ? t('Jour de repos')
+        : t('Pause · fermé');
   const gaps =
     state.kind === 'open'
       ? gapsOf(state.hours, fromHour * 60, toHour * 60)
@@ -150,7 +153,7 @@ function DayTimeline({
 
   return (
     <section
-      aria-label="Planning du jour"
+      aria-label={t('Planning du jour')}
       className="rounded-panel flex gap-3 border border-black/10 bg-white p-4 sm:p-6"
     >
       <div aria-hidden className="relative w-12 shrink-0" style={{ height }}>
@@ -205,12 +208,12 @@ function DayTimeline({
                 }}
               >
                 <span className="text-xs font-semibold">
-                  {blockTimeLabel(item, date)} · indisponible
+                  {blockTimeLabel(item, date, t)} · {t('indisponible')}
                 </span>
                 <span className="w-full truncate text-sm font-semibold">
                   {item.title}
                 </span>
-                <span className="sr-only"> — modifier ou supprimer</span>
+                <span className="sr-only">{t(' — modifier ou supprimer')}</span>
               </button>
             );
           }
@@ -249,15 +252,15 @@ function DayTimeline({
               >
                 <span className="text-xs font-semibold">
                   {formatTime(booking.startsAt)}–{formatTime(booking.endsAt)}
-                  {cancelled ? ' · annulé' : ''}
+                  {cancelled ? ` · ${t('annulé')}` : ''}
                 </span>
                 <span className="w-full truncate text-sm font-semibold">
-                  {booking.client.name ?? 'Nom non renseigné'}
+                  {booking.client.name ?? t('Nom non renseigné')}
                 </span>
                 <span
                   className={`w-full truncate text-xs ${selected ? 'text-secondary-200' : ''}`}
                 >
-                  {booking.service.name} ·{' '}
+                  {serviceName(booking.service)} ·{' '}
                   {formatDuration(booking.service.durationMinutes)}
                 </span>
               </button>
@@ -298,6 +301,10 @@ function ContactRow({ href, icon, children }) {
 
 /** The selected booking: contact, emails and cancellation, on the side. */
 function BookingPanel({ booking, controller, onChanged }) {
+  const t = useT();
+  const serviceName = useServiceName();
+  const { formatDateTime, formatDuration, formatPrice, formatTime } =
+    useFormat();
   const [reason, setReason] = useState('');
   const [confirming, setConfirming] = useState(false);
   const [pending, setPending] = useState(false);
@@ -323,8 +330,10 @@ function BookingPanel({ booking, controller, onChanged }) {
       onChanged(result.booking);
       setDone(
         result.changed
-          ? 'Rendez-vous annulé. Le client est prévenu par e-mail si l’envoi est actif.'
-          : 'Ce rendez-vous était déjà annulé.'
+          ? t(
+              'Rendez-vous annulé. Le client est prévenu par e-mail si l’envoi est actif.'
+            )
+          : t('Ce rendez-vous était déjà annulé.')
       );
       setConfirming(false);
       setReason('');
@@ -338,7 +347,7 @@ function BookingPanel({ booking, controller, onChanged }) {
 
   return (
     <aside
-      aria-label="Rendez-vous sélectionné"
+      aria-label={t('Rendez-vous sélectionné')}
       className="rounded-panel flex flex-col gap-5 border border-black/10 bg-white p-6 sm:p-7 lg:sticky lg:top-6"
     >
       <div className="flex flex-col gap-1">
@@ -346,13 +355,15 @@ function BookingPanel({ booking, controller, onChanged }) {
           className={`font-montserrat text-label-sm font-semibold uppercase ${cancelled ? 'text-gray-800' : 'text-primary-300'}`}
         >
           {formatTime(booking.startsAt)}–{formatTime(booking.endsAt)} ·{' '}
-          {PHASE_LABEL[booking.phase] ?? booking.phase}
+          {PHASE_LABEL[booking.phase]
+            ? t(PHASE_LABEL[booking.phase])
+            : booking.phase}
         </p>
         <h2 className="font-faustina text-third-900 text-[1.875rem] leading-tight font-medium break-words">
-          {booking.client.name ?? 'Nom non renseigné'}
+          {booking.client.name ?? t('Nom non renseigné')}
         </h2>
         <p className="font-montserrat text-body-sm text-gray-800">
-          {booking.service.name} ·{' '}
+          {serviceName(booking.service)} ·{' '}
           {formatDuration(booking.service.durationMinutes)} ·{' '}
           {formatPrice(booking.service.priceCents, booking.service.currency)}
         </p>
@@ -388,30 +399,35 @@ function BookingPanel({ booking, controller, onChanged }) {
 
       <div className="flex flex-col gap-2.5 border-t border-black/[0.08] pt-4">
         <h3 className="font-montserrat text-label-sm font-semibold text-gray-800 uppercase">
-          E-mails
+          {t('E-mails')}
         </h3>
         {notifications.length ? (
           <ul className="font-montserrat text-body-sm flex flex-col gap-2">
             {notifications.flatMap((entry) =>
               [
-                ['client', 'client', entry.client],
-                ['studio', 'cabinet', entry.studio],
+                ['client', t('client'), entry.client],
+                ['studio', t('cabinet'), entry.studio],
               ].map(([key, who, result]) => (
                 <li
                   key={`${entry.event}-${entry.occurredAt}-${key}`}
                   className="flex justify-between gap-3"
                 >
                   <span className="text-gray-900">
-                    {NOTIFICATION_EVENTS[entry.event] ?? 'Modification'} → {who}
+                    {t(NOTIFICATION_EVENTS[entry.event] ?? 'Modification')} →{' '}
+                    {who}
                   </span>
                   <span
                     className={`text-right font-medium ${MAIL_TONE[result?.status] ?? 'text-gray-800'}`}
                   >
-                    {ADMIN_NOTIFICATION_STATUS[result?.status] ?? '—'}
+                    {ADMIN_NOTIFICATION_STATUS[result?.status]
+                      ? t(ADMIN_NOTIFICATION_STATUS[result.status])
+                      : '—'}
                     {result?.reason ? (
                       <span className="block text-xs font-normal">
-                        {ADMIN_NOTIFICATION_REASONS[result.reason] ??
-                          ADMIN_NOTIFICATION_REASONS.other}
+                        {t(
+                          ADMIN_NOTIFICATION_REASONS[result.reason] ??
+                            ADMIN_NOTIFICATION_REASONS.other
+                        )}
                       </span>
                     ) : null}
                   </span>
@@ -421,7 +437,7 @@ function BookingPanel({ booking, controller, onChanged }) {
           </ul>
         ) : (
           <p className="font-montserrat text-body-sm text-gray-800">
-            Aucun e-mail enregistré pour ce rendez-vous.
+            {t('Aucun e-mail enregistré pour ce rendez-vous.')}
           </p>
         )}
       </div>
@@ -430,8 +446,10 @@ function BookingPanel({ booking, controller, onChanged }) {
 
       {cancelled && booking.cancellation ? (
         <p className="font-montserrat text-body-sm border-t border-black/[0.08] pt-4 text-gray-800">
-          Annulé {cancelledByLabel(booking.cancellation.by)} le{' '}
-          {formatDateTime(booking.cancellation.at)}
+          {t('Annulé {by} le {date}', {
+            by: cancelledByLabel(booking.cancellation.by, t),
+            date: formatDateTime(booking.cancellation.at),
+          })}
           {booking.cancellation.reason
             ? ` — motif : ${booking.cancellation.reason}`
             : ''}
@@ -444,8 +462,10 @@ function BookingPanel({ booking, controller, onChanged }) {
             htmlFor={reasonId}
             className="font-montserrat text-body-sm font-medium text-gray-900"
           >
-            Motif d’annulation{' '}
-            <span className="font-normal text-gray-800">(facultatif)</span>
+            {t('Motif d’annulation')}{' '}
+            <span className="font-normal text-gray-800">
+              {t('(facultatif)')}
+            </span>
           </label>
           <textarea
             id={reasonId}
@@ -463,7 +483,7 @@ function BookingPanel({ booking, controller, onChanged }) {
             }}
             className="font-montserrat text-label border-error text-error hover:bg-error/5 focus-visible:outline-error min-h-12 rounded-full border font-medium tracking-wide uppercase transition-colors focus-visible:outline-2 focus-visible:outline-offset-2"
           >
-            Annuler ce rendez-vous
+            {t('Annuler ce rendez-vous')}
           </button>
         </div>
       ) : null}
@@ -472,22 +492,27 @@ function BookingPanel({ booking, controller, onChanged }) {
         href={`/admin/reservations/${booking.id}?date=${booking.startsAt ? localDateOf(booking.startsAt) : ''}`}
         className="font-montserrat text-body-sm hover:text-third-200 self-start text-gray-800 underline underline-offset-4"
       >
-        Historique complet
+        {t('Historique complet')}
       </Link>
 
       <ConfirmDialog
         open={confirming}
-        title="Annuler ce rendez-vous ?"
-        confirmLabel="Oui, annuler"
-        cancelLabel="Garder"
+        title={t('Annuler ce rendez-vous ?')}
+        confirmLabel={t('Oui, annuler')}
+        cancelLabel={t('Garder')}
         pending={pending}
-        error={error ? bookingErrorMessage(error) : null}
+        error={error ? bookingErrorMessage(error, t) : null}
         onConfirm={cancel}
         onClose={() => setConfirming(false)}
       >
-        {booking.client.name ?? 'Ce client'} —{' '}
-        {formatDateTime(booking.startsAt)}, {booking.service.name}. L’horaire
-        est libéré et le client est prévenu par e-mail (si l’envoi est actif).
+        {t(
+          '{client} — {date}, {service}. L’horaire est libéré et le client est prévenu par e-mail (si l’envoi est actif).',
+          {
+            client: booking.client.name ?? t('Ce client'),
+            date: formatDateTime(booking.startsAt),
+            service: serviceName(booking.service),
+          }
+        )}
         {reason.trim() ? ` Motif : « ${reason.trim()} ».` : ''}
       </ConfirmDialog>
     </aside>
@@ -502,6 +527,7 @@ function defaultSelection(bookings) {
 }
 
 function DayContent({ date, today, enabled, controller, header }) {
+  const t = useT();
   const bookings = useAccountData(`/api/admin/bookings?date=${date}`, {
     enabled,
   });
@@ -520,7 +546,7 @@ function DayContent({ date, today, enabled, controller, header }) {
       <>
         {header('')}
         <p role="status" className="font-montserrat text-body text-gray-800">
-          Chargement des rendez-vous…
+          {t('Chargement des rendez-vous…')}
         </p>
       </>
     );
@@ -532,7 +558,7 @@ function DayContent({ date, today, enabled, controller, header }) {
         <AdminError
           error={bookings.error}
           onRetry={bookings.reload}
-          message={bookingErrorMessage(bookings.error)}
+          message={bookingErrorMessage(bookings.error, t)}
         />
       </>
     );
@@ -555,10 +581,14 @@ function DayContent({ date, today, enabled, controller, header }) {
     setEditor(null);
     setBlockNotice(
       action === 'deleted'
-        ? 'Indisponibilité supprimée : le créneau est de nouveau réservable selon les horaires.'
+        ? t(
+            'Indisponibilité supprimée : le créneau est de nouveau réservable selon les horaires.'
+          )
         : action === 'created'
-          ? 'Indisponibilité ajoutée : les clients ne peuvent plus réserver ce créneau.'
-          : 'Indisponibilité modifiée.'
+          ? t(
+              'Indisponibilité ajoutée : les clients ne peuvent plus réserver ce créneau.'
+            )
+          : t('Indisponibilité modifiée.')
     );
   };
   const canAdd = Boolean(today) && date >= today;
@@ -581,8 +611,8 @@ function DayContent({ date, today, enabled, controller, header }) {
     <>
       {header(
         list.length || blocks.length
-          ? daySummary(list, blocks.length)
-          : 'Aucun rendez-vous'
+          ? daySummary(list, blocks.length, t)
+          : t('Aucun rendez-vous')
       )}
       <div className="flex flex-wrap items-center gap-3">
         <button
@@ -595,17 +625,18 @@ function DayContent({ date, today, enabled, controller, header }) {
           disabled={!today}
           className="font-montserrat text-body-sm hover:border-third-200 focus-visible:outline-third-200 min-h-11 rounded-full border border-black/20 bg-white px-5 font-medium text-gray-900 transition-colors focus-visible:outline-2 disabled:opacity-50"
         >
-          <span aria-hidden>+ </span>Ajouter une indisponibilité
+          <span aria-hidden>+ </span>
+          {t('Ajouter une indisponibilité')}
         </button>
         {schedule.status === 'error' ? (
           <p className="font-montserrat text-body-sm text-error">
-            Horaires et indisponibilités non chargés.{' '}
+            {t('Horaires et indisponibilités non chargés.')}{' '}
             <button
               type="button"
               onClick={schedule.reload}
               className="underline underline-offset-2"
             >
-              Réessayer
+              {t('Réessayer')}
             </button>
           </p>
         ) : null}
@@ -647,10 +678,10 @@ function DayContent({ date, today, enabled, controller, header }) {
           ) : (
             <div className="rounded-panel bg-secondary-50 flex flex-col items-center gap-2 border border-dashed border-black/15 px-6 py-10 text-center">
               <p className="font-faustina text-third-900 text-2xl">
-                Aucun rendez-vous
+                {t('Aucun rendez-vous')}
               </p>
               <p className="font-montserrat text-body-sm text-gray-800">
-                Rien de prévu ce jour-là.
+                {t('Rien de prévu ce jour-là.')}
               </p>
             </div>
           )}
@@ -698,6 +729,7 @@ function Chevron({ back = false }) {
  * results, cancellation with an optional reason).
  */
 export default function AdminDayBookings() {
+  const t = useT();
   const router = useRouter();
   const searchParams = useSearchParams();
   const today = useSyncExternalStore(noopSubscribe, studioToday, () => null);
@@ -711,7 +743,11 @@ export default function AdminDayBookings() {
     <AdminShell
       title={
         <>
-          Agenda du <span className="heading-accent">jour</span>
+          {rich(t('Agenda du <accent>jour</accent>'), {
+            accent: (chunks) => (
+              <span className="heading-accent">{chunks}</span>
+            ),
+          })}
         </>
       }
       current="calendrier"
@@ -724,7 +760,7 @@ export default function AdminDayBookings() {
               href={`/admin/calendrier?date=${date}`}
               className="font-montserrat text-body-sm hover:border-third-200 focus-visible:outline-third-200 flex min-h-11 w-fit items-center gap-2 rounded-full border border-black/15 bg-white px-5 text-gray-900 transition-colors focus-visible:outline-2"
             >
-              <span aria-hidden>←</span> Calendrier
+              <span aria-hidden>←</span> {t('Calendrier')}
             </Link>
             <DayContent
               key={date}
@@ -739,14 +775,14 @@ export default function AdminDayBookings() {
                       <button
                         type="button"
                         onClick={() => go(addDays(date, -1))}
-                        aria-label="Jour précédent"
+                        aria-label={t('Jour précédent')}
                         className={roundButton}
                       >
                         <Chevron back />
                       </button>
                       <DateField
                         variant="title"
-                        label="Journée"
+                        label={t('Journée')}
                         value={date}
                         today={today}
                         onChange={go}
@@ -754,7 +790,7 @@ export default function AdminDayBookings() {
                       <button
                         type="button"
                         onClick={() => go(addDays(date, 1))}
-                        aria-label="Jour suivant"
+                        aria-label={t('Jour suivant')}
                         className={roundButton}
                       >
                         <Chevron />
@@ -766,7 +802,7 @@ export default function AdminDayBookings() {
                       disabled={date === today}
                       className="font-montserrat text-body-sm hover:border-third-200 focus-visible:outline-third-200 min-h-11 rounded-full border border-black/20 bg-white px-5 font-medium text-gray-900 transition-colors focus-visible:outline-2 disabled:opacity-50"
                     >
-                      Aujourd’hui
+                      {t('Aujourd’hui')}
                     </button>
                   </div>
                   <p
@@ -781,7 +817,7 @@ export default function AdminDayBookings() {
           </div>
         ) : (
           <p role="status" className="font-montserrat text-body text-gray-800">
-            Chargement…
+            {t('Chargement…')}
           </p>
         )
       }

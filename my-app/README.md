@@ -35,14 +35,15 @@ below).
 The same commands run in CI (`.github/workflows/ci.yml` at the repository
 root, on pull requests to `develop` and `main`, Node 24):
 
-| Command                               | What                                                                  |
-| ------------------------------------- | --------------------------------------------------------------------- |
-| `npm run lint`                        | ESLint (next/core-web-vitals + Prettier compat)                       |
-| `npx prettier . --check`              | Formatting                                                            |
-| `npm test`                            | Unit tests, `tests/**/*.test.mjs` (`node --test`, no network)         |
-| `npm run build`                       | Production build                                                      |
-| `npm run test:e2e`                    | Browser tests against an isolated local stack (local only, see below) |
-| `npm run contract:check -- <openapi>` | Backend OpenAPI vs the snapshot the site was checked against          |
+| Command                               | What                                                                       |
+| ------------------------------------- | -------------------------------------------------------------------------- |
+| `npm run lint`                        | ESLint (next/core-web-vitals + Prettier compat)                            |
+| `npx prettier . --check`              | Formatting                                                                 |
+| `npm test`                            | Unit tests, `tests/**/*.test.mjs` (`node --test`, no network)              |
+| `npm run build`                       | Production build                                                           |
+| `npm run test:e2e`                    | Browser tests against an isolated local stack (local only, see below)      |
+| `npm run i18n:catalog`                | Catalogue texts of the API changed since their translation (see Languages) |
+| `npm run contract:check -- <openapi>` | Backend OpenAPI vs the snapshot the site was checked against               |
 
 ## Structure
 
@@ -185,6 +186,56 @@ Studio time zone Europe/Paris, prices in euro cents, payment on site.
   is cleared and the week is reloaded. An expired session shows « Se
   reconnecter » back to the same time.
 - Booking happens only on this site. Planity is a secondary footer link.
+
+## Languages (FR · EN · UK · RU)
+
+French is the main language and keeps the unprefixed URLs (`/reserver`);
+English, Ukrainian and Russian live under `/en/…`, `/uk/…`, `/ru/…` (same
+French slugs). All four are indexed: own title/description, canonical on
+the page's own language, `hreflang` for the four + `x-default` (French),
+`<html lang>`, sitemap entries with alternates, JSON-LD in the page's
+language (same `@id`). The administration exists in French (`/admin`) and
+Ukrainian (`/uk/admin`) only.
+
+- **Routing** — `src/proxy.js` + `src/i18n/routing.js` (tested): French
+  URLs are rewritten to `app/[lang]` with `lang = fr`; `/fr/…` redirects
+  (308) to the unprefixed URL; `/en/admin`, `/ru/admin` go to `/admin`. The
+  header switcher opens the same page in the other language and stores the
+  choice in a cookie (`site_locale`, admin: `admin_locale`); on the next
+  page load of a French URL the person is sent to that language. Robots
+  carry no cookie and see the language of the URL; there is no redirect
+  from the browser's language.
+- **Texts** — the French text is the key (gettext style):
+  `t('Prendre rendez-vous')`, `t('Bonjour, {name}', { name })`, plurals
+  `t('{n} horaire|{n} horaires', { n })`, markup through `rich()`
+  (`<accent>…</accent>`). Constants are marked with `msg('…')` and
+  translated where shown. Translations: `src/i18n/messages/{en,uk,ru}.js`,
+  administration `admin.uk.js`. Client components: `useT()`, `useFormat()`,
+  `Link`/`useRouter` from `@/i18n/client` (internal paths are localized);
+  server components: `getT()` / `getFormat()` from `@/i18n/server` after
+  `setRequestLocale(lang)` in each page and layout.
+- **Adding or changing a French text** — `npm test` fails while a key has no
+  translation (`tests/i18n/messages.test.mjs`);
+  `node scripts/i18n-keys.mjs` lists what is missing per language.
+- **Catalogue translations** (names, descriptions, features from the API,
+  French only) — `src/content/i18n/serviceNames.js` (by prestation key) and
+  `serviceTexts.js` (by service id), each next to the French text of the API
+  it was made from. While the API text equals that source the translation is
+  shown; when the backend text changes, the page shows the French text for
+  that service until the translation is updated. To find what to
+  re-translate: `npm run i18n:catalog` (reads `GET /api/services` of
+  `NEXT_PUBLIC_API_BASE_URL`, lists every changed text with the new French
+  one); update the translation **and** its `fr` source there. Prices,
+  durations and availability are never translated data.
+- **Stays French on purpose** — Planity reviews (original language, marked
+  `lang="fr"`); the newsletter consent text, bound to the version the API
+  checks (`src/config/marketing.js`): other languages show it in French
+  with a translation below, marked as non-binding; emails (sent by the
+  backend, French); the line « Soin offert : … » of a gift card request
+  (read by the studio); names the API returns inside admin answers
+  (`serviceName` of conflicts).
+- **Fonts** — Montserrat has Cyrillic (loaded only when needed); Faustina
+  has none, so `uk`/`ru` pages set headings in Piazzolla.
 
 ## Browser tests (Playwright)
 

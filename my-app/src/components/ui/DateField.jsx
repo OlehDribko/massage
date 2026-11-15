@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 
 import DatePicker from '@/components/ui/DatePicker';
-import { formatLocalDate } from '@/lib/format';
+import { useFormat, useT } from '@/i18n/client';
 
 function CalendarIcon() {
   return (
@@ -37,6 +37,8 @@ export default function DateField({
   describedBy,
   buttonId,
 }) {
+  const t = useT();
+  const { formatLocalDate } = useFormat();
   const [open, setOpen] = useState(false);
   const rootRef = useRef(null);
   const panelId = useId();
@@ -67,12 +69,15 @@ export default function DateField({
           type="button"
           aria-expanded={open}
           aria-controls={panelId}
-          aria-label={`${label} : ${value ? formatLocalDate(value, { year: true }) : ''} — changer de date`}
+          aria-label={t('{label} : {date} — changer de date', {
+            label,
+            date: value ? formatLocalDate(value, { year: true }) : '',
+          })}
           onClick={() => setOpen((current) => !current)}
           className="font-faustina text-third-900 hover:text-third-200 focus-visible:outline-third-200 flex min-w-0 items-center gap-1.5 rounded-xl px-1 text-[1.5rem] leading-tight transition-colors focus-visible:outline-2 sm:gap-2 sm:px-2 sm:text-[2.125rem]"
         >
           <span className="first-letter:uppercase">
-            {value ? formatLocalDate(value) : 'Choisir'}
+            {value ? formatLocalDate(value) : t('Choisir')}
           </span>
           <svg
             viewBox="0 0 24 24"
@@ -101,7 +106,7 @@ export default function DateField({
               {label}
             </span>
             <span className="font-medium first-letter:uppercase">
-              {value ? formatLocalDate(value, { year: true }) : 'Choisir'}
+              {value ? formatLocalDate(value, { year: true }) : t('Choisir')}
             </span>
           </span>
         </button>

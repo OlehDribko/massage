@@ -4,6 +4,8 @@
  * part of the day in studio time. Pure — tested with `node --test`.
  */
 
+import { msg } from '../../i18n/translate.js';
+
 import { formatTime, localDateOf } from '../format.js';
 
 /** The picker shows one week (7 studio days) at a time. */
@@ -27,9 +29,9 @@ export function weekOf(startsAt, today) {
 }
 
 export const DAY_PERIODS = [
-  { key: 'morning', label: 'Matin', until: 12 * 60 },
-  { key: 'afternoon', label: 'Après-midi', until: 18 * 60 },
-  { key: 'evening', label: 'Soir', until: 24 * 60 },
+  { key: 'morning', label: msg('Matin'), until: 12 * 60 },
+  { key: 'afternoon', label: msg('Après-midi'), until: 18 * 60 },
+  { key: 'evening', label: msg('Soir'), until: 24 * 60 },
 ];
 
 /** "09:15" → 555. */

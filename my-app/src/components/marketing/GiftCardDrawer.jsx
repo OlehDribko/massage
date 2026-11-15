@@ -1,14 +1,13 @@
 'use client';
 
 import { useEffect, useId, useRef, useState } from 'react';
-import Link from 'next/link';
+import { Link, useFormat, useServiceName, useT } from '@/i18n/client';
 import { usePathname } from 'next/navigation';
 
 import { useAuth } from '@/components/auth/AuthProvider';
 import MaskIcon from '@/components/ui/MaskIcon';
 import { BUSINESS } from '@/config/site';
 import { currentProfile } from '@/lib/auth/session';
-import { formatPrice } from '@/lib/format';
 import { SERVICE_GROUPS } from '@/content/services';
 import { fetchServices } from '@/lib/api/public';
 import { buildCatalog } from '@/lib/booking/catalog';
@@ -93,15 +92,16 @@ const SUBMIT =
 
 /** Contacts of the profile, shown for information only (never sent). */
 function ProfileContacts({ profile, onLeave }) {
+  const t = useT();
   return (
     <div className="flex flex-col gap-3 rounded-2xl border border-white/10 p-4">
-      <p className={LABEL}>Nous vous contacterons à</p>
+      <p className={LABEL}>{t('Nous vous contacterons à')}</p>
       <dl className="font-montserrat text-body-sm grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1.5 text-gray-100">
-        <dt className="text-gray-800">Nom</dt>
+        <dt className="text-gray-800">{t('Nom')}</dt>
         <dd className="break-words text-gray-50">{profile.name}</dd>
-        <dt className="text-gray-800">E-mail</dt>
+        <dt className="text-gray-800">{t('E-mail')}</dt>
         <dd className="break-all text-gray-50">{profile.email}</dd>
-        <dt className="text-gray-800">Téléphone</dt>
+        <dt className="text-gray-800">{t('Téléphone')}</dt>
         <dd className="text-gray-50">{profile.phone}</dd>
       </dl>
       <Link
@@ -109,7 +109,7 @@ function ProfileContacts({ profile, onLeave }) {
         onClick={onLeave}
         className="font-montserrat text-body-sm text-primary-200 hover:text-primary-100 w-fit underline underline-offset-4"
       >
-        Modifier mon profil
+        {t('Modifier mon profil')}
       </Link>
     </div>
   );
@@ -129,6 +129,9 @@ export function RequestForm({
   onBlocked,
   onLeave,
 }) {
+  const t = useT();
+  const serviceName = useServiceName();
+  const { formatDuration, formatPrice } = useFormat();
   const [kind, setKind] = useState('amount');
   const [soinId, setSoinId] = useState('');
   const soins = useSoins();
@@ -170,17 +173,17 @@ export function RequestForm({
         ? soin
           ? { cents: soin.cents }
           : { error: null }
-        : parseEuroAmount(amount);
+        : parseEuroAmount(amount, t);
     const found = {
       amount: kind === 'amount' ? (parsed.error ?? null) : null,
-      soin: kind === 'soin' && !soin ? 'Choisissez le soin à offrir.' : null,
+      soin: kind === 'soin' && !soin ? t('Choisissez le soin à offrir.') : null,
       description:
         description.trim().length > limit
-          ? `${limit} caractères maximum.`
-          : descriptionError(description),
+          ? t('{n} caractères maximum.', { n: limit })
+          : descriptionError(description, t),
       channel: channel
         ? null
-        : 'Choisissez comment vous préférez être contacté.',
+        : t('Choisissez comment vous préférez être contacté.'),
     };
     setErrors(found);
     const first = ['amount', 'soin', 'description', 'channel'].find(
@@ -232,7 +235,7 @@ export function RequestForm({
       <div className="flex flex-col gap-6">
         <fieldset className="flex flex-col gap-3">
           <legend className={`${LABEL} mb-3`}>
-            Que souhaitez-vous offrir ? *
+            {t('Que souhaitez-vous offrir ? *')}
           </legend>
           <div className="flex flex-wrap gap-2">
             {GIFT_KINDS.map((option) => (
@@ -251,7 +254,7 @@ export function RequestForm({
                   }}
                   className="sr-only"
                 />
-                {option.label}
+                {t(option.label)}
               </label>
             ))}
           </div>
@@ -260,12 +263,13 @@ export function RequestForm({
         {kind === 'soin' ? (
           <div className="flex flex-col gap-0.5">
             <label htmlFor={ids.soin} className={LABEL}>
-              Soin offert *
+              {t('Soin offert *')}
             </label>
             {soins.state === 'error' ? (
               <p className="font-montserrat text-body-sm pt-1 text-gray-200">
-                La liste des soins est indisponible pour le moment. Choisissez «
-                Un montant » et précisez le soin dans votre message.
+                {t(
+                  'La liste des soins est indisponible pour le moment. Choisissez « Un montant » et précisez le soin dans votre message.'
+                )}
               </p>
             ) : (
               <select
@@ -283,18 +287,21 @@ export function RequestForm({
               >
                 <option value="" className="text-gray-900">
                   {soins.state === 'loading'
-                    ? 'Chargement des soins…'
-                    : 'Choisir un soin'}
+                    ? t('Chargement des soins…')
+                    : t('Choisir un soin')}
                 </option>
                 {soins.groups.map((group) => (
                   <optgroup
                     key={group.name}
-                    label={group.name}
+                    label={serviceName({
+                      id: group.options[0]?.id,
+                      name: group.name,
+                    })}
                     className="text-gray-900"
                   >
                     {group.options.map((option) => (
                       <option key={option.id} value={option.id}>
-                        {option.label} —{' '}
+                        {formatDuration(option.minutes)} —{' '}
                         {formatPrice(option.cents, option.currency)}
                       </option>
                     ))}
@@ -307,8 +314,11 @@ export function RequestForm({
               className="font-montserrat pt-1 text-xs text-gray-800"
             >
               {soin
-                ? `${soin.title} : carte de ${formatPrice(soin.cents, soin.currency)} (tarif actuel).`
-                : 'La carte vaut le prix actuel du soin choisi.'}
+                ? t('{soin} : carte de {price} (tarif actuel).', {
+                    soin: `${serviceName({ id: soin.id, name: soin.title.split(' — ')[0] })} — ${formatDuration(soin.minutes)}`,
+                    price: formatPrice(soin.cents, soin.currency),
+                  })
+                : t('La carte vaut le prix actuel du soin choisi.')}
             </p>
             <FieldError id={`${ids.soin}-error`}>{errors.soin}</FieldError>
           </div>
@@ -318,7 +328,7 @@ export function RequestForm({
           className={`flex flex-col gap-0.5 ${kind === 'amount' ? '' : 'hidden'}`}
         >
           <label htmlFor={ids.amount} className={LABEL}>
-            Montant de la carte *
+            {t('Montant de la carte *')}
           </label>
           <div className="relative">
             <input
@@ -347,21 +357,23 @@ export function RequestForm({
             id={`${ids.amount}-hint`}
             className="font-montserrat pt-1 text-xs text-gray-800"
           >
-            Montant libre en euros, par exemple 80 ou 120,50.
+            {t('Montant libre en euros, par exemple 80 ou 120,50.')}
           </p>
           <FieldError id={`${ids.amount}-error`}>{errors.amount}</FieldError>
         </div>
 
         <div className="flex flex-col gap-0.5">
           <label htmlFor={ids.description} className={LABEL}>
-            Message — facultatif
+            {t('Message — facultatif')}
           </label>
           <textarea
             id={ids.description}
             name="description"
             rows={2}
             maxLength={limit}
-            placeholder="Pour l’anniversaire de ma sœur, un massage relaxant…"
+            placeholder={t(
+              'Pour l’anniversaire de ma sœur, un massage relaxant…'
+            )}
             value={description}
             onChange={(event) => {
               setDescription(event.target.value);
@@ -388,7 +400,7 @@ export function RequestForm({
           aria-describedby={errors.channel ? `${ids.channel}-error` : undefined}
         >
           <legend className={`${LABEL} mb-3`}>
-            Comment préférez-vous être contacté ? *
+            {t('Comment préférez-vous être contacté ? *')}
           </legend>
           <div className="flex flex-wrap gap-2">
             {CONTACT_CHANNELS.map((option, index) => (
@@ -410,7 +422,7 @@ export function RequestForm({
                   }}
                   className="sr-only"
                 />
-                {option.label}
+                {t(option.label)}
               </label>
             ))}
           </div>
@@ -421,8 +433,9 @@ export function RequestForm({
       </div>
 
       <p className="font-montserrat text-xs text-gray-800">
-        Pas de paiement en ligne : la praticienne vous recontacte pour convenir
-        du règlement et de la remise de la carte.
+        {t(
+          'Pas de paiement en ligne : la praticienne vous recontacte pour convenir du règlement et de la remise de la carte.'
+        )}
       </p>
       {/* Stays at the bottom of the panel while the form scrolls, so the
           button is reachable on short screens. */}
@@ -430,7 +443,7 @@ export function RequestForm({
         <div role="alert">
           {failure ? (
             <p className="font-montserrat text-body-sm text-error">
-              {giftCardErrorMessage(failure)}
+              {giftCardErrorMessage(failure, t)}
             </p>
           ) : null}
         </div>
@@ -441,10 +454,10 @@ export function RequestForm({
           className={SUBMIT}
         >
           {pending
-            ? 'Envoi…'
+            ? t('Envoi…')
             : retryable
-              ? 'Réessayer l’envoi'
-              : 'Envoyer la demande'}
+              ? t('Réessayer l’envoi')
+              : t('Envoyer la demande')}
         </button>
       </div>
     </form>
@@ -453,26 +466,28 @@ export function RequestForm({
 
 /** Acknowledgement: the request is recorded — not paid, not issued. */
 export function Sent({ request, onAgain }) {
+  const t = useT();
+  const { formatPrice } = useFormat();
   return (
     <div role="status" className="flex flex-col gap-6">
       <p className="font-faustina text-2xl text-gray-50">
-        Demande n° {request.number} envoyée.
+        {t('Demande n° {number} envoyée.', { number: request.number })}
       </p>
       <p className="font-montserrat text-body text-gray-100">
-        Nous vous contacterons pour la suite. La carte cadeau n’est ni réglée ni
-        émise à ce stade : le règlement et la remise se font avec la
-        praticienne.
+        {t(
+          'Nous vous contacterons pour la suite. La carte cadeau n’est ni réglée ni émise à ce stade : le règlement et la remise se font avec la praticienne.'
+        )}
       </p>
       <dl className="font-montserrat text-body-sm grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1.5 rounded-2xl border border-white/10 p-4 text-gray-100">
-        <dt className="text-gray-800">Montant</dt>
+        <dt className="text-gray-800">{t('Montant')}</dt>
         <dd className="text-gray-50">{formatPrice(request.amountCents)}</dd>
-        <dt className="text-gray-800">Contact</dt>
+        <dt className="text-gray-800">{t('Contact')}</dt>
         <dd className="text-gray-50">
-          {channelLabel(request.preferredContactChannel)}
+          {channelLabel(request.preferredContactChannel, t)}
         </dd>
         {request.description ? (
           <>
-            <dt className="text-gray-800">Message</dt>
+            <dt className="text-gray-800">{t('Message')}</dt>
             <dd className="break-words whitespace-pre-line text-gray-50">
               {request.description}
             </dd>
@@ -484,7 +499,7 @@ export function Sent({ request, onAgain }) {
         onClick={onAgain}
         className="font-montserrat text-body-sm text-primary-200 self-start underline underline-offset-4"
       >
-        Faire une autre demande
+        {t('Faire une autre demande')}
       </button>
     </div>
   );
@@ -503,6 +518,7 @@ export function Sent({ request, onAgain }) {
  * <dialog>: focus stays inside, Escape and the backdrop close it.
  */
 export default function GiftCardDrawer() {
+  const t = useT();
   const dialogRef = useRef(null);
   const pathname = usePathname();
   const { enabled, controller, state, status } = useAuth();
@@ -578,36 +594,37 @@ export default function GiftCardDrawer() {
   if (!enabled || status === 'unavailable') {
     content = (
       <p className="font-montserrat text-body text-gray-100">
-        La demande en ligne est momentanément indisponible. Contactez-nous
-        directement (coordonnées ci-dessous).
+        {t(
+          'La demande en ligne est momentanément indisponible. Contactez-nous directement (coordonnées ci-dessous).'
+        )}
       </p>
     );
   } else if (sent) {
     content = <Sent request={sent} onAgain={() => setSent(null)} />;
   } else if (status === 'guest') {
-    step = giftBlockerView(['anonymous_session'], { returnTo: RETURN_TO });
+    step = giftBlockerView(['anonymous_session'], { returnTo: RETURN_TO, t });
   } else if (!view) {
     content =
       state.profile.status === 'error' ? (
         <div className="flex flex-col gap-4">
           <p className="font-montserrat text-body text-gray-100">
-            Votre profil n’a pas pu être chargé.
+            {t('Votre profil n’a pas pu être chargé.')}
           </p>
           <button
             type="button"
             onClick={() => controller.retry()}
             className="font-montserrat text-body-sm text-primary-200 self-start underline underline-offset-4"
           >
-            Réessayer
+            {t('Réessayer')}
           </button>
         </div>
       ) : (
         <p role="status" className="font-montserrat text-body text-gray-100">
-          Chargement de votre compte…
+          {t('Chargement de votre compte…')}
         </p>
       );
   } else if (blockers?.length) {
-    step = giftBlockerView(blockers, { returnTo: RETURN_TO });
+    step = giftBlockerView(blockers, { returnTo: RETURN_TO, t });
   } else {
     content = (
       <RequestForm
@@ -634,10 +651,12 @@ export default function GiftCardDrawer() {
     !step && !sent && Boolean(view) && enabled && status !== 'unavailable';
   const intro = form
     ? {
-        title: 'Demandez une carte cadeau',
-        text: 'Choisissez un montant ou une prestation et envoyez votre demande. Nous vous contacterons pour finaliser la commande.',
+        title: t('Demandez une carte cadeau'),
+        text: t(
+          'Choisissez un montant ou une prestation et envoyez votre demande. Nous vous contacterons pour finaliser la commande.'
+        ),
       }
-    : { title: 'Offrez une carte cadeau', text: step?.text ?? null };
+    : { title: t('Offrez une carte cadeau'), text: step?.text ?? null };
 
   return (
     <dialog
@@ -661,7 +680,7 @@ export default function GiftCardDrawer() {
         <button
           type="button"
           onClick={close}
-          aria-label="Fermer"
+          aria-label={t('Fermer')}
           className="hover:text-base-white focus-visible:outline-primary-200 absolute top-3 right-4 flex size-11 items-center justify-center text-gray-800 transition-colors focus-visible:outline-2 sm:top-10 sm:right-10"
         >
           <MaskIcon src="/icons/close-modal.svg" className="size-7" />
@@ -670,7 +689,7 @@ export default function GiftCardDrawer() {
         <div className="flex flex-col gap-8 sm:gap-10">
           <div className="flex flex-col gap-4">
             <p className="font-montserrat text-third-200 flex items-center gap-4 text-[11px] font-medium tracking-[0.2em] uppercase">
-              Carte cadeau
+              {t('Carte cadeau')}
               <span aria-hidden className="bg-third-200 h-px w-[54px]" />
             </p>
             <h2
@@ -691,7 +710,7 @@ export default function GiftCardDrawer() {
 
         <div className="flex flex-col gap-5 border-t border-white/10 pt-5">
           <p className="font-montserrat text-xs tracking-[0.01em] text-gray-800 uppercase">
-            Ou directement
+            {t('Ou directement')}
           </p>
           <div className="flex flex-col gap-2">
             <p className="font-montserrat text-primary-200 flex flex-wrap gap-x-6 gap-y-1 text-base">

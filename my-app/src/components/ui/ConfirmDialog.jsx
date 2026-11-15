@@ -2,6 +2,8 @@
 
 import { useEffect, useId, useRef } from 'react';
 
+import { useT } from '@/i18n/client';
+
 import PillButton from '@/components/ui/PillButton';
 
 /**
@@ -18,7 +20,7 @@ export default function ConfirmDialog({
   title,
   children,
   confirmLabel,
-  cancelLabel = 'Retour',
+  cancelLabel,
   secondaryLabel,
   onSecondary,
   pending = false,
@@ -26,6 +28,7 @@ export default function ConfirmDialog({
   onConfirm,
   onClose,
 }) {
+  const t = useT();
   const dialogRef = useRef(null);
   const titleId = useId();
   const onCloseRef = useRef(onClose);
@@ -81,7 +84,7 @@ export default function ConfirmDialog({
             disabled={pending}
             className={`disabled:opacity-60 ${secondaryLabel ? 'text-third-900 self-center sm:mr-auto' : ''}`}
           >
-            {cancelLabel}
+            {cancelLabel ?? t('Retour')}
           </PillButton>
           {secondaryLabel ? (
             <PillButton
@@ -100,7 +103,7 @@ export default function ConfirmDialog({
             aria-busy={pending}
             className="disabled:opacity-60"
           >
-            {pending ? 'Un instant…' : confirmLabel}
+            {pending ? t('Un instant…') : confirmLabel}
           </PillButton>
         </div>
       </div>

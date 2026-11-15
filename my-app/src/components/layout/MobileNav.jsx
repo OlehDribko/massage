@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import Link from 'next/link';
+import { Link, useT } from '@/i18n/client';
 
 import MaskIcon from '@/components/ui/MaskIcon';
 import PillButton from '@/components/ui/PillButton';
@@ -11,6 +11,7 @@ import PillButton from '@/components/ui/PillButton';
 // makes the page inert and closes it on Escape.
 // Account entry of the menu, with text (the bar only has the round icon).
 function AccountLinks({ account, onClose }) {
+  const t = useT();
   if (!account) return null;
   const { status } = account;
   const linkClasses =
@@ -26,25 +27,28 @@ function AccountLinks({ account, onClose }) {
         className="w-full normal-case"
       >
         <MaskIcon src="/icons/person.svg" className="size-5" />
-        Se connecter
+        {t('Se connecter')}
       </PillButton>
     );
   }
   if (status === 'member' || status === 'admin') {
     const links = [
-      account.accountHref && { href: account.accountHref, label: 'Mon compte' },
+      account.accountHref && {
+        href: account.accountHref,
+        label: t('Mon compte'),
+      },
       account.bookingsHref && {
         href: account.bookingsHref,
-        label: 'Mes réservations',
+        label: t('Mes réservations'),
       },
       status === 'admin' &&
         account.adminHref && {
           href: account.adminHref,
-          label: 'Administration',
+          label: t('Administration'),
         },
     ].filter(Boolean);
     return (
-      <ul aria-label="Mon compte" className="flex flex-col">
+      <ul aria-label={t('Mon compte')} className="flex flex-col">
         {links.map((link, index) => (
           <li key={link.href}>
             <Link href={link.href} onClick={onClose} className={linkClasses}>
@@ -68,7 +72,7 @@ function AccountLinks({ account, onClose }) {
         onClick={account.onRetry}
         className="w-full normal-case"
       >
-        Connexion indisponible — réessayer
+        {t('Connexion indisponible — réessayer')}
       </PillButton>
     );
   }
@@ -80,12 +84,13 @@ function AccountLinks({ account, onClose }) {
       className={linkClasses}
     >
       <MaskIcon src="/icons/person.svg" className="size-5" />
-      Espace personnel
+      {t('Espace personnel')}
     </Link>
   );
 }
 
 export default function MobileNav({ id, open, onClose, items, cta, account }) {
+  const t = useT();
   const dialogRef = useRef(null);
   const onCloseRef = useRef(onClose);
 
@@ -128,7 +133,7 @@ export default function MobileNav({ id, open, onClose, items, cta, account }) {
     <dialog
       ref={dialogRef}
       id={id}
-      aria-label="Menu"
+      aria-label={t('Menu')}
       className="m-0 h-dvh max-h-none w-full max-w-none bg-transparent p-0 text-gray-50 backdrop:bg-transparent"
     >
       {/* Dimmed page on tablet; a click on it closes the menu. */}
@@ -143,14 +148,14 @@ export default function MobileNav({ id, open, onClose, items, cta, account }) {
         <button
           type="button"
           onClick={onClose}
-          aria-label="Fermer le menu"
+          aria-label={t('Fermer le menu')}
           className="text-on-dark hover:text-third-100 focus-visible:outline-on-dark flex size-10 shrink-0 items-center justify-center self-end transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 motion-reduce:transition-none"
         >
           <MaskIcon src="/icons/close.svg" className="size-7 sm:size-10" />
         </button>
 
         <nav
-          aria-label="Navigation principale"
+          aria-label={t('Navigation principale')}
           className="mt-6 flex flex-1 flex-col sm:mt-[100px] sm:flex-none sm:gap-[60px]"
         >
           <ul className="flex flex-col">
@@ -185,7 +190,7 @@ export default function MobileNav({ id, open, onClose, items, cta, account }) {
               onClick={onClose}
               className="w-full"
             >
-              Offrir une carte cadeau
+              {t('Offrir une carte cadeau')}
             </PillButton>
           </div>
         </nav>

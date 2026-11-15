@@ -13,7 +13,8 @@
     "lint": "eslint",
     "test": "node --test --disable-warning=MODULE_TYPELESS_PACKAGE_JSON 'tests/**/*.test.mjs'",
     "contract:check": "node scripts/contract-check.mjs",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "i18n:catalog": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/i18n-catalog.mjs"
   },
   "dependencies": {
     "@gsap/react": "2.1.2",

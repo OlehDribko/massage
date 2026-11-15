@@ -3,6 +3,7 @@ import Image from 'next/image';
 import PillButton from '@/components/ui/PillButton';
 import SectionEyebrow from '@/components/ui/SectionEyebrow';
 import { ENDOSPHERES_SERVICE_ID } from '@/content/services';
+import { getT } from '@/i18n/server';
 
 /**
  * Figma «Endosphérologie» (704:1654): full-bleed photo, mirrored and
@@ -10,6 +11,7 @@ import { ENDOSPHERES_SERVICE_ID } from '@/content/services';
  * the left, text on the bottom edge (120 px above it on desktop).
  */
 export default function EndosphereSection() {
+  const t = getT();
   return (
     // Mock-up height (880 / 960 px), but never taller than the screen:
     // on laptops and phones the photo fills exactly one screen. The text
@@ -38,19 +40,18 @@ export default function EndosphereSection() {
           <div className="flex max-w-[662px] flex-col gap-8">
             {/* Mobile mock-up (704:1592) only. */}
             <SectionEyebrow className="lg:hidden [&_p]:text-gray-50 [&_span]:bg-gray-100">
-              Soin signature
+              {t('Soin signature')}
             </SectionEyebrow>
             <h2 className="font-faustina text-h5 sm:text-h3 xl:text-h2 font-normal tracking-[-0.64px] text-gray-50">
-              Découvrez le massage
+              {t('Découvrez le massage')}
               <span className="text-third-200 block font-light italic">
-                Endosphérologie
+                {t('Endosphérologie')}
               </span>
             </h2>
             <p className="font-montserrat text-body-lg text-gray-100">
-              Une technologie de compression mécanique par rouleaux, pensée pour
-              stimuler la microcirculation, drainer les tissus en profondeur et
-              redessiner la silhouette. Un soin d’exception pour un corps
-              visiblement plus tonique.
+              {t(
+                'Une technologie de compression mécanique par rouleaux, pensée pour stimuler la microcirculation, drainer les tissus en profondeur et redessiner la silhouette. Un soin d’exception pour un corps visiblement plus tonique.'
+              )}
             </p>
           </div>
           {/* Books this very service: the choice is kept. */}
@@ -58,7 +59,7 @@ export default function EndosphereSection() {
             href={`/reserver/${ENDOSPHERES_SERVICE_ID}`}
             className="max-sm:min-h-12 max-sm:w-[260px] sm:w-fit"
           >
-            Réserver ce soin
+            {t('Réserver ce soin')}
           </PillButton>
         </div>
       </div>

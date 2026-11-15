@@ -24,24 +24,22 @@ import {
   weeklyBody,
   weeklyByDay,
 } from '@/lib/booking/schedule';
-import {
-  formatDateTime,
-  formatLocalDate,
-  localDateOf,
-  studioToday,
-} from '@/lib/format';
+import { useFormat, useT } from '@/i18n/client';
+import { rich } from '@/i18n/rich';
+import { localDateOf, studioToday } from '@/lib/format';
 
 const noopSubscribe = () => () => {};
 
 /** 409 SCHEDULE_CONFLICT: the active bookings that block the change. */
 function Conflicts({ conflicts }) {
+  const t = useT();
+  const { formatDateTime } = useFormat();
   return (
     <div role="alert" className="flex flex-col gap-3">
       <Notice tone="error">
-        Des rendez-vous confirmés seraient en dehors des horaires. Annulez-les
-        ou gardez des horaires qui les incluent, puis enregistrez à nouveau.
-        Pour seulement bloquer de nouvelles réservations, fermez la date dans le
-        Calendrier : les rendez-vous existants y restent valables.
+        {t(
+          'Des rendez-vous confirmés seraient en dehors des horaires. Annulez-les ou gardez des horaires qui les incluent, puis enregistrez à nouveau. Pour seulement bloquer de nouvelles réservations, fermez la date dans le Calendrier : les rendez-vous existants y restent valables.'
+        )}
       </Notice>
       <ul className="font-montserrat text-body-sm flex list-disc flex-col gap-1 pl-5 text-gray-900">
         {conflicts.map((conflict) => (
@@ -94,15 +92,16 @@ function SectionHead({ title, children }) {
   );
 }
 
-/** "Semaine type": one panel, one row per weekday. */
+/** « Semaine type »: one panel, one row per weekday. */
 function WeeklyEditor({ weekly, controller }) {
+  const t = useT();
   const [days, setDays] = useState(() => weeklyByDay(weekly));
   const [dirty, setDirty] = useState(false);
   const [saved, setSaved] = useState(false);
   const write = useWrite(controller);
 
   const errors = Object.fromEntries(
-    WEEKDAYS.map(({ value }) => [value, validateDay(days[value])])
+    WEEKDAYS.map(({ value }) => [value, validateDay(days[value], t)])
   );
   const invalid = hasErrors(errors);
 
@@ -146,21 +145,21 @@ function WeeklyEditor({ weekly, controller }) {
       <div className="rounded-panel border border-black/10 bg-white px-5 sm:px-7">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-black/10 py-4">
           <p className="font-montserrat text-label-sm font-medium text-gray-800 uppercase">
-            Heure de Paris
+            {t('Heure de Paris')}
           </p>
           <button
             type="button"
             onClick={copyMonday}
             className="font-montserrat text-body-sm hover:text-third-200 focus-visible:outline-third-200 min-h-10 text-left text-gray-900 underline underline-offset-4 focus-visible:outline-2"
           >
-            Copier les horaires du lundi sur les jours ouverts
+            {t('Copier les horaires du lundi sur les jours ouverts')}
           </button>
         </div>
         <div className="divide-y divide-black/10">
           {WEEKDAYS.map(({ value, label }) => (
             <IntervalsEditor
               key={value}
-              label={label}
+              label={t(label)}
               intervals={days[value]}
               errors={dirty ? errors[value] : {}}
               onChange={(next) => change({ ...days, [value]: next })}
@@ -169,19 +168,22 @@ function WeeklyEditor({ weekly, controller }) {
         </div>
       </div>
       <p className="font-montserrat text-body-sm text-gray-800">
-        Le dernier début de séance reste fixé à 19:00 ; une pause de 15 minutes
-        sépare deux séances.
+        {t(
+          'Le dernier début de séance reste fixé à 19:00 ; une pause de 15 minutes sépare deux séances.'
+        )}
       </p>
       {write.error?.code === 'SCHEDULE_CONFLICT' ? (
         <Conflicts conflicts={write.error.details.conflicts ?? []} />
       ) : write.error ? (
         <AdminError
           error={write.error}
-          message={bookingErrorMessage(write.error)}
+          message={bookingErrorMessage(write.error, t)}
         />
       ) : null}
       <div role="status">
-        {saved ? <Notice>Horaires de la semaine enregistrés.</Notice> : null}
+        {saved ? (
+          <Notice>{t('Horaires de la semaine enregistrés.')}</Notice>
+        ) : null}
       </div>
       {/* Same size: full width one under the other on phones, two equal
           columns from 640 px. */}
@@ -192,7 +194,7 @@ function WeeklyEditor({ weekly, controller }) {
           aria-busy={write.pending}
           className="w-full! px-4! disabled:opacity-60"
         >
-          {write.pending ? 'Enregistrement…' : 'Enregistrer la semaine'}
+          {write.pending ? t('Enregistrement…') : t('Enregistrer la semaine')}
         </PillButton>
         <PillButton
           variant="outline"
@@ -205,7 +207,7 @@ function WeeklyEditor({ weekly, controller }) {
           }}
           className="w-full px-4! disabled:opacity-60"
         >
-          Annuler les modifications
+          {t('Annuler les modifications')}
         </PillButton>
       </div>
     </form>
@@ -277,6 +279,8 @@ function ExceptionForm({
   onSaved,
   onCancelEdit,
 }) {
+  const t = useT();
+  const { formatLocalDate } = useFormat();
   const start = formValues(initialDate ? existing.get(initialDate) : null);
   const [date, setDate] = useState(initialDate);
   const [mode, setMode] = useState(start.mode); // 'hours' | 'off'
@@ -284,7 +288,7 @@ function ExceptionForm({
   const [touched, setTouched] = useState(false);
   const write = useWrite(controller);
 
-  const intervalErrors = mode === 'off' ? {} : validateDay(intervals);
+  const intervalErrors = mode === 'off' ? {} : validateDay(intervals, t);
   const emptyIntervals = mode === 'hours' && intervals.length === 0;
   const replacing = date ? existing.get(date) : null;
   const next = mode === 'off' ? [] : normalizeIntervals(intervals);
@@ -330,7 +334,11 @@ function ExceptionForm({
     if (result) {
       setDate(null);
       setTouched(false);
-      onSaved(`${formatLocalDate(date, { year: true })} : enregistré.`);
+      onSaved(
+        t('{date} : enregistré.', {
+          date: formatLocalDate(date, { year: true }),
+        })
+      );
     }
   };
 
@@ -342,26 +350,26 @@ function ExceptionForm({
     >
       <div className="flex flex-col gap-3">
         <h3 className="font-montserrat text-body-lg font-semibold text-gray-900">
-          1. Choisissez la date
+          {t('1. Choisissez la date')}
         </h3>
         <DatePicker
           value={date}
           today={today}
           min={today ?? undefined}
           marked={new Set(existing.keys())}
-          label="Date particulière"
+          label={t('Date particulière')}
           onChange={pick}
         />
         {touched && !date ? (
           <p className="font-montserrat text-body-sm text-error">
-            Choisissez une date dans le calendrier.
+            {t('Choisissez une date dans le calendrier.')}
           </p>
         ) : null}
       </div>
 
       <div className="flex flex-col gap-5">
         <h3 className="font-montserrat text-body-lg font-semibold text-gray-900">
-          2. Horaires de ce jour
+          {t('2. Horaires de ce jour')}
         </h3>
         <div className="bg-secondary-50 flex items-center gap-4 rounded-2xl p-4">
           {date ? (
@@ -378,64 +386,67 @@ function ExceptionForm({
             <span className="text-body font-medium text-gray-900 first-letter:uppercase">
               {date
                 ? formatLocalDate(date, { year: true })
-                : 'Aucune date choisie'}
+                : t('Aucune date choisie')}
             </span>
             <span className="text-body-sm text-gray-800">
               {replacing
-                ? 'Date personnalisée : modifiez ses horaires ci-dessous.'
-                : 'Remplace les horaires de la semaine type pour ce jour.'}
+                ? t('Date personnalisée : modifiez ses horaires ci-dessous.')
+                : t('Remplace les horaires de la semaine type pour ce jour.')}
             </span>
           </div>
         </div>
 
         <Segmented
-          label="Ce jour-là"
+          label={t('Ce jour-là')}
           value={mode}
           onChange={setMode}
           options={[
-            { value: 'hours', label: 'Horaires spéciaux' },
-            { value: 'off', label: 'Jour de repos' },
+            { value: 'hours', label: t('Horaires spéciaux') },
+            { value: 'off', label: t('Jour de repos') },
           ]}
         />
 
         {mode === 'hours' ? (
           <IntervalsEditor
             layout="stack"
-            label="Ce jour"
+            label={t('Ce jour')}
             intervals={intervals}
             errors={touched ? intervalErrors : {}}
             onChange={setIntervals}
           />
         ) : (
           <p className="font-montserrat text-body-sm text-gray-800">
-            Aucun horaire ce jour-là. Refusé s’il y a déjà des rendez-vous :
-            pour bloquer seulement les nouvelles réservations, fermez la date
-            dans le{' '}
+            {t(
+              'Aucun horaire ce jour-là. Refusé s’il y a déjà des rendez-vous : pour bloquer seulement les nouvelles réservations, fermez la date dans le'
+            )}{' '}
             <Link
               href="/admin/calendrier"
               className="hover:text-third-200 underline underline-offset-2"
             >
-              Calendrier
+              {t('Calendrier')}
             </Link>
             .
           </p>
         )}
         {touched && emptyIntervals ? (
           <p className="font-montserrat text-body-sm text-error">
-            Ajoutez au moins une plage, ou choisissez « Jour de repos ».
+            {t('Ajoutez au moins une plage, ou choisissez « Jour de repos ».')}
           </p>
         ) : null}
         {asUsual ? (
           <p role="alert" className="font-montserrat text-body-sm text-error">
-            Aucun changement : ce sont déjà les horaires de la semaine type pour
-            ce jour.
+            {t(
+              'Aucun changement : ce sont déjà les horaires de la semaine type pour ce jour.'
+            )}
             {replacing
-              ? ' Pour revenir à la semaine type, supprimez cette date dans la liste.'
+              ? t(
+                  ' Pour revenir à la semaine type, supprimez cette date dans la liste.'
+                )
               : ''}
           </p>
         ) : unchanged ? (
           <p className="font-montserrat text-body-sm text-gray-800">
-            Modifiez les horaires de cette date, puis enregistrez.
+            {t('Modifiez les horaires de cette date, puis enregistrez.')}
           </p>
         ) : null}
 
@@ -444,7 +455,7 @@ function ExceptionForm({
         ) : write.error ? (
           <AdminError
             error={write.error}
-            message={bookingErrorMessage(write.error)}
+            message={bookingErrorMessage(write.error, t)}
           />
         ) : null}
         <div role="status">{notice ? <Notice>{notice}</Notice> : null}</div>
@@ -458,10 +469,10 @@ function ExceptionForm({
             className="w-full! px-4! disabled:opacity-60"
           >
             {write.pending
-              ? 'Enregistrement…'
+              ? t('Enregistrement…')
               : replacing
-                ? 'Enregistrer les modifications'
-                : 'Enregistrer la date'}
+                ? t('Enregistrer les modifications')
+                : t('Enregistrer la date')}
           </PillButton>
           {initialDate ? (
             <PillButton
@@ -471,7 +482,7 @@ function ExceptionForm({
               onClick={onCancelEdit}
               className="w-full px-4!"
             >
-              Annuler la modification
+              {t('Annuler la modification')}
             </PillButton>
           ) : null}
         </div>
@@ -487,6 +498,8 @@ function ExceptionsList({
   onEdit,
   editing,
 }) {
+  const t = useT();
+  const { formatLocalDate } = useFormat();
   const [removing, setRemoving] = useState(null); // date
   const write = useWrite(controller);
 
@@ -504,7 +517,7 @@ function ExceptionsList({
   if (!exceptions.length) {
     return (
       <p className="rounded-panel font-montserrat text-body-sm border border-dashed border-black/15 px-5 py-6 text-center text-gray-800">
-        Aucune date particulière à venir : la semaine type s’applique.
+        {t('Aucune date particulière à venir : la semaine type s’applique.')}
       </p>
     );
   }
@@ -524,7 +537,7 @@ function ExceptionsList({
               </span>
               <span className="text-body-sm text-gray-800">
                 {exception.closed
-                  ? 'Jour de repos'
+                  ? t('Jour de repos')
                   : exception.intervals
                       .map((item) => `${item.start}–${item.end}`)
                       .join(', ')}
@@ -535,9 +548,11 @@ function ExceptionsList({
               <button
                 type="button"
                 onClick={() => onEdit(exception.date)}
-                aria-label={`Modifier le ${formatLocalDate(exception.date, { year: true })}`}
+                aria-label={t('Modifier le {date}', {
+                  date: formatLocalDate(exception.date, { year: true }),
+                })}
                 aria-pressed={editing === exception.date}
-                title="Modifier"
+                title={t('Modifier')}
                 className={`focus-visible:outline-third-200 flex size-9 shrink-0 items-center justify-center rounded-full transition-colors focus-visible:outline-2 ${
                   editing === exception.date
                     ? 'bg-third-900 text-cream'
@@ -561,8 +576,10 @@ function ExceptionsList({
                   write.setError(null);
                   setRemoving(exception.date);
                 }}
-                aria-label={`Revenir à la semaine type le ${formatLocalDate(exception.date, { year: true })}`}
-                title="Revenir à la semaine type"
+                aria-label={t('Revenir à la semaine type le {date}', {
+                  date: formatLocalDate(exception.date, { year: true }),
+                })}
+                title={t('Revenir à la semaine type')}
                 className="hover:bg-error/10 hover:text-error focus-visible:outline-error flex size-9 shrink-0 items-center justify-center rounded-full text-gray-800 transition-colors focus-visible:outline-2"
               >
                 <svg
@@ -582,12 +599,12 @@ function ExceptionsList({
       </ul>
       <ConfirmDialog
         open={removing !== null}
-        title="Revenir à la semaine type ?"
-        confirmLabel="Supprimer la date particulière"
+        title={t('Revenir à la semaine type ?')}
+        confirmLabel={t('Supprimer la date particulière')}
         pending={write.pending}
         error={
           write.error && write.error.code !== 'SCHEDULE_CONFLICT'
-            ? bookingErrorMessage(write.error)
+            ? bookingErrorMessage(write.error, t)
             : null
         }
         onConfirm={remove}
@@ -595,8 +612,9 @@ function ExceptionsList({
       >
         {removing ? (
           <>
-            Le {formatLocalDate(removing, { year: true })} suivra de nouveau les
-            horaires de la semaine type.
+            {t('Le {date} suivra de nouveau les horaires de la semaine type.', {
+              date: formatLocalDate(removing, { year: true }),
+            })}
             {write.error?.code === 'SCHEDULE_CONFLICT' ? (
               <div className="mt-4">
                 <Conflicts conflicts={write.error.details.conflicts ?? []} />
@@ -610,6 +628,7 @@ function ExceptionsList({
 }
 
 function ScheduleContent({ controller, enabled }) {
+  const t = useT();
   const today = useSyncExternalStore(noopSubscribe, studioToday, () => null);
   const { status, data, error, reload } = useAccountData(
     '/api/admin/schedule',
@@ -632,7 +651,7 @@ function ScheduleContent({ controller, enabled }) {
   if (status === 'loading' || status === 'idle') {
     return (
       <p role="status" className="font-montserrat text-body text-gray-800">
-        Chargement des horaires…
+        {t('Chargement des horaires…')}
       </p>
     );
   }
@@ -641,7 +660,7 @@ function ScheduleContent({ controller, enabled }) {
       <AdminError
         error={error}
         onRetry={reload}
-        message={bookingErrorMessage(error)}
+        message={bookingErrorMessage(error, t)}
       />
     );
   }
@@ -649,9 +668,10 @@ function ScheduleContent({ controller, enabled }) {
   return (
     <div className="flex flex-col gap-14">
       <section className="flex flex-col gap-6">
-        <SectionHead title="Semaine type">
-          Les horaires habituels de chaque jour. Désactivez un jour pour en
-          faire un jour de repos.
+        <SectionHead title={t('Semaine type')}>
+          {t(
+            'Les horaires habituels de chaque jour. Désactivez un jour pour en faire un jour de repos.'
+          )}
         </SectionHead>
         <WeeklyEditor
           key={JSON.stringify(data.weekly)}
@@ -660,10 +680,10 @@ function ScheduleContent({ controller, enabled }) {
         />
       </section>
       <section className="flex flex-col gap-6">
-        <SectionHead title="Dates particulières">
-          Des horaires différents pour un jour précis (jour férié, horaires
-          réduits…). Pour bloquer des dates sans toucher aux rendez-vous,
-          utilisez le Calendrier.
+        <SectionHead title={t('Dates particulières')}>
+          {t(
+            'Des horaires différents pour un jour précis (jour férié, horaires réduits…). Pour bloquer des dates sans toucher aux rendez-vous, utilisez le Calendrier.'
+          )}
         </SectionHead>
         {/* One row on wide screens: 1. date, 2. hours of that day,
             3. the dates already set. Below, the saved dates come last. */}
@@ -688,7 +708,7 @@ function ScheduleContent({ controller, enabled }) {
           />
           <div className="flex flex-col gap-3 border-t border-black/7 pt-6 xl:border-t-0 xl:border-l xl:pt-0 xl:pl-8">
             <h3 className="font-montserrat text-body-lg font-semibold text-gray-900">
-              3. Dates personnalisées
+              {t('3. Dates personnalisées')}
             </h3>
             <ExceptionsList
               exceptions={data.exceptions}
@@ -711,11 +731,16 @@ function ScheduleContent({ controller, enabled }) {
  * is cancelled automatically.
  */
 export default function AdminSchedule() {
+  const t = useT();
   return (
     <AdminShell
       title={
         <>
-          Horaires du <span className="heading-accent">cabinet</span>
+          {rich(t('Horaires du <accent>cabinet</accent>'), {
+            accent: (chunks) => (
+              <span className="heading-accent">{chunks}</span>
+            ),
+          })}
         </>
       }
       current="horaires"

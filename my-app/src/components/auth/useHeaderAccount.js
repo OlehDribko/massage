@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 
 import { useAuth } from '@/components/auth/AuthProvider';
 import { AUTH_ROUTES } from '@/config/auth';
+import { splitLocale } from '@/i18n/config';
 import { rememberAccountHint } from '@/lib/auth/accountHint';
 import { currentProfile } from '@/lib/auth/session';
 
@@ -25,7 +26,8 @@ export function useHeaderAccount() {
   }
 
   const profile = currentProfile(state)?.profile;
-  const onSignInPage = pathname === AUTH_ROUTES.signIn;
+  // Any language: "/connexion", "/en/connexion".
+  const onSignInPage = splitLocale(pathname).path === AUTH_ROUTES.signIn;
   const returnTo =
     pathname && pathname !== '/'
       ? `?retour=${encodeURIComponent(pathname)}`
