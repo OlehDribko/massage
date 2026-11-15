@@ -9,8 +9,9 @@
  * Started by Playwright (playwright.config.mjs → webServer) and stopped with
  * it: on exit the container and both processes are removed.
  *
- *   E2E_BACKEND_DIR   checkout of Massage-backend with `npm ci` done
- *                     (default ../../Massage-backend next to this repo)
+ *   E2E_BACKEND_DIR   checkout of Massage-backend with `npm ci` and
+ *                     `npm run prisma -- generate` done (default: next to
+ *                     this repository, or inside it)
  *   E2E_API_PORT      (3101)   E2E_PG_PORT (55432)   E2E_AUTH_PORT (9099)
  *   E2E_SITE_ORIGINS  CORS origins of the site under test
  */
@@ -23,11 +24,13 @@ import { fileURLToPath } from 'node:url';
 import { E2E } from './env.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const backend = path.resolve(
-  here,
-  '..',
-  process.env.E2E_BACKEND_DIR ?? '../../Massage-backend'
-);
+// E2E_BACKEND_DIR, else a checkout next to the repository or inside it.
+const backend = process.env.E2E_BACKEND_DIR
+  ? path.resolve(process.cwd(), process.env.E2E_BACKEND_DIR)
+  : (['../../Massage-backend', '../Massage-backend']
+      .map((candidate) => path.resolve(here, '..', candidate))
+      .find((candidate) => existsSync(path.join(candidate, 'package.json'))) ??
+    path.resolve(here, '../../Massage-backend'));
 const service = path.join(backend, 'services/booking');
 const container = `massage-fe-e2e-pg-${E2E.pgPort}`;
 // Local test values only (same as the backend's compose.yaml).
@@ -109,7 +112,7 @@ function stop(code = 0) {
 async function main() {
   if (!existsSync(path.join(backend, 'node_modules'))) {
     throw new Error(
-      `No backend checkout with node_modules at ${backend}. Set E2E_BACKEND_DIR (see README, « Tests navigateur »).`
+      `No backend checkout with node_modules at ${backend}. Set E2E_BACKEND_DIR (see README, « Browser tests »).`
     );
   }
   if (!existsSync(path.join(service, 'src/generated/prisma/client.ts'))) {

@@ -38,7 +38,8 @@ const photoFor = (index) => PHOTOS[Math.max(index, 0) % PHOTOS.length];
  * Figma «Nos soins populaires» (704:1296, tablet 704:2255, mobile
  * 704:1465): a numbered accordion, one item open at a time (the first by
  * default). A click on a row opens or closes it; the arrow only shows the
- * state (↗ open, ↘ closed). The open item shows the approved description
+ * state (↗ open, ↘ closed). The open item shows the API description of
+ * the prestation's shortest duration — the one « Réserver ce soin » opens
  * (when one exists), the lowest current price and the durations, and
  * « Réserver ce soin » books that prestation. The photo next to the list
  * follows the open item (from 1024 px); below, it sits inside the open
