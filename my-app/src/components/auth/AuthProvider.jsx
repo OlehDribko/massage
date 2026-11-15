@@ -7,7 +7,12 @@ import {
   useSyncExternalStore,
 } from 'react';
 
-import { API_BASE_URL, AUTH_ENABLED, FIREBASE_OPTIONS } from '@/config/auth';
+import {
+  API_BASE_URL,
+  AUTH_ENABLED,
+  FIREBASE_AUTH_EMULATOR_URL,
+  FIREBASE_OPTIONS,
+} from '@/config/auth';
 import { createAuthController } from '@/lib/auth/controller';
 import { loadFirebase, preloadFirebaseSdk } from '@/lib/auth/firebase';
 import { accountStatus } from '@/lib/auth/session';
@@ -28,7 +33,10 @@ function getController() {
   if (!AUTH_ENABLED || typeof window === 'undefined') return null;
   if (!browserController) {
     browserController = createAuthController({
-      loadFirebase: () => loadFirebase(FIREBASE_OPTIONS),
+      loadFirebase: () =>
+        loadFirebase(FIREBASE_OPTIONS, {
+          emulatorUrl: FIREBASE_AUTH_EMULATOR_URL,
+        }),
       apiBaseUrl: API_BASE_URL,
     });
   }

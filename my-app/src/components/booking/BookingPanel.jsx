@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 import { useAuth } from '@/components/auth/AuthProvider';
@@ -26,6 +27,13 @@ import {
 } from '@/lib/format';
 
 const DETAILS_STEP = 'coordonnees';
+// The session is gone: the next step is to sign in again, keeping the time.
+const SESSION_ERRORS = new Set([
+  'AUTH_REQUIRED',
+  'INVALID_TOKEN',
+  'TOKEN_EXPIRED',
+  'SESSION_REVOKED',
+]);
 
 /** "mar. 24 nov." — fits the mobile bar. */
 function shortDate(startsAt) {
@@ -282,6 +290,14 @@ export default function BookingPanel({ service, intro }) {
         {bookingErrorMessage(error)}
         {errorReference(error) ? (
           <span className="mt-1 block text-xs">{errorReference(error)}</span>
+        ) : null}
+        {SESSION_ERRORS.has(error.code) ? (
+          <Link
+            href={`/connexion?retour=${encodeURIComponent(returnTo)}`}
+            className="mt-2 block font-medium underline underline-offset-4"
+          >
+            Se reconnecter
+          </Link>
         ) : null}
       </Notice>
     </div>

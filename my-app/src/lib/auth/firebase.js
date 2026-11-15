@@ -23,12 +23,13 @@ export function preloadFirebaseSdk() {
   return sdkPromise;
 }
 
-export async function loadFirebase(options) {
+export async function loadFirebase(options, { emulatorUrl } = {}) {
   const [{ getApp, getApps, initializeApp }, authSdk] =
     await preloadFirebaseSdk();
   const {
     EmailAuthProvider,
     GoogleAuthProvider,
+    connectAuthEmulator,
     createUserWithEmailAndPassword,
     getAuth,
     linkWithCredential,
@@ -48,6 +49,10 @@ export async function loadFirebase(options) {
   // One app per page, even if this module is evaluated again (HMR).
   const app = getApps().length ? getApp() : initializeApp(options);
   const auth = getAuth(app);
+  // Local runs and browser tests only (see FIREBASE_AUTH_EMULATOR_URL).
+  if (emulatorUrl && !auth.emulatorConfig) {
+    connectAuthEmulator(auth, emulatorUrl, { disableWarnings: true });
+  }
   // Firebase emails and the Google popup in French.
   auth.languageCode = 'fr';
 
