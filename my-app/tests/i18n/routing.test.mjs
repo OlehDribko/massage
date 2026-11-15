@@ -92,17 +92,38 @@ test('proxy: French URLs are rewritten; the cookie applies to page loads only', 
   );
 });
 
-test('proxy: the administration stays in French', () => {
-  for (const lang of ['en', 'uk', 'ru']) {
-    assert.deepEqual(routeLocale(`/${lang}/admin/horaires`), {
-      type: 'redirect',
-      pathname: '/admin/horaires',
-      status: 307,
-    });
-  }
-  // The site's language choice does not move the administration.
+test('proxy: administration in French and Ukrainian only, with its own cookie', () => {
+  assert.deepEqual(routeLocale('/uk/admin/calendrier'), { type: 'next' });
+  assert.deepEqual(routeLocale('/en/admin'), {
+    type: 'redirect',
+    pathname: '/admin',
+    status: 307,
+  });
+  assert.deepEqual(routeLocale('/ru/admin/horaires'), {
+    type: 'redirect',
+    pathname: '/admin/horaires',
+    status: 307,
+  });
+  // The site's choice does not move the administration…
   assert.equal(
     routeLocale('/admin', { cookies: { site_locale: 'en' }, isPageLoad: true })
+      .type,
+    'rewrite'
+  );
+  // …its own cookie does.
+  assert.deepEqual(
+    routeLocale('/admin', {
+      cookies: { admin_locale: 'uk' },
+      isPageLoad: true,
+    }),
+    {
+      type: 'redirect',
+      pathname: '/uk/admin',
+      status: 307,
+    }
+  );
+  assert.equal(
+    routeLocale('/admin', { cookies: { admin_locale: 'ru' }, isPageLoad: true })
       .type,
     'rewrite'
   );

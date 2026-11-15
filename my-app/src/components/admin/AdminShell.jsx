@@ -1,6 +1,7 @@
 'use client';
 
-import Link from 'next/link';
+import { Link, useT } from '@/i18n/client';
+import { msg } from '@/i18n/translate';
 
 import { useAuth } from '@/components/auth/AuthProvider';
 import Notice from '@/components/ui/Notice';
@@ -8,12 +9,12 @@ import PillButton from '@/components/ui/PillButton';
 import { AUTH_ROUTES } from '@/config/auth';
 
 const TABS = [
-  { key: 'calendrier', href: '/admin/calendrier', label: 'Calendrier' },
-  { key: 'horaires', href: '/admin/horaires', label: 'Horaires' },
+  { key: 'calendrier', href: '/admin/calendrier', label: msg('Calendrier') },
+  { key: 'horaires', href: '/admin/horaires', label: msg('Horaires') },
   {
     key: 'cartes-cadeaux',
     href: '/admin/cartes-cadeaux',
-    label: 'Cartes cadeaux',
+    label: msg('Cartes cadeaux'),
   },
 ];
 
@@ -26,23 +27,26 @@ const TABS = [
  * status changes at once and the children (with their data) are unmounted.
  */
 export default function AdminShell({ title, current, returnTo, children }) {
+  const t = useT();
   const auth = useAuth();
   const { enabled, controller, status } = auth;
 
   let content;
   if (!enabled) {
-    content = <Notice>L’administration n’est pas encore disponible.</Notice>;
+    content = (
+      <Notice>{t('L’administration n’est pas encore disponible.')}</Notice>
+    );
   } else if (status === 'loading') {
     content = (
       <p role="status" className="font-montserrat text-body text-gray-800">
-        Vérification de vos droits…
+        {t('Vérification de vos droits…')}
       </p>
     );
   } else if (status === 'unavailable') {
     content = (
       <div className="flex flex-col gap-4">
         <Notice tone="error">
-          Le service de connexion est momentanément indisponible.
+          {t('Le service de connexion est momentanément indisponible.')}
         </Notice>
         <PillButton
           variant="outline"
@@ -50,7 +54,7 @@ export default function AdminShell({ title, current, returnTo, children }) {
           onClick={() => controller.retry()}
           className="self-start"
         >
-          Réessayer
+          {t('Réessayer')}
         </PillButton>
       </div>
     );
@@ -58,20 +62,20 @@ export default function AdminShell({ title, current, returnTo, children }) {
     content = (
       <div className="flex flex-col gap-6">
         <p className="font-montserrat text-body text-gray-800">
-          Connectez-vous avec le compte de l’administration.
+          {t('Connectez-vous avec le compte de l’administration.')}
         </p>
         <PillButton
           href={`${AUTH_ROUTES.signIn}?retour=${encodeURIComponent(returnTo)}`}
           className="self-start"
         >
-          Se connecter
+          {t('Se connecter')}
         </PillButton>
       </div>
     );
   } else if (status !== 'admin') {
     content = (
       <Notice tone="error">
-        Cette page est réservée à l’administration du cabinet.
+        {t('Cette page est réservée à l’administration du cabinet.')}
       </Notice>
     );
   }
@@ -81,7 +85,7 @@ export default function AdminShell({ title, current, returnTo, children }) {
       <h1 className="text-section-title text-third-900">{title}</h1>
       {content ?? (
         <>
-          <nav aria-label="Administration">
+          <nav aria-label={t('Administration')}>
             <ul className="font-montserrat text-label flex flex-wrap gap-x-6 gap-y-2 border-b border-black/10">
               {TABS.map((tab) => (
                 <li key={tab.key}>
@@ -94,7 +98,7 @@ export default function AdminShell({ title, current, returnTo, children }) {
                         : 'hover:text-third-200 border-transparent text-gray-800'
                     }`}
                   >
-                    {tab.label}
+                    {t(tab.label)}
                   </Link>
                 </li>
               ))}
@@ -109,11 +113,12 @@ export default function AdminShell({ title, current, returnTo, children }) {
 
 /** Error of an admin request: 403 means the role was withdrawn. */
 export function AdminError({ error, onRetry, message }) {
+  const t = useT();
   const forbidden = error?.status === 403;
   return (
     <div className="flex flex-col gap-4">
       <Notice tone="error">
-        {forbidden ? 'Vous n’avez plus accès à l’administration.' : message}
+        {forbidden ? t('Vous n’avez plus accès à l’administration.') : message}
       </Notice>
       {!forbidden && onRetry ? (
         <PillButton
@@ -122,7 +127,7 @@ export function AdminError({ error, onRetry, message }) {
           onClick={onRetry}
           className="self-start"
         >
-          Réessayer
+          {t('Réessayer')}
         </PillButton>
       ) : null}
     </div>
