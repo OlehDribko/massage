@@ -30,8 +30,12 @@ export default function DateField({
   onChange,
   today,
   min,
+  max,
   label,
   variant = 'pill',
+  invalid = false,
+  describedBy,
+  buttonId,
 }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef(null);
@@ -83,11 +87,13 @@ export default function DateField({
         </button>
       ) : (
         <button
+          id={buttonId}
           type="button"
           aria-expanded={open}
           aria-controls={panelId}
+          aria-describedby={describedBy}
           onClick={() => setOpen((current) => !current)}
-          className="rounded-pill font-montserrat text-body hover:border-third-200 focus-visible:outline-third-200 flex min-h-12 w-full items-center gap-3 border border-black/15 bg-white px-5 text-left text-gray-900 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 sm:w-auto"
+          className={`rounded-pill font-montserrat text-body hover:border-third-200 focus-visible:outline-third-200 flex min-h-12 w-full items-center gap-3 border bg-white px-5 text-left text-gray-900 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 sm:w-auto ${invalid ? 'border-error' : 'border-black/15'}`}
         >
           <CalendarIcon />
           <span className="flex flex-col leading-tight">
@@ -109,6 +115,7 @@ export default function DateField({
             value={value}
             today={today}
             min={min}
+            max={max}
             label={label}
             onChange={(date) => {
               onChange(date);

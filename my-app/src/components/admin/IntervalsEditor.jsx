@@ -13,11 +13,13 @@ export const DEFAULT_INTERVAL = { start: '09:00', end: '20:30' };
 // Text inputs, not type="time": the API accepts "24:00" as an end (a day
 // that ends at midnight), which time inputs cannot express. The colon is
 // typed for you ("15" then "0" shows "15:0"); "15" alone becomes "15:00"
-// on leaving the field.
-function TimeBox({ label, value, onChange, invalid }) {
+// on leaving the field. Also used by the busy-time form (BlockDialog).
+export function TimeBox({ id, label, value, onChange, invalid, describedBy }) {
   return (
     <input
+      id={id}
       aria-label={label}
+      aria-describedby={describedBy}
       value={value}
       onChange={(event) => onChange(maskTimeInput(event.target.value))}
       onBlur={(event) => {

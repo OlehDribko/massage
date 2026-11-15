@@ -6,7 +6,7 @@ import BookingPanel from '@/components/booking/BookingPanel';
 import PriceTag from '@/components/booking/PriceTag';
 import Header from '@/components/layout/Header';
 import Notice from '@/components/ui/Notice';
-import { findPrestation } from '@/lib/booking/catalog';
+import { findPrestation, variantTexts } from '@/lib/booking/catalog';
 import { loadCatalog } from '@/lib/booking/loadCatalog';
 import { formatDuration } from '@/lib/format';
 
@@ -24,6 +24,8 @@ export default async function ReserverServicePage({ params }) {
   // The API lists only bookable services: unknown or archived → 404.
   if (catalog && !prestation) notFound();
   const service = prestation?.variants.find((item) => item.id === serviceId);
+  // Texts of THIS duration (the API has one per duration).
+  const { description, features } = variantTexts(service);
 
   return (
     <>
@@ -60,10 +62,17 @@ export default async function ReserverServicePage({ params }) {
                     <h1 className="text-section-title text-third-900">
                       {prestation.name}
                     </h1>
-                    {prestation.description ? (
+                    {description ? (
                       <p className="font-montserrat text-body max-w-2xl text-gray-800">
-                        {prestation.description}
+                        {description}
                       </p>
+                    ) : null}
+                    {features.length ? (
+                      <ul className="font-montserrat text-body-sm flex max-w-2xl list-disc flex-col gap-1 pl-5 text-gray-800">
+                        {features.map((feature) => (
+                          <li key={feature}>{feature}</li>
+                        ))}
+                      </ul>
                     ) : null}
                     {prestation.variants.length > 1 ? (
                       <nav aria-label="Durée" className="max-w-full self-start">

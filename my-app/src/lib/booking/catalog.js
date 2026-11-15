@@ -5,14 +5,22 @@
  * nothing is merged by name. Pure — tested with `node --test`.
  */
 
+import { describeFailure } from '../api/diagnostics.js';
+
 const byDuration = (a, b) => a.durationMinutes - b.durationMinutes;
 
 /**
  * API services + editorial groups → prestations in editorial order:
- * `{ key, name, description, featured, variants }`. A grouped id missing
- * from the API (archived) is skipped; a variant whose API name differs from
- * the first one (renamed later) and any service unknown to the layer get a
- * card of their own, after the listed ones, in API order.
+ * `{ key, name, description, features, featured, category, variants }`. A
+ * grouped id missing from the API (archived) is skipped; a variant whose API
+ * name differs from the first one (renamed later) and any service unknown to
+ * the layer get a card of their own, after the listed ones, in API order.
+ *
+ * Texts: the API gives `description` and `features` per service, that is
+ * per duration (backend migration 20261103120100: « un texte par durée »).
+ * They stay on each variant; where one text stands for the whole prestation
+ * (home accordion, JSON-LD), it is the text of `variants[0]` — the shortest
+ * duration, the one those places link to. See `variantTexts`.
  */
 export function buildCatalog(services, groups) {
   const byId = new Map(
@@ -27,13 +35,14 @@ export function buildCatalog(services, groups) {
     const name = variants[0].name;
     const same = variants.filter((service) => service.name === name);
     same.forEach((service) => used.add(service.id));
+    const sorted = same.sort(byDuration);
     catalog.push({
       key: group.key,
       name,
-      description: group.description ?? null,
+      ...variantTexts(sorted[0]),
       featured: Boolean(group.featured),
       category: group.category ?? null,
-      variants: same.sort(byDuration),
+      variants: sorted,
     });
   }
 
@@ -42,13 +51,52 @@ export function buildCatalog(services, groups) {
     catalog.push({
       key: service.id,
       name: service.name,
-      description: null,
+      ...variantTexts(service),
       featured: false,
       category: null,
       variants: [service],
     });
   }
   return catalog;
+}
+
+/** `{ description, features }` of one variant (null / [] when absent). */
+export function variantTexts(service) {
+  return {
+    description: service?.description ?? null,
+    features: service?.features ?? [],
+  };
+}
+
+/**
+ * Catalogue load with injected dependencies (tested without Next):
+ * `fetchServices({ timeoutMs })`, editorial `groups`, `onError(error,
+ * context)` for the server log. Never throws → `{ catalog, error }`.
+ */
+export async function loadCatalogFrom(
+  { fetchServices, groups, onError = () => {} },
+  { timeoutMs } = {}
+) {
+  let services;
+  try {
+    services = await fetchServices({ timeoutMs });
+  } catch (error) {
+    onError(error, { operation: 'catalog' });
+    return {
+      catalog: null,
+      error: describeFailure(error, { operation: 'catalog' }),
+    };
+  }
+  try {
+    return { catalog: buildCatalog(services, groups), error: null };
+  } catch (cause) {
+    const error = { kind: 'transform', name: cause?.name ?? 'Error' };
+    onError(error, { operation: 'catalog' });
+    return {
+      catalog: null,
+      error: describeFailure(error, { operation: 'catalog' }),
+    };
+  }
 }
 
 /** The prestation that contains `serviceId`, or null. */

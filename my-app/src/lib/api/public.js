@@ -5,28 +5,47 @@
  */
 
 import { API_BASE_URL } from '@/config/auth';
+import { normalizeService, validatorFor } from '@/lib/api/contract';
 import { ApiError, apiRequest } from '@/lib/auth/session';
 
-function publicGet(path, { signal } = {}) {
+function publicGet(path, { signal, timeoutMs, validate, route } = {}) {
   if (!API_BASE_URL) {
-    return Promise.reject(new ApiError(0, 'NOT_CONFIGURED'));
+    return Promise.reject(
+      new ApiError(0, 'NOT_CONFIGURED', undefined, {}, { method: 'GET', route })
+    );
   }
-  return apiRequest({ baseUrl: API_BASE_URL, path, signal });
+  return apiRequest({
+    baseUrl: API_BASE_URL,
+    path,
+    signal,
+    timeoutMs,
+    validate,
+    route,
+  });
 }
 
-/** GET /api/services → services open for booking. */
-export async function fetchServices(options) {
-  const { services } = await publicGet('/api/services', options);
-  return services;
+/**
+ * GET /api/services → services open for booking, checked against the
+ * contract (src/lib/api/contract.js); `description` / `features` are
+ * normalised (null / []).
+ */
+export async function fetchServices(options = {}) {
+  const { services } = await publicGet('/api/services', {
+    ...options,
+    validate: validatorFor('services'),
+    route: '/api/services',
+  });
+  return services.map(normalizeService);
 }
 
 /** GET /api/services/:id → the service, or null (404 SERVICE_NOT_FOUND). */
 export async function fetchService(serviceId) {
   try {
     const { service } = await publicGet(
-      `/api/services/${encodeURIComponent(serviceId)}`
+      `/api/services/${encodeURIComponent(serviceId)}`,
+      { route: '/api/services/{serviceId}' }
     );
-    return service;
+    return service ? normalizeService(service) : null;
   } catch (error) {
     // Unknown, archived or malformed id.
     if (error instanceof ApiError && [400, 404].includes(error.status)) {
@@ -47,7 +66,11 @@ export function fetchAvailability(serviceId, { from, to } = {}, options) {
   const suffix = query.size ? `?${query}` : '';
   return publicGet(
     `/api/services/${encodeURIComponent(serviceId)}/availability${suffix}`,
-    options
+    {
+      ...options,
+      validate: validatorFor('availability'),
+      route: '/api/services/{serviceId}/availability',
+    }
   );
 }
 

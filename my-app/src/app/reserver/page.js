@@ -21,7 +21,7 @@ export const metadata = pageMetadata({
 });
 
 export default async function ReserverPage() {
-  const { catalog } = await loadCatalog();
+  const { catalog, error } = await loadCatalog();
 
   return (
     <>
@@ -69,8 +69,15 @@ export default async function ReserverPage() {
           {catalog === null ? (
             <div className="flex flex-col gap-4">
               <Notice tone="error">
-                Les prestations ne peuvent pas être affichées pour le moment.
+                {error?.kind === 'timeout'
+                  ? 'Le service de réservation met trop de temps à répondre.'
+                  : 'Les prestations ne peuvent pas être affichées pour le moment.'}{' '}
                 Réessayez dans quelques instants.
+                {error?.requestId ? (
+                  <span className="mt-1 block text-xs">
+                    Référence : {error.requestId}
+                  </span>
+                ) : null}
               </Notice>
               <PillButton
                 href="/reserver"

@@ -1,0 +1,1470 @@
+{
+  "source": {
+    "repository": "OlehDribko/Massage-backend",
+    "file": "docs/openapi.json",
+    "commit": "c2610b6319d7e8ae6fb90b3ea6fb33cc53741bb3",
+    "apiVersion": "1.0.0"
+  },
+  "components": {
+    "Service": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid",
+          "description": "Stable service id; the frontend keys photos by it"
+        },
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "description": "Client-facing text (French, plain text); null when the service has none",
+          "type": ["string", "null"]
+        },
+        "features": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Client-facing features (French, plain text) shown as a list, in order; empty when none"
+        },
+        "durationMinutes": {
+          "type": "integer",
+          "description": "Length of the session, minutes"
+        },
+        "priceCents": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Regular price, integer euro cents"
+        },
+        "effectivePriceCents": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Price of a booking created now: the sale price while a sale is active, otherwise priceCents"
+        },
+        "salePriceCents": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Integer euro cents"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Only while a sale is active; otherwise null"
+        },
+        "saleEndsAt": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time",
+              "description": "Moment in UTC, ISO 8601 with Z",
+              "examples": ["2027-03-02T08:00:00.000Z"]
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "End of the active sale (UTC, exclusive); otherwise null"
+        },
+        "currency": {
+          "type": "string",
+          "const": "EUR"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "description",
+        "features",
+        "durationMinutes",
+        "priceCents",
+        "effectivePriceCents",
+        "salePriceCents",
+        "saleEndsAt",
+        "currency"
+      ],
+      "additionalProperties": false,
+      "examples": [
+        {
+          "id": "3c4d5e6f-7a8b-4c9d-8e0f-1a2b3c4d5e6f",
+          "name": "Massage example",
+          "description": "Un massage d’exemple pour illustrer la réponse.",
+          "features": ["Première particularité.", "Seconde particularité."],
+          "durationMinutes": 60,
+          "priceCents": 8500,
+          "effectivePriceCents": 6900,
+          "salePriceCents": 6900,
+          "saleEndsAt": "2026-11-30T23:00:00.000Z",
+          "currency": "EUR"
+        }
+      ]
+    },
+    "Availability": {
+      "type": "object",
+      "properties": {
+        "serviceId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "durationMinutes": {
+          "type": "integer"
+        },
+        "timeZone": {
+          "type": "string",
+          "const": "Europe/Paris"
+        },
+        "from": {
+          "type": "string",
+          "format": "date",
+          "description": "Local date of the studio (Europe/Paris), YYYY-MM-DD",
+          "examples": ["2027-03-02"]
+        },
+        "to": {
+          "type": "string",
+          "format": "date",
+          "description": "Local date of the studio (Europe/Paris), YYYY-MM-DD",
+          "examples": ["2027-03-02"]
+        },
+        "days": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "date": {
+                "type": "string",
+                "format": "date",
+                "description": "Local date of the studio (Europe/Paris), YYYY-MM-DD",
+                "examples": ["2027-03-02"]
+              },
+              "slots": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "startsAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "description": "Moment in UTC, ISO 8601 with Z",
+                      "examples": ["2027-03-02T08:00:00.000Z"]
+                    },
+                    "endsAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "description": "Moment in UTC, ISO 8601 with Z",
+                      "examples": ["2027-03-02T08:00:00.000Z"]
+                    }
+                  },
+                  "required": ["startsAt", "endsAt"],
+                  "additionalProperties": false
+                },
+                "description": "Free starts of that day, in order"
+              }
+            },
+            "required": ["date", "slots"],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "serviceId",
+        "durationMinutes",
+        "timeZone",
+        "from",
+        "to",
+        "days"
+      ],
+      "additionalProperties": false
+    },
+    "ProfileView": {
+      "type": "object",
+      "properties": {
+        "profile": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "role": {
+              "type": "string",
+              "enum": ["client", "admin"]
+            },
+            "authState": {
+              "type": "string",
+              "enum": ["anonymous", "registered"],
+              "description": "anonymous = Firebase anonymous sign-in (guest)"
+            },
+            "name": {
+              "type": ["string", "null"]
+            },
+            "email": {
+              "type": ["string", "null"]
+            },
+            "emailVerified": {
+              "type": "boolean"
+            },
+            "phone": {
+              "description": "E.164",
+              "examples": ["+33612345678"],
+              "type": ["string", "null"]
+            },
+            "signInProvider": {
+              "type": "string",
+              "examples": ["password", "google.com", "anonymous"]
+            },
+            "createdAt": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Moment in UTC, ISO 8601 with Z",
+              "examples": ["2027-03-02T08:00:00.000Z"]
+            },
+            "updatedAt": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Moment in UTC, ISO 8601 with Z",
+              "examples": ["2027-03-02T08:00:00.000Z"]
+            }
+          },
+          "required": [
+            "id",
+            "role",
+            "authState",
+            "name",
+            "email",
+            "emailVerified",
+            "phone",
+            "signInProvider",
+            "createdAt",
+            "updatedAt"
+          ],
+          "additionalProperties": false
+        },
+        "bookingReadiness": {
+          "type": "object",
+          "properties": {
+            "ready": {
+              "type": "boolean"
+            },
+            "blockers": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "anonymous_session",
+                  "email_not_verified",
+                  "name_missing",
+                  "phone_missing",
+                  "not_a_client"
+                ]
+              }
+            }
+          },
+          "required": ["ready", "blockers"],
+          "additionalProperties": false,
+          "description": "Informational; booking routes re-check on the server"
+        },
+        "marketing": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "subscribed": {
+                  "type": "boolean"
+                },
+                "pendingConfirmation": {
+                  "type": "boolean",
+                  "description": "A confirmation email is outstanding"
+                },
+                "consentGivenAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time",
+                      "description": "Moment in UTC, ISO 8601 with Z",
+                      "examples": ["2027-03-02T08:00:00.000Z"]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "consentSource": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "enum": [
+                        "signup_checkbox",
+                        "subscription_form",
+                        "account_request"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "consentTextVersion": {
+                  "type": ["string", "null"]
+                },
+                "unsubscribedAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time",
+                      "description": "Moment in UTC, ISO 8601 with Z",
+                      "examples": ["2027-03-02T08:00:00.000Z"]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "subscribed",
+                "pendingConfirmation",
+                "consentGivenAt",
+                "consentSource",
+                "consentTextVersion",
+                "unsubscribedAt"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "null unless the profile has a verified email"
+        },
+        "marketingAvailable": {
+          "type": "boolean",
+          "description": "The server offers the marketing subscription (sign-up checkbox, subscribe button, public form). Availability of the feature, not the user's subscription (see marketing)"
+        }
+      },
+      "required": [
+        "profile",
+        "bookingReadiness",
+        "marketing",
+        "marketingAvailable"
+      ],
+      "additionalProperties": false
+    },
+    "SyncResponse": {
+      "type": "object",
+      "properties": {
+        "profile": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "role": {
+              "type": "string",
+              "enum": ["client", "admin"]
+            },
+            "authState": {
+              "type": "string",
+              "enum": ["anonymous", "registered"],
+              "description": "anonymous = Firebase anonymous sign-in (guest)"
+            },
+            "name": {
+              "type": ["string", "null"]
+            },
+            "email": {
+              "type": ["string", "null"]
+            },
+            "emailVerified": {
+              "type": "boolean"
+            },
+            "phone": {
+              "description": "E.164",
+              "examples": ["+33612345678"],
+              "type": ["string", "null"]
+            },
+            "signInProvider": {
+              "type": "string",
+              "examples": ["password", "google.com", "anonymous"]
+            },
+            "createdAt": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Moment in UTC, ISO 8601 with Z",
+              "examples": ["2027-03-02T08:00:00.000Z"]
+            },
+            "updatedAt": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Moment in UTC, ISO 8601 with Z",
+              "examples": ["2027-03-02T08:00:00.000Z"]
+            }
+          },
+          "required": [
+            "id",
+            "role",
+            "authState",
+            "name",
+            "email",
+            "emailVerified",
+            "phone",
+            "signInProvider",
+            "createdAt",
+            "updatedAt"
+          ],
+          "additionalProperties": false
+        },
+        "bookingReadiness": {
+          "type": "object",
+          "properties": {
+            "ready": {
+              "type": "boolean"
+            },
+            "blockers": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "anonymous_session",
+                  "email_not_verified",
+                  "name_missing",
+                  "phone_missing",
+                  "not_a_client"
+                ]
+              }
+            }
+          },
+          "required": ["ready", "blockers"],
+          "additionalProperties": false,
+          "description": "Informational; booking routes re-check on the server"
+        },
+        "marketing": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "subscribed": {
+                  "type": "boolean"
+                },
+                "pendingConfirmation": {
+                  "type": "boolean",
+                  "description": "A confirmation email is outstanding"
+                },
+                "consentGivenAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time",
+                      "description": "Moment in UTC, ISO 8601 with Z",
+                      "examples": ["2027-03-02T08:00:00.000Z"]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "consentSource": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "enum": [
+                        "signup_checkbox",
+                        "subscription_form",
+                        "account_request"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "consentTextVersion": {
+                  "type": ["string", "null"]
+                },
+                "unsubscribedAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time",
+                      "description": "Moment in UTC, ISO 8601 with Z",
+                      "examples": ["2027-03-02T08:00:00.000Z"]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "subscribed",
+                "pendingConfirmation",
+                "consentGivenAt",
+                "consentSource",
+                "consentTextVersion",
+                "unsubscribedAt"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "null unless the profile has a verified email"
+        },
+        "marketingAvailable": {
+          "type": "boolean",
+          "description": "The server offers the marketing subscription (sign-up checkbox, subscribe button, public form). Availability of the feature, not the user's subscription (see marketing)"
+        },
+        "marketingOptIn": {
+          "description": "Only when the request had marketingOptIn: true; the sync itself succeeded in every case",
+          "type": "object",
+          "properties": {
+            "outcome": {
+              "type": "string",
+              "enum": [
+                "subscribed",
+                "already_subscribed",
+                "confirmation_sent",
+                "delivery_failed",
+                "no_action",
+                "unavailable",
+                "consent_text_outdated",
+                "failed",
+                "test_recipient_not_allowed"
+              ]
+            },
+            "welcomeEmail": {
+              "description": "Only with outcome subscribed: whether the 'you are subscribed' email was accepted by the provider; the subscription is active either way",
+              "type": "string",
+              "enum": ["sent", "not_sent", "unknown"]
+            },
+            "currentConsentTextVersion": {
+              "type": "string"
+            }
+          },
+          "required": ["outcome", "currentConsentTextVersion"],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "profile",
+        "bookingReadiness",
+        "marketing",
+        "marketingAvailable"
+      ],
+      "additionalProperties": false
+    },
+    "Booking": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["confirmed", "cancelled"]
+        },
+        "phase": {
+          "type": "string",
+          "enum": ["upcoming", "in_progress", "finished", "cancelled"],
+          "description": "Derived from the server clock"
+        },
+        "timeZone": {
+          "type": "string",
+          "examples": ["Europe/Paris"]
+        },
+        "startsAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Moment in UTC, ISO 8601 with Z",
+          "examples": ["2027-03-02T08:00:00.000Z"]
+        },
+        "endsAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Moment in UTC, ISO 8601 with Z",
+          "examples": ["2027-03-02T08:00:00.000Z"]
+        },
+        "service": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "name": {
+              "type": "string"
+            },
+            "durationMinutes": {
+              "type": "integer"
+            },
+            "priceCents": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Integer euro cents"
+            },
+            "currency": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "name",
+            "durationMinutes",
+            "priceCents",
+            "currency"
+          ],
+          "additionalProperties": false,
+          "description": "Snapshot taken when the booking was created: priceCents is the agreed price (the sale price if a sale was active then). Never changed afterwards (rescheduling, end of a sale, catalogue changes)"
+        },
+        "payment": {
+          "type": "string",
+          "const": "on_site",
+          "description": "Paid at the studio; no online payment"
+        },
+        "cancellation": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "by": {
+                  "type": "string",
+                  "enum": ["client", "admin"]
+                },
+                "at": {
+                  "type": "string",
+                  "format": "date-time",
+                  "description": "Moment in UTC, ISO 8601 with Z",
+                  "examples": ["2027-03-02T08:00:00.000Z"]
+                },
+                "reason": {
+                  "type": ["string", "null"]
+                }
+              },
+              "required": ["by", "at", "reason"],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "allowedActions": {
+          "type": "object",
+          "properties": {
+            "reschedule": {
+              "type": "boolean"
+            },
+            "cancel": {
+              "type": "boolean"
+            }
+          },
+          "required": ["reschedule", "cancel"],
+          "additionalProperties": false,
+          "description": "UI hints only; the server re-checks every request"
+        },
+        "history": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "const": "created"
+                  },
+                  "at": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "Moment in UTC, ISO 8601 with Z",
+                    "examples": ["2027-03-02T08:00:00.000Z"]
+                  }
+                },
+                "required": ["type", "at"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "const": "rescheduled"
+                  },
+                  "at": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "Moment in UTC, ISO 8601 with Z",
+                    "examples": ["2027-03-02T08:00:00.000Z"]
+                  },
+                  "from": {
+                    "type": "object",
+                    "properties": {
+                      "startsAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Moment in UTC, ISO 8601 with Z",
+                        "examples": ["2027-03-02T08:00:00.000Z"]
+                      },
+                      "endsAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Moment in UTC, ISO 8601 with Z",
+                        "examples": ["2027-03-02T08:00:00.000Z"]
+                      }
+                    },
+                    "required": ["startsAt", "endsAt"],
+                    "additionalProperties": false
+                  },
+                  "to": {
+                    "type": "object",
+                    "properties": {
+                      "startsAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Moment in UTC, ISO 8601 with Z",
+                        "examples": ["2027-03-02T08:00:00.000Z"]
+                      },
+                      "endsAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Moment in UTC, ISO 8601 with Z",
+                        "examples": ["2027-03-02T08:00:00.000Z"]
+                      }
+                    },
+                    "required": ["startsAt", "endsAt"],
+                    "additionalProperties": false
+                  }
+                },
+                "required": ["type", "at", "from", "to"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "const": "cancelled"
+                  },
+                  "at": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "Moment in UTC, ISO 8601 with Z",
+                    "examples": ["2027-03-02T08:00:00.000Z"]
+                  },
+                  "by": {
+                    "type": "string",
+                    "enum": ["client", "admin"]
+                  }
+                },
+                "required": ["type", "at", "by"],
+                "additionalProperties": false
+              }
+            ]
+          }
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Moment in UTC, ISO 8601 with Z",
+          "examples": ["2027-03-02T08:00:00.000Z"]
+        },
+        "notification": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "event": {
+                  "type": "string",
+                  "enum": ["created", "rescheduled", "cancelled"]
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "pending",
+                    "sending",
+                    "accepted",
+                    "failed",
+                    "skipped",
+                    "interrupted"
+                  ],
+                  "description": "accepted = accepted by the email provider for sending, NOT delivered to the mailbox"
+                },
+                "reason": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "enum": [
+                        "retry_scheduled",
+                        "superseded",
+                        "session_already_started",
+                        "test_environment",
+                        "no_valid_address",
+                        "not_sent"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": ["event", "status", "reason"],
+              "additionalProperties": false,
+              "description": "The client's own email about the latest change of the booking"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "null when booking emails are off on this server"
+        }
+      },
+      "required": [
+        "id",
+        "status",
+        "phase",
+        "timeZone",
+        "startsAt",
+        "endsAt",
+        "service",
+        "payment",
+        "cancellation",
+        "allowedActions",
+        "history",
+        "createdAt",
+        "notification"
+      ],
+      "additionalProperties": false
+    },
+    "ScheduleDays": {
+      "type": "object",
+      "properties": {
+        "timeZone": {
+          "type": "string",
+          "const": "Europe/Paris"
+        },
+        "days": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "date": {
+                "type": "string",
+                "format": "date",
+                "description": "Local date of the studio (Europe/Paris), YYYY-MM-DD",
+                "examples": ["2027-03-02"]
+              },
+              "weekday": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 7,
+                "description": "ISO weekday, 1 = Monday … 7 = Sunday"
+              },
+              "closed": {
+                "type": "boolean",
+                "description": "The date's schedule (exception or weekly rule) has no working hours. Not about closures: see `closure`"
+              },
+              "source": {
+                "type": "string",
+                "enum": ["weekly", "exception"],
+                "description": "`weekly`: the weekly rule applies; `exception`: hours set for this date"
+              },
+              "intervals": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "start": {
+                      "type": "string",
+                      "description": "Local time of the studio, HH:MM (00:00–24:00)",
+                      "examples": ["09:00"]
+                    },
+                    "end": {
+                      "type": "string",
+                      "description": "Local time of the studio, HH:MM (00:00–24:00)",
+                      "examples": ["09:00"]
+                    }
+                  },
+                  "required": ["start", "end"],
+                  "additionalProperties": false
+                },
+                "description": "The date's schedule — also what the date returns to when its closure is removed"
+              },
+              "closure": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "closedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Moment in UTC, ISO 8601 with Z",
+                        "examples": ["2027-03-02T08:00:00.000Z"]
+                      }
+                    },
+                    "required": ["closedAt"],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "The date is closed for new bookings and moves (existing bookings stay); null: not closed"
+              },
+              "effective": {
+                "type": "object",
+                "properties": {
+                  "open": {
+                    "type": "boolean",
+                    "description": "Something can be booked on this date (subject to booking rules and other bookings)"
+                  },
+                  "intervals": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "start": {
+                          "type": "string",
+                          "description": "Local time of the studio, HH:MM (00:00–24:00)",
+                          "examples": ["09:00"]
+                        },
+                        "end": {
+                          "type": "string",
+                          "description": "Local time of the studio, HH:MM (00:00–24:00)",
+                          "examples": ["09:00"]
+                        }
+                      },
+                      "required": ["start", "end"],
+                      "additionalProperties": false
+                    },
+                    "description": "Hours open for booking: none while closed, else the schedule"
+                  }
+                },
+                "required": ["open", "intervals"],
+                "additionalProperties": false,
+                "description": "What can be booked now: the working hours. Blocks are not cut out of them: see `blocks`"
+              },
+              "blocks": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "Shown to the admin only (1–100 characters)"
+                    },
+                    "note": {
+                      "description": "Optional, admin only (up to 500 characters); null: none",
+                      "type": ["string", "null"]
+                    },
+                    "start": {
+                      "type": "string",
+                      "description": "Local date and time of the studio (Europe/Paris), YYYY-MM-DDTHH:MM, no offset",
+                      "examples": ["2027-03-02T14:00"]
+                    },
+                    "end": {
+                      "type": "string",
+                      "description": "Local end; a block ending at midnight shows the next date at 00:00",
+                      "examples": ["2027-03-02T14:00"]
+                    },
+                    "startsAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "description": "Moment in UTC, ISO 8601 with Z",
+                      "examples": ["2027-03-02T08:00:00.000Z"]
+                    },
+                    "endsAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "description": "Moment in UTC, ISO 8601 with Z",
+                      "examples": ["2027-03-02T08:00:00.000Z"]
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "description": "Moment in UTC, ISO 8601 with Z",
+                      "examples": ["2027-03-02T08:00:00.000Z"]
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "description": "Moment in UTC, ISO 8601 with Z",
+                      "examples": ["2027-03-02T08:00:00.000Z"]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "title",
+                    "note",
+                    "start",
+                    "end",
+                    "startsAt",
+                    "endsAt",
+                    "createdAt",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                },
+                "description": "Blocks of the calendar overlapping this date, by start; their time (plus a break on each side) takes no bookings"
+              }
+            },
+            "required": [
+              "date",
+              "weekday",
+              "closed",
+              "source",
+              "intervals",
+              "closure",
+              "effective",
+              "blocks"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": ["timeZone", "days"],
+      "additionalProperties": false
+    },
+    "ScheduleBlock": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "title": {
+          "type": "string",
+          "description": "Shown to the admin only (1–100 characters)"
+        },
+        "note": {
+          "description": "Optional, admin only (up to 500 characters); null: none",
+          "type": ["string", "null"]
+        },
+        "start": {
+          "type": "string",
+          "description": "Local date and time of the studio (Europe/Paris), YYYY-MM-DDTHH:MM, no offset",
+          "examples": ["2027-03-02T14:00"]
+        },
+        "end": {
+          "type": "string",
+          "description": "Local end; a block ending at midnight shows the next date at 00:00",
+          "examples": ["2027-03-02T14:00"]
+        },
+        "startsAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Moment in UTC, ISO 8601 with Z",
+          "examples": ["2027-03-02T08:00:00.000Z"]
+        },
+        "endsAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Moment in UTC, ISO 8601 with Z",
+          "examples": ["2027-03-02T08:00:00.000Z"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Moment in UTC, ISO 8601 with Z",
+          "examples": ["2027-03-02T08:00:00.000Z"]
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Moment in UTC, ISO 8601 with Z",
+          "examples": ["2027-03-02T08:00:00.000Z"]
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "note",
+        "start",
+        "end",
+        "startsAt",
+        "endsAt",
+        "createdAt",
+        "updatedAt"
+      ],
+      "additionalProperties": false
+    },
+    "ScheduleBlockResult": {
+      "type": "object",
+      "properties": {
+        "timeZone": {
+          "type": "string",
+          "const": "Europe/Paris"
+        },
+        "block": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "title": {
+              "type": "string",
+              "description": "Shown to the admin only (1–100 characters)"
+            },
+            "note": {
+              "description": "Optional, admin only (up to 500 characters); null: none",
+              "type": ["string", "null"]
+            },
+            "start": {
+              "type": "string",
+              "description": "Local date and time of the studio (Europe/Paris), YYYY-MM-DDTHH:MM, no offset",
+              "examples": ["2027-03-02T14:00"]
+            },
+            "end": {
+              "type": "string",
+              "description": "Local end; a block ending at midnight shows the next date at 00:00",
+              "examples": ["2027-03-02T14:00"]
+            },
+            "startsAt": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Moment in UTC, ISO 8601 with Z",
+              "examples": ["2027-03-02T08:00:00.000Z"]
+            },
+            "endsAt": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Moment in UTC, ISO 8601 with Z",
+              "examples": ["2027-03-02T08:00:00.000Z"]
+            },
+            "createdAt": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Moment in UTC, ISO 8601 with Z",
+              "examples": ["2027-03-02T08:00:00.000Z"]
+            },
+            "updatedAt": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Moment in UTC, ISO 8601 with Z",
+              "examples": ["2027-03-02T08:00:00.000Z"]
+            }
+          },
+          "required": [
+            "id",
+            "title",
+            "note",
+            "start",
+            "end",
+            "startsAt",
+            "endsAt",
+            "createdAt",
+            "updatedAt"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": ["timeZone", "block"],
+      "additionalProperties": false
+    },
+    "ScheduleBlockUpdateResult": {
+      "type": "object",
+      "properties": {
+        "timeZone": {
+          "type": "string",
+          "const": "Europe/Paris"
+        },
+        "block": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "title": {
+              "type": "string",
+              "description": "Shown to the admin only (1–100 characters)"
+            },
+            "note": {
+              "description": "Optional, admin only (up to 500 characters); null: none",
+              "type": ["string", "null"]
+            },
+            "start": {
+              "type": "string",
+              "description": "Local date and time of the studio (Europe/Paris), YYYY-MM-DDTHH:MM, no offset",
+              "examples": ["2027-03-02T14:00"]
+            },
+            "end": {
+              "type": "string",
+              "description": "Local end; a block ending at midnight shows the next date at 00:00",
+              "examples": ["2027-03-02T14:00"]
+            },
+            "startsAt": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Moment in UTC, ISO 8601 with Z",
+              "examples": ["2027-03-02T08:00:00.000Z"]
+            },
+            "endsAt": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Moment in UTC, ISO 8601 with Z",
+              "examples": ["2027-03-02T08:00:00.000Z"]
+            },
+            "createdAt": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Moment in UTC, ISO 8601 with Z",
+              "examples": ["2027-03-02T08:00:00.000Z"]
+            },
+            "updatedAt": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Moment in UTC, ISO 8601 with Z",
+              "examples": ["2027-03-02T08:00:00.000Z"]
+            }
+          },
+          "required": [
+            "id",
+            "title",
+            "note",
+            "start",
+            "end",
+            "startsAt",
+            "endsAt",
+            "createdAt",
+            "updatedAt"
+          ],
+          "additionalProperties": false
+        },
+        "changed": {
+          "type": "boolean",
+          "description": "false: the block already had these values, nothing was written"
+        }
+      },
+      "required": ["timeZone", "block", "changed"],
+      "additionalProperties": false
+    },
+    "ScheduleBlockList": {
+      "type": "object",
+      "properties": {
+        "timeZone": {
+          "type": "string",
+          "const": "Europe/Paris"
+        },
+        "blocks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "title": {
+                "type": "string",
+                "description": "Shown to the admin only (1–100 characters)"
+              },
+              "note": {
+                "description": "Optional, admin only (up to 500 characters); null: none",
+                "type": ["string", "null"]
+              },
+              "start": {
+                "type": "string",
+                "description": "Local date and time of the studio (Europe/Paris), YYYY-MM-DDTHH:MM, no offset",
+                "examples": ["2027-03-02T14:00"]
+              },
+              "end": {
+                "type": "string",
+                "description": "Local end; a block ending at midnight shows the next date at 00:00",
+                "examples": ["2027-03-02T14:00"]
+              },
+              "startsAt": {
+                "type": "string",
+                "format": "date-time",
+                "description": "Moment in UTC, ISO 8601 with Z",
+                "examples": ["2027-03-02T08:00:00.000Z"]
+              },
+              "endsAt": {
+                "type": "string",
+                "format": "date-time",
+                "description": "Moment in UTC, ISO 8601 with Z",
+                "examples": ["2027-03-02T08:00:00.000Z"]
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time",
+                "description": "Moment in UTC, ISO 8601 with Z",
+                "examples": ["2027-03-02T08:00:00.000Z"]
+              },
+              "updatedAt": {
+                "type": "string",
+                "format": "date-time",
+                "description": "Moment in UTC, ISO 8601 with Z",
+                "examples": ["2027-03-02T08:00:00.000Z"]
+              }
+            },
+            "required": [
+              "id",
+              "title",
+              "note",
+              "start",
+              "end",
+              "startsAt",
+              "endsAt",
+              "createdAt",
+              "updatedAt"
+            ],
+            "additionalProperties": false
+          },
+          "description": "By start"
+        }
+      },
+      "required": ["timeZone", "blocks"],
+      "additionalProperties": false
+    },
+    "Error": {
+      "type": "object",
+      "properties": {
+        "message": {
+          "type": "string",
+          "description": "Human-readable, English; do not parse"
+        },
+        "code": {
+          "description": "Stable machine-readable code (see each operation)",
+          "type": "string"
+        },
+        "errors": {
+          "description": "VALIDATION_FAILED: one entry per invalid field",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "field": {
+                "type": "array",
+                "items": {
+                  "type": ["string", "number"]
+                }
+              },
+              "message": {
+                "type": "string"
+              }
+            },
+            "required": ["field", "message"],
+            "additionalProperties": false
+          }
+        },
+        "blockers": {
+          "description": "BOOKING_NOT_READY, GIFT_CARD_REQUEST_NOT_READY: what still prevents booking or a gift card request (phone_invalid: gift card requests only)",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "anonymous_session",
+              "email_not_verified",
+              "name_missing",
+              "phone_missing",
+              "not_a_client",
+              "phone_invalid"
+            ]
+          }
+        },
+        "reason": {
+          "description": "SLOT_UNAVAILABLE: why the start is not available",
+          "type": "string",
+          "enum": ["too_soon", "beyond_horizon", "outside_schedule", "taken"]
+        },
+        "retryAfterSeconds": {
+          "description": "When to retry (also sent as the Retry-After header): AUTH_UNAVAILABLE, CALENDAR_BUSY, CONFIRMATION_EMAIL_NOT_SENT, GIFT_CARD_REQUEST_BUSY, GIFT_CARD_REQUEST_LIMIT_REACHED",
+          "type": "integer"
+        },
+        "currentConsentTextVersion": {
+          "description": "CONSENT_TEXT_OUTDATED: the version to show instead",
+          "type": "string"
+        },
+        "conflicts": {
+          "description": "SCHEDULE_CONFLICT: active bookings the change would leave outside working hours",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "bookingId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "startsAt": {
+                "type": "string",
+                "format": "date-time",
+                "description": "Moment in UTC, ISO 8601 with Z",
+                "examples": ["2027-03-02T08:00:00.000Z"]
+              },
+              "endsAt": {
+                "type": "string",
+                "format": "date-time",
+                "description": "Moment in UTC, ISO 8601 with Z",
+                "examples": ["2027-03-02T08:00:00.000Z"]
+              },
+              "serviceName": {
+                "type": "string"
+              }
+            },
+            "required": ["bookingId", "startsAt", "endsAt", "serviceName"],
+            "additionalProperties": false
+          }
+        },
+        "from": {
+          "description": "GIFT_CARD_STATUS_TRANSITION_NOT_ALLOWED: the current status",
+          "type": "string",
+          "enum": ["new", "in_progress", "completed", "cancelled"]
+        },
+        "to": {
+          "description": "GIFT_CARD_STATUS_TRANSITION_NOT_ALLOWED: the requested status",
+          "type": "string",
+          "enum": ["new", "in_progress", "completed", "cancelled"]
+        },
+        "allowed": {
+          "description": "GIFT_CARD_STATUS_TRANSITION_NOT_ALLOWED: statuses that may be set from the current one",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["new", "in_progress", "completed", "cancelled"],
+            "description": "completed = manual handling finished (not a payment or an issued card); cancelled = closed (kept); both can be reopened to in_progress"
+          }
+        }
+      },
+      "required": ["message"],
+      "additionalProperties": false,
+      "examples": [
+        {
+          "message": "Validation failed",
+          "code": "VALIDATION_FAILED",
+          "errors": [
+            {
+              "field": ["startsAt"],
+              "message": "Invalid ISO datetime"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "responses": {
+    "DELETE /api/admin/schedule/blocks/{blockId} 200": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "deleted": {
+          "type": "boolean"
+        }
+      },
+      "required": ["id", "deleted"],
+      "additionalProperties": false
+    }
+  }
+}

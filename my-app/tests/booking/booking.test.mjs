@@ -12,6 +12,12 @@ import {
   sortDayBookings,
 } from '../../src/lib/booking/bookings.js';
 import {
+  afterBookingError,
+  bookingAccount,
+  createBookingIntent,
+  missingSteps,
+} from '../../src/lib/booking/flow.js';
+import {
   buildCatalog,
   findPrestation,
   hasActiveSale,
@@ -88,15 +94,18 @@ test('catalog: durations grouped by editorial ids, never by name alone', () => {
     {
       key: 'sportif',
       serviceIds: ['s120', 's55', 'gone'],
-      description: null,
       featured: true,
     },
-    { key: 'endo', serviceIds: ['e45'], description: 'Texte validé' },
+    { key: 'endo', serviceIds: ['e45'] },
   ];
   const catalog = buildCatalog(
     [
       svc('Massage sportif', 120, 18500, null, 's120'),
-      svc('Endosphères — demi-corps, une séance', 45, 11000, null, 'e45'),
+      {
+        ...svc('Endosphères — demi-corps, une séance', 45, 11000, null, 'e45'),
+        description: 'Texte de l’API',
+        features: ['Un point.'],
+      },
       svc('Massage sportif', 55, 10000, null, 's55'),
       // Same name, but not listed in the layer: its own card.
       svc('Massage sportif', 30, 5000, null, 'new30'),
@@ -112,7 +121,11 @@ test('catalog: durations grouped by editorial ids, never by name alone', () => {
     ['s55', 's120']
   );
   assert.equal(catalog[0].featured, true);
-  assert.equal(catalog[1].description, 'Texte validé');
+  // Texts come from the API service, not from the editorial layer.
+  assert.equal(catalog[1].description, 'Texte de l’API');
+  assert.deepEqual(catalog[1].features, ['Un point.']);
+  assert.equal(catalog[0].description, null);
+  assert.deepEqual(catalog[0].features, []);
   assert.equal(lowestPrice(catalog[0]), 10000);
   assert.equal(findPrestation(catalog, 's120').key, 'sportif');
   assert.equal(findPrestation(catalog, 'nope'), null);
@@ -121,7 +134,7 @@ test('catalog: durations grouped by editorial ids, never by name alone', () => {
 test('catalog: a renamed variant leaves its group', () => {
   const catalog = buildCatalog(
     [svc('A', 60, 1, null, 'a60'), svc('A (nouveau)', 90, 2, null, 'a90')],
-    [{ key: 'a', serviceIds: ['a60', 'a90'], description: null }]
+    [{ key: 'a', serviceIds: ['a60', 'a90'] }]
   );
   assert.deepEqual(
     catalog.map((p) => p.key),
@@ -129,7 +142,7 @@ test('catalog: a renamed variant leaves its group', () => {
   );
 });
 
-test('editorial layer: 35 distinct ids in 18 prestations, no business data', () => {
+test('editorial layer: 35 distinct ids in 18 prestations, no business data or texts', () => {
   const ids = SERVICE_GROUPS.flatMap((group) => group.serviceIds);
   assert.equal(SERVICE_GROUPS.length, 18);
   assert.equal(ids.length, 35);
@@ -137,14 +150,7 @@ test('editorial layer: 35 distinct ids in 18 prestations, no business data', () 
   for (const group of SERVICE_GROUPS) {
     assert.deepEqual(
       Object.keys(group).filter(
-        (key) =>
-          ![
-            'key',
-            'serviceIds',
-            'description',
-            'featured',
-            'category',
-          ].includes(key)
+        (key) => !['key', 'serviceIds', 'featured', 'category'].includes(key)
       ),
       []
     );
@@ -345,5 +351,94 @@ test('bookings: upcoming soonest first, past latest first; admin day order', () 
       b('z', '2027-03-02T08:00:00Z', 'upcoming'),
     ]).map((x) => x.id),
     ['z', 'a', 'c']
+  );
+});
+
+// ---------------------------------------------------------------------------
+// Booking panel decisions (src/lib/booking/flow.js).
+
+test('flow: account state from the server profile only', () => {
+  const base = {
+    enabled: true,
+    status: 'member',
+    blockers: [],
+    profileStatus: 'ready',
+  };
+  assert.equal(bookingAccount({ ...base, enabled: false }), 'off');
+  assert.equal(
+    bookingAccount({ ...base, status: 'unavailable' }),
+    'unavailable'
+  );
+  assert.equal(
+    bookingAccount({ ...base, blockers: null, profileStatus: 'error' }),
+    'error'
+  );
+  assert.equal(
+    bookingAccount({ ...base, blockers: null, profileStatus: 'loading' }),
+    'loading'
+  );
+  assert.equal(
+    bookingAccount({ ...base, status: 'loading', blockers: null }),
+    'loading'
+  );
+  // A guest needs no profile to be told to sign in.
+  assert.equal(
+    bookingAccount({ ...base, status: 'guest', blockers: null }),
+    'missing'
+  );
+  assert.deepEqual(missingSteps(null), ['anonymous_session']);
+  assert.equal(
+    bookingAccount({ ...base, blockers: ['phone_missing'] }),
+    'missing'
+  );
+  assert.equal(bookingAccount(base), 'ready');
+  // Firebase says « member », the profile is not loaded: never 'ready'.
+  assert.equal(bookingAccount({ ...base, blockers: null }), 'loading');
+});
+
+test('flow: one Idempotency-Key per intent, kept across unknown outcomes', () => {
+  let next = 0;
+  const intent = createBookingIntent(() => `key-${++next}`);
+  const first = intent.keyFor('s1', '2027-03-02T08:00:00.000Z');
+  // Retry after a network error / timeout: same key.
+  assert.equal(intent.keyFor('s1', '2027-03-02T08:00:00.000Z'), first);
+  // Another time or another service: a new intent.
+  assert.notEqual(intent.keyFor('s1', '2027-03-02T09:00:00.000Z'), first);
+  const other = intent.keyFor('s2', '2027-03-02T09:00:00.000Z');
+  assert.equal(other, 'key-3');
+  // After a definite refusal the same time is a new intent.
+  intent.end();
+  assert.equal(intent.keyFor('s2', '2027-03-02T09:00:00.000Z'), 'key-4');
+});
+
+test('flow: what a failed booking changes', () => {
+  assert.deepEqual(afterBookingError({ code: 'TIMEOUT', status: 0 }), {
+    keepIntent: true,
+    backToTimes: false,
+    resyncProfile: false,
+  });
+  assert.deepEqual(
+    afterBookingError({
+      code: 'SLOT_UNAVAILABLE',
+      status: 409,
+      details: { reason: 'taken' },
+    }),
+    { keepIntent: false, backToTimes: true, resyncProfile: false }
+  );
+  assert.deepEqual(
+    afterBookingError({ code: 'BOOKING_NOT_READY', status: 403 }),
+    {
+      keepIntent: false,
+      backToTimes: false,
+      resyncProfile: true,
+    }
+  );
+  assert.equal(
+    afterBookingError({ code: 'CALENDAR_BUSY', status: 503 }).keepIntent,
+    true
+  );
+  assert.equal(
+    afterBookingError({ code: 'TOKEN_EXPIRED', status: 401 }).keepIntent,
+    false
   );
 });

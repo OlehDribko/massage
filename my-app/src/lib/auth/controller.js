@@ -14,7 +14,12 @@
  * imports and testable with a fake.
  */
 
+import { validatorFor } from '../api/contract.js';
 import { ApiError, apiRequest } from './session.js';
+
+// Profile answers are checked before role or readiness is trusted.
+const checkSynced = validatorFor('syncedProfile');
+const checkProfile = validatorFor('profile');
 
 const EMPTY_PROFILE = {
   uid: null,
@@ -131,7 +136,11 @@ export function createAuthController({
       profile: {
         ...state.profile,
         status: 'error',
-        error: { code, retryAfterSeconds: error?.retryAfterSeconds },
+        error: {
+          code,
+          retryAfterSeconds: error?.retryAfterSeconds,
+          requestId: error?.requestId ?? null,
+        },
       },
     });
 
@@ -180,7 +189,11 @@ export function createAuthController({
     });
 
     const isStale = () => seq !== syncSeq || currentUid() !== user.uid;
-    const promise = request(user, '/api/me/sync', { method: 'POST', body })
+    const promise = request(user, '/api/me/sync', {
+      method: 'POST',
+      body,
+      validate: checkSynced,
+    })
       .then((response) => {
         if (isStale()) return;
         // The opt-in result belongs to this one sync, not to the profile.
@@ -448,7 +461,11 @@ export function createAuthController({
   /** PATCH /api/me — own `name` and `phone` only (null clears a field). */
   async function updateProfile(changes) {
     const uid = currentUid();
-    const view = await api('/api/me', { method: 'PATCH', body: changes });
+    const view = await api('/api/me', {
+      method: 'PATCH',
+      body: changes,
+      validate: checkProfile,
+    });
     applyProfileView(uid, view);
     return view;
   }
@@ -476,6 +493,7 @@ export function createAuthController({
     const uid = currentUid();
     const view = await api('/api/me/marketing/subscription', {
       method: 'DELETE',
+      validate: checkProfile,
     });
     applyProfileView(uid, view);
     return view;

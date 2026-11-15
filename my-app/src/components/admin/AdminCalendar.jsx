@@ -12,9 +12,19 @@ import { useRouter, useSearchParams } from 'next/navigation';
 
 import { DAY_PATH } from '@/components/admin/AdminDayBookings';
 import AdminShell, { AdminError } from '@/components/admin/AdminShell';
+import BlockDialog, { BLOCK_STYLE } from '@/components/admin/BlockDialog';
 import { useAccountData } from '@/components/auth/useAccountData';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import Notice from '@/components/ui/Notice';
 import PillButton from '@/components/ui/PillButton';
+import { validatorFor } from '@/lib/api/contract';
+import {
+  agendaItems,
+  applyBlockChange,
+  blockTimeLabel,
+  blocksCountLabel,
+  blocksOf,
+} from '@/lib/admin/blocks';
 import {
   bookingsByDate,
   calendarRange,
@@ -35,6 +45,7 @@ import {
 } from '@/lib/format';
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
+const checkDays = validatorFor('scheduleDays');
 const noopSubscribe = () => () => {};
 const WEEKDAY_SHORT = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 
@@ -151,6 +162,28 @@ function BookingItem({ booking, date }) {
   );
 }
 
+/** A busy time in a day column: a click opens it (edit, delete). */
+function BlockItem({ block, date, onOpen }) {
+  return (
+    <button
+      type="button"
+      onClick={() => onOpen(block)}
+      className={`font-montserrat focus-visible:outline-third-200 flex w-full flex-col gap-1 rounded-2xl px-3.5 py-3 text-left transition-shadow hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 ${BLOCK_STYLE}`}
+    >
+      <span className="text-[0.6875rem] font-medium tracking-wide uppercase">
+        Indisponible
+      </span>
+      <span className="text-xs font-semibold break-words">
+        {blockTimeLabel(block, date)}
+      </span>
+      <span className="text-sm leading-snug font-medium break-words">
+        {block.title}
+      </span>
+      <span className="sr-only"> — modifier ou supprimer</span>
+    </button>
+  );
+}
+
 /** Round checkbox in the corner of a day (today or later only). */
 function DayCheckbox({ date, checked, onToggle }) {
   return (
@@ -214,7 +247,17 @@ function DayStatus({ state }) {
  * side on wide screens; on narrower ones the row scrolls horizontally and
  * the week buttons stay the way to change weeks.
  */
-function WeekView({ dates, daysByDate, byDate, today, selected, onToggle }) {
+function WeekView({
+  dates,
+  daysByDate,
+  byDate,
+  timeZone,
+  today,
+  selected,
+  onToggle,
+  onOpenBlock,
+  onAddBlock,
+}) {
   const scrollerRef = useRef(null);
 
   // When the row scrolls, start it at today's column.
@@ -234,7 +277,12 @@ function WeekView({ dates, daysByDate, byDate, today, selected, onToggle }) {
       <ol className="grid w-max grid-cols-[repeat(7,minmax(15rem,1fr))] gap-3 sm:grid-cols-[repeat(7,minmax(13.5rem,1fr))] xl:w-full xl:grid-cols-7 xl:gap-2.5">
         {dates.map((date) => {
           const state = dayState(daysByDate.get(date));
-          const bookings = byDate.get(date) ?? [];
+          const items = agendaItems(
+            byDate.get(date),
+            blocksOf(daysByDate.get(date)),
+            date,
+            timeZone
+          );
           const isToday = date === today;
           const isSelected = selected.has(date);
           const selectable = isSelectable(date, today);
@@ -292,11 +340,19 @@ function WeekView({ dates, daysByDate, byDate, today, selected, onToggle }) {
 
               <DayStatus state={state} />
 
-              {bookings.length ? (
+              {items.length ? (
                 <ul className="flex flex-col gap-2">
-                  {bookings.map((booking) => (
-                    <li key={booking.id}>
-                      <BookingItem booking={booking} date={date} />
+                  {items.map((entry) => (
+                    <li key={`${entry.kind}-${entry.id}`}>
+                      {entry.kind === 'block' ? (
+                        <BlockItem
+                          block={entry.item}
+                          date={date}
+                          onOpen={onOpenBlock}
+                        />
+                      ) : (
+                        <BookingItem booking={entry.item} date={date} />
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -305,6 +361,22 @@ function WeekView({ dates, daysByDate, byDate, today, selected, onToggle }) {
                   Aucun rendez-vous
                 </p>
               )}
+              {selectable ? (
+                <button
+                  type="button"
+                  onClick={() => onAddBlock(date)}
+                  className={`font-montserrat hover:border-third-200 hover:text-third-900 focus-visible:outline-third-200 flex min-h-11 items-center justify-center gap-1 rounded-2xl border border-dashed border-black/20 px-2 text-xs text-gray-800 transition-colors focus-visible:outline-2 ${items.length ? 'mt-auto' : ''}`}
+                >
+                  <span aria-hidden className="text-lg leading-none">
+                    +
+                  </span>
+                  Indisponibilité
+                  <span className="sr-only">
+                    {' '}
+                    le {formatLocalDate(date, { year: true })}
+                  </span>
+                </button>
+              ) : null}
             </li>
           );
         })}
@@ -341,12 +413,13 @@ function MonthView({
           const inMonth = date.startsWith(month);
           const state = dayState(daysByDate.get(date));
           const active = activeBookings(byDate.get(date)).length;
+          const busy = blocksOf(daysByDate.get(date)).length;
           const isToday = date === today;
           const selectable = isSelectable(date, today);
           const isSelected = selected.has(date);
           const label = `${formatLocalDate(date, { year: true })} — ${STATE_STYLE[state.kind].legend}${
             state.kind === 'open' ? ` (${hoursLabel(state.hours)})` : ''
-          } — ${active ? `${active} rendez-vous` : 'aucun rendez-vous'}`;
+          } — ${active ? `${active} rendez-vous` : 'aucun rendez-vous'}${busy ? ` — ${blocksCountLabel(busy)}` : ''}`;
           const cellClass = `relative flex aspect-square w-full flex-col justify-between rounded-2xl border p-1.5 text-left sm:aspect-auto sm:min-h-28 sm:rounded-panel sm:p-3 ${STATE_STYLE[state.kind].card} ${
             isSelected
               ? 'ring-primary-200 ring-2 ring-offset-1 sm:ring-offset-2'
@@ -392,11 +465,21 @@ function MonthView({
                         ? 'Repos'
                         : ''}
                 </span>
-                {active ? (
-                  <span className="font-montserrat bg-third-900 text-cream ml-auto flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[0.6875rem] font-semibold sm:h-6 sm:min-w-6">
-                    {active}
-                  </span>
-                ) : null}
+                <span className="ml-auto flex items-center gap-1">
+                  {busy ? (
+                    <span
+                      title={blocksCountLabel(busy)}
+                      className={`font-montserrat flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[0.6875rem] font-semibold sm:h-6 sm:min-w-6 ${BLOCK_STYLE}`}
+                    >
+                      {busy}
+                    </span>
+                  ) : null}
+                  {active ? (
+                    <span className="font-montserrat bg-third-900 text-cream flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[0.6875rem] font-semibold sm:h-6 sm:min-w-6">
+                      {active}
+                    </span>
+                  ) : null}
+                </span>
               </span>
             </>
           );
@@ -451,16 +534,32 @@ function Legend({ view }) {
         </li>
       ))}
       {view === 'month' ? (
+        <>
+          <li className="flex items-center gap-2">
+            <span
+              aria-hidden
+              className="bg-third-900 text-cream flex size-5 items-center justify-center rounded-full text-[0.6875rem] font-semibold"
+            >
+              2
+            </span>
+            Rendez-vous à venir
+          </li>
+          <li className="flex items-center gap-2">
+            <span
+              aria-hidden
+              className={`flex size-5 items-center justify-center rounded-full text-[0.6875rem] font-semibold ${BLOCK_STYLE}`}
+            >
+              1
+            </span>
+            Indisponibilités
+          </li>
+        </>
+      ) : (
         <li className="flex items-center gap-2">
-          <span
-            aria-hidden
-            className="bg-third-900 text-cream flex size-5 items-center justify-center rounded-full text-[0.6875rem] font-semibold"
-          >
-            2
-          </span>
-          Rendez-vous à venir
+          <span aria-hidden className={`size-4 rounded-md ${BLOCK_STYLE}`} />
+          Indisponibilité (temps pris ailleurs)
         </li>
-      ) : null}
+      )}
     </ul>
   );
 }
@@ -546,12 +645,15 @@ function CalendarContent({ controller, enabled }) {
   const [actionError, setActionError] = useState(null);
   const [result, setResult] = useState(null);
   const busyRef = useRef(false);
+  const [editor, setEditor] = useState(null); // { date } | { block }
+  const [blockNotice, setBlockNotice] = useState(null);
+  const addButtonRef = useRef(null);
 
   const range = anchor ? calendarRange(view, anchor) : null;
   const query = range ? `from=${range.from}&to=${range.to}` : null;
   const days = useAccountData(
     query ? `/api/admin/schedule/days?${query}` : null,
-    { enabled }
+    { enabled, validate: checkDays }
   );
   const bookings = useAccountData(
     query ? `/api/admin/bookings?${query}` : null,
@@ -592,6 +694,33 @@ function CalendarContent({ controller, enabled }) {
       </p>
     );
   }
+
+  const addDate = () => {
+    const picked = [...selected].sort();
+    if (picked.length === 1) return picked[0];
+    if (today && range.dates.includes(today)) return today;
+    return range.dates.find((date) => isSelectable(date, today)) ?? today;
+  };
+
+  // Blocks are listed by /days: update the loaded days at once (old and new
+  // date of a moved block), then reload them from the server.
+  const blockChanged = ({ removedId, block, action }) => {
+    if (days.data) {
+      days.replace({
+        ...days.data,
+        days: applyBlockChange(days.data.days, { removedId, block }),
+      });
+    }
+    days.reload();
+    setEditor(null);
+    setBlockNotice(
+      action === 'deleted'
+        ? 'Indisponibilité supprimée : le créneau est de nouveau réservable selon les horaires.'
+        : action === 'created'
+          ? 'Indisponibilité ajoutée : les clients ne peuvent plus réserver ce créneau.'
+          : 'Indisponibilité modifiée.'
+    );
+  };
 
   const summary = selectionSummary(selected, daysByDate);
   const targets = dialog === 'close' ? summary.open : summary.closed;
@@ -756,29 +885,47 @@ function CalendarContent({ controller, enabled }) {
                 : 'Touchez une date pour ouvrir l’agenda du jour. Pour fermer ou rouvrir des dates, passez en sélection.'
               : 'Touchez une date pour ouvrir l’agenda du jour. Cochez des jours pour les fermer aux nouvelles réservations ou retirer leur fermeture.'}
           </p>
-          {view === 'month' ? (
+          <div className="flex flex-wrap gap-2">
             <button
+              ref={addButtonRef}
               type="button"
-              aria-pressed={selecting}
               onClick={() => {
-                setSelecting((value) => !value);
-                setSelected(new Set());
+                setBlockNotice(null);
+                setEditor({ date: addDate() });
               }}
-              className={`font-montserrat text-body-sm focus-visible:outline-third-200 min-h-11 shrink-0 rounded-full border px-5 font-medium transition-colors focus-visible:outline-2 ${
-                selecting
-                  ? 'border-third-900 bg-third-900 text-cream'
-                  : 'hover:border-third-200 border-black/20 bg-white text-gray-900'
-              }`}
+              disabled={!today}
+              className="font-montserrat text-body-sm hover:border-third-200 focus-visible:outline-third-200 min-h-11 shrink-0 rounded-full border border-black/20 bg-white px-5 font-medium text-gray-900 transition-colors focus-visible:outline-2 disabled:opacity-50"
             >
-              {selecting ? 'Terminer la sélection' : 'Sélectionner des dates'}
+              <span aria-hidden>+ </span>Ajouter une indisponibilité
             </button>
-          ) : null}
+            {view === 'month' ? (
+              <button
+                type="button"
+                aria-pressed={selecting}
+                onClick={() => {
+                  setSelecting((value) => !value);
+                  setSelected(new Set());
+                }}
+                className={`font-montserrat text-body-sm focus-visible:outline-third-200 min-h-11 shrink-0 rounded-full border px-5 font-medium transition-colors focus-visible:outline-2 ${
+                  selecting
+                    ? 'border-third-900 bg-third-900 text-cream'
+                    : 'hover:border-third-200 border-black/20 bg-white text-gray-900'
+                }`}
+              >
+                {selecting ? 'Terminer la sélection' : 'Sélectionner des dates'}
+              </button>
+            ) : null}
+          </div>
         </div>
       </div>
 
       {result ? (
         <ActionResult result={result} onDismiss={() => setResult(null)} />
       ) : null}
+
+      <div role="status">
+        {blockNotice ? <Notice>{blockNotice}</Notice> : null}
+      </div>
 
       {failed ? (
         <AdminError
@@ -820,9 +967,18 @@ function CalendarContent({ controller, enabled }) {
           dates={range.dates}
           daysByDate={daysByDate}
           byDate={byDate}
+          timeZone={bookings.data?.timeZone}
           today={today}
           selected={selected}
           onToggle={toggle}
+          onOpenBlock={(block) => {
+            setBlockNotice(null);
+            setEditor({ block });
+          }}
+          onAddBlock={(date) => {
+            setBlockNotice(null);
+            setEditor({ date });
+          }}
         />
       )}
 
@@ -879,6 +1035,19 @@ function CalendarContent({ controller, enabled }) {
             </div>
           </div>
         </div>
+      ) : null}
+
+      {editor ? (
+        <BlockDialog
+          key={editor.block?.id ?? `new-${editor.date}`}
+          editor={editor}
+          today={today}
+          controller={controller}
+          fallbackFocus={addButtonRef}
+          onClose={() => setEditor(null)}
+          onChanged={blockChanged}
+          onGone={days.reload}
+        />
       ) : null}
 
       <ConfirmDialog
