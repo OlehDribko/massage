@@ -203,6 +203,53 @@ export function giftReadinessSteps(blockers, { returnTo } = {}) {
     .map((blocker) => ({ blocker, ...steps[blocker] }));
 }
 
+/**
+ * The one step shown in the gift card panel before the form (Figma « Carte
+ * Cadeau »: guest, incomplete profile, admin): a sentence under the title
+ * and at most one action. The most blocking step wins; the account page
+ * shows the rest.
+ */
+const BLOCKER_VIEW = {
+  not_a_client:
+    'Un compte administrateur ne peut pas demander de carte cadeau.',
+  anonymous_session:
+    'Connectez-vous ou créez un compte pour demander une carte cadeau.',
+  email_not_verified:
+    'Pour envoyer votre demande, confirmez d’abord votre adresse e-mail.',
+  name_missing:
+    'Pour envoyer votre demande, ajoutez votre prénom et votre numéro de téléphone à votre profil.',
+  phone_missing:
+    'Pour envoyer votre demande, ajoutez votre prénom et votre numéro de téléphone à votre profil.',
+  phone_invalid:
+    'Pour envoyer votre demande, corrigez le numéro de téléphone de votre profil.',
+};
+const BLOCKER_ORDER = Object.keys(BLOCKER_VIEW);
+
+export function giftBlockerView(blockers, options) {
+  if (!blockers?.length) return null;
+  const known = blockers.filter((blocker) => BLOCKER_VIEW[blocker]);
+  if (!known.length) {
+    // A step this version does not know yet: the account page explains it.
+    const back = options?.returnTo
+      ? `?retour=${encodeURIComponent(options.returnTo)}`
+      : '';
+    return {
+      blocker: blockers[0],
+      text: 'Pour envoyer votre demande, complétez d’abord votre compte.',
+      href: `/compte${back}`,
+      action: 'Mon compte',
+    };
+  }
+  const first = BLOCKER_ORDER.find((blocker) => known.includes(blocker));
+  const [step] = giftReadinessSteps([first], options);
+  return {
+    blocker: first,
+    text: BLOCKER_VIEW[first],
+    href: step?.href ?? null,
+    action: step?.action ?? null,
+  };
+}
+
 function waitText(seconds) {
   if (!seconds) return 'plus tard';
   if (seconds < 90) return 'dans quelques instants';

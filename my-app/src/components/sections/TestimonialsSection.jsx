@@ -78,8 +78,8 @@ const arrowButton =
  * the Planity rating linking to the page with all reviews.
  *
  * Autoplay: the next review every 7 s while the section is on screen,
- * paused on hover / keyboard focus, with a pause button (WCAG 2.2.2) and a
- * progress line; never with reduced motion. A changed review slides in.
+ * paused on hover / keyboard focus, with a pause button (WCAG 2.2.2); never
+ * with reduced motion. A changed review slides in.
  */
 export default function TestimonialsSection({ id }) {
   const [current, setCurrent] = useState(0);
@@ -265,24 +265,6 @@ export default function TestimonialsSection({ id }) {
                 « {featured.quote} »
               </blockquote>
             </AutoHeight>
-            <div className="flex items-center gap-4">
-              <p className="font-montserrat text-body-sm shrink-0 text-gray-800">
-                Avis {current + 1} sur {total}
-              </p>
-              {!reduced ? (
-                <span
-                  aria-hidden
-                  className="relative h-px flex-1 overflow-hidden bg-black/10"
-                >
-                  {/* Restarts with each review and each resume. */}
-                  <span
-                    key={`${current}:${running}`}
-                    className={`bg-third-200 absolute inset-y-0 left-0 ${running ? 'autoplay-bar' : 'w-0'}`}
-                    style={{ animationDuration: `${AUTOPLAY_MS}ms` }}
-                  />
-                </span>
-              ) : null}
-            </div>
           </figure>
 
           <PlanityBadge />
@@ -305,17 +287,6 @@ export default function TestimonialsSection({ id }) {
               </p>
             </li>
           ))}
-          <li>
-            <a
-              href={REVIEWS.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-montserrat text-label text-primary-200 hover:text-primary-300 border-b-[1.2px] border-current font-medium uppercase"
-            >
-              Tous les avis sur Planity
-              <span className="sr-only"> (nouvelle fenêtre)</span>
-            </a>
-          </li>
         </ul>
       </div>
     </section>
