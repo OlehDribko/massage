@@ -2,7 +2,7 @@
   "source": {
     "repository": "OlehDribko/Massage-backend",
     "file": "docs/openapi.json",
-    "commit": "c2610b6319d7e8ae6fb90b3ea6fb33cc53741bb3",
+    "commit": "bcfe3af8bf626b07c24181d93a77786923ff4a7e",
     "apiVersion": "1.0.0"
   },
   "components": {

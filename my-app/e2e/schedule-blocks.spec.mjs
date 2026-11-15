@@ -470,7 +470,7 @@ test('[mocked] the block ends while its form is open: the server error is on the
     body: { title, start: `${date}T12:00`, end: `${date}T12:30` },
   });
   expect(created.status).toBe(201);
-  // The documented answer of c2610b6 when the end is no longer in the
+  // The documented answer of the backend (bcfe3af) when the end is no longer in the
   // future at the time of the PATCH (re-checked even for a new title).
   await page.route('**/api/admin/schedule/blocks/*', (route) =>
     route.request().method() === 'PATCH'
