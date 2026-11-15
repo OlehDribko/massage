@@ -65,7 +65,7 @@ export async function GET(request) {
     '',
     `> ${SITE.description}`,
     '',
-    'Cabinet de massage tenu par une masseuse certifiée (plus de 10 ans d’expérience). Site en français.',
+    'Cabinet de massage tenu par une masseuse certifiée (plus de 10 ans d’expérience). Site en français, anglais, ukrainien et russe (voir « Langues »).',
     '',
     '## Infos pratiques',
     '',
@@ -104,6 +104,13 @@ export async function GET(request) {
     `- [Réservation](${origin}/reserver) : catalogue complet avec filtres (catégorie, durée, budget)`,
     `- [Instagram](${socials.instagram})`,
     `- [Facebook](${socials.facebook})`,
+    '',
+    '## Langues',
+    '',
+    `- [Français](${origin}/) (version principale)`,
+    `- [English](${origin}/en) — ${origin}/en/reserver`,
+    `- [Українська](${origin}/uk) — ${origin}/uk/reserver`,
+    `- [Русский](${origin}/ru) — ${origin}/ru/reserver`,
     '',
   ]);
 

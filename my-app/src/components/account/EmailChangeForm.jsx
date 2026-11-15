@@ -2,6 +2,8 @@
 
 import { useId, useRef, useState } from 'react';
 
+import { useT } from '@/i18n/client';
+
 import Notice from '@/components/ui/Notice';
 import PillButton from '@/components/ui/PillButton';
 import TextField from '@/components/ui/TextField';
@@ -14,6 +16,7 @@ import { authErrorMessage } from '@/lib/auth/session';
  * `email` field of PATCH /api/me is not accepted by the API.
  */
 export default function EmailChangeForm({ currentEmail, onSubmit }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState('');
   const [error, setError] = useState(null);
@@ -29,7 +32,7 @@ export default function EmailChangeForm({ currentEmail, onSubmit }) {
         onClick={() => setOpen(true)}
         className="self-start"
       >
-        Modifier mon adresse e-mail
+        {t('Modifier mon adresse e-mail')}
       </PillButton>
     );
   }
@@ -39,11 +42,11 @@ export default function EmailChangeForm({ currentEmail, onSubmit }) {
     if (busyRef.current) return;
     const value = email.trim();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
-      setError('Adresse e-mail invalide.');
+      setError(t('Adresse e-mail invalide.'));
       return;
     }
     if (value.toLowerCase() === (currentEmail ?? '').toLowerCase()) {
-      setError('C’est déjà votre adresse actuelle.');
+      setError(t('C’est déjà votre adresse actuelle.'));
       return;
     }
     busyRef.current = true;
@@ -52,11 +55,14 @@ export default function EmailChangeForm({ currentEmail, onSubmit }) {
     try {
       await onSubmit(value);
       setMessage(
-        `Un lien de confirmation a été envoyé à ${value}. Votre adresse changera après l’ouverture de ce lien ; vous devrez alors vous reconnecter.`
+        t(
+          'Un lien de confirmation a été envoyé à {email}. Votre adresse changera après l’ouverture de ce lien ; vous devrez alors vous reconnecter.',
+          { email: value }
+        )
       );
       setEmail('');
     } catch (caught) {
-      setError(authErrorMessage(caught));
+      setError(authErrorMessage(caught, t));
     } finally {
       busyRef.current = false;
       setPending(false);
@@ -67,7 +73,7 @@ export default function EmailChangeForm({ currentEmail, onSubmit }) {
     <form noValidate onSubmit={submit} className="flex flex-col gap-4">
       <TextField
         id={id}
-        label="Nouvelle adresse e-mail"
+        label={t('Nouvelle adresse e-mail')}
         type="email"
         autoComplete="email"
         value={email}
@@ -82,14 +88,14 @@ export default function EmailChangeForm({ currentEmail, onSubmit }) {
           aria-busy={pending}
           className="disabled:opacity-60"
         >
-          {pending ? 'Envoi…' : 'Envoyer le lien'}
+          {pending ? t('Envoi…') : t('Envoyer le lien')}
         </PillButton>
         <PillButton
           variant="text"
           onClick={() => setOpen(false)}
           className="self-start sm:self-auto"
         >
-          Fermer
+          {t('Fermer')}
         </PillButton>
       </div>
     </form>

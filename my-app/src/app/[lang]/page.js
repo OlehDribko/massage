@@ -10,20 +10,29 @@ import ServicesSection from '@/components/sections/ServicesSection';
 import TestimonialsSection from '@/components/sections/TestimonialsSection';
 import JsonLd from '@/components/seo/JsonLd';
 import { loadCatalog } from '@/lib/booking/loadCatalog';
+import { getT, setRequestLocale } from '@/i18n/server';
 import { localBusinessJsonLd, pageMetadata } from '@/lib/seo';
 
-export const metadata = pageMetadata({
-  title: 'Massage à Bordeaux | Massage by Stefania Ben',
-  absoluteTitle: true,
-  description:
-    'Cabinet de massage à Bordeaux, rue Castéja : massage thérapeutique et relaxant, Tuina, drainage lymphatique, anti-cellulite et Endosphères. Réservez en ligne.',
-  path: '/',
-});
+export async function generateMetadata({ params }) {
+  const { lang } = await params;
+  const t = getT(lang);
+  return pageMetadata({
+    title: t('Massage à Bordeaux | Massage by Stefania Ben'),
+    absoluteTitle: true,
+    description: t(
+      'Cabinet de massage à Bordeaux, rue Castéja : massage thérapeutique et relaxant, Tuina, drainage lymphatique, anti-cellulite et Endosphères. Réservez en ligne.'
+    ),
+    path: '/',
+    locale: lang,
+  });
+}
 
-export default async function Home() {
+export default async function Home({ params }) {
+  const { lang } = await params;
+  setRequestLocale(lang);
   // Real prices for « Nos soins populaires »; the page renders without them
   // if the API is slow or down.
-  const { catalog } = await loadCatalog({ timeoutMs: 2500 });
+  const { catalog } = await loadCatalog({ timeoutMs: 2500, locale: lang });
   const featured = catalog?.filter((prestation) => prestation.featured) ?? null;
 
   return (
@@ -31,7 +40,7 @@ export default async function Home() {
       <Header variant="overlay" />
       {/* Motion (test): GSAP scroll animations attach to these sections. */}
       <main className="home-motion">
-        <JsonLd data={localBusinessJsonLd(catalog)} />
+        <JsonLd data={localBusinessJsonLd(catalog, lang)} />
         <HomeMotion />
         <HeroSection />
         <AboutMeSection id="about" />

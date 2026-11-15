@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useId, useRef, useState } from 'react';
-import Link from 'next/link';
+import { Link, useT } from '@/i18n/client';
 
 import MaskIcon from '@/components/ui/MaskIcon';
 
@@ -65,6 +65,7 @@ function Avatar({ name }) {
 }
 
 function AccountMenu({ account, triggerClasses }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [signOutState, setSignOutState] = useState('idle');
   const wrapperRef = useRef(null);
@@ -131,7 +132,7 @@ function AccountMenu({ account, triggerClasses }) {
         className={triggerClasses}
       >
         <Avatar name={user.name} />
-        <Label>Mon compte</Label>
+        <Label>{t('Mon compte')}</Label>
       </button>
 
       {/* Always rendered so aria-controls points to an existing element. */}
@@ -164,7 +165,7 @@ function AccountMenu({ account, triggerClasses }) {
                 className={itemClasses}
               >
                 <MaskIcon src="/icons/person.svg" className="size-6" />
-                Mon compte
+                {t('Mon compte')}
               </Link>
             </li>
           ) : null}
@@ -176,7 +177,7 @@ function AccountMenu({ account, triggerClasses }) {
                 className={itemClasses}
               >
                 <MaskIcon src="/icons/calendar.svg" className="size-6" />
-                Mes réservations
+                {t('Mes réservations')}
               </Link>
             </li>
           ) : null}
@@ -188,7 +189,7 @@ function AccountMenu({ account, triggerClasses }) {
                 className={itemClasses}
               >
                 <MaskIcon src="/icons/admin.svg" className="size-6" />
-                Administration
+                {t('Administration')}
               </Link>
             </li>
           ) : null}
@@ -202,7 +203,7 @@ function AccountMenu({ account, triggerClasses }) {
                 className={`${itemClasses} disabled:opacity-60`}
               >
                 <MaskIcon src="/icons/logout.svg" className="size-6" />
-                Se déconnecter
+                {t('Se déconnecter')}
               </button>
             </li>
           ) : null}
@@ -213,7 +214,7 @@ function AccountMenu({ account, triggerClasses }) {
             role="alert"
             className="font-montserrat text-third-100 px-4 pt-1 pb-2 text-[14px]"
           >
-            La déconnexion a échoué. Veuillez réessayer.
+            {t('La déconnexion a échoué. Veuillez réessayer.')}
           </p>
         ) : null}
       </div>
@@ -222,6 +223,7 @@ function AccountMenu({ account, triggerClasses }) {
 }
 
 export default function AccountControl({ account, variant = 'overlay' }) {
+  const t = useT();
   if (!account) return null;
 
   const triggerClasses = `rounded-pill font-montserrat text-label inline-flex size-11 items-center justify-center gap-2 border font-medium transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 motion-reduce:transition-none lg:h-12 lg:w-full lg:px-3.5 ${tones[variant]}`;
@@ -236,7 +238,7 @@ export default function AccountControl({ account, variant = 'overlay' }) {
       <div className={slot}>
         <Link href={account.signInHref} className={triggerClasses}>
           <MaskIcon src="/icons/person.svg" className="size-6" />
-          <Label>Se connecter</Label>
+          <Label>{t('Se connecter')}</Label>
         </Link>
       </div>
     );
@@ -249,11 +251,11 @@ export default function AccountControl({ account, variant = 'overlay' }) {
           type="button"
           onClick={account.onRetry}
           className={triggerClasses}
-          aria-label="Connexion indisponible, réessayer"
+          aria-label={t('Connexion indisponible, réessayer')}
         >
           <MaskIcon src="/icons/person.svg" className="size-6 opacity-60" />
           <span aria-hidden className="hidden lg:inline">
-            Réessayer
+            {t('Réessayer')}
           </span>
         </button>
       </div>
@@ -273,14 +275,14 @@ export default function AccountControl({ account, variant = 'overlay' }) {
           className={`account-hint-guest ${triggerClasses}`}
         >
           <MaskIcon src="/icons/person.svg" className="size-6" />
-          <Label>Se connecter</Label>
+          <Label>{t('Se connecter')}</Label>
         </Link>
         <Link
           href={account.accountHref ?? '/compte'}
           className={`account-hint-member ${triggerClasses}`}
         >
           <MaskIcon src="/icons/person.svg" className="size-6" />
-          <Label>Mon compte</Label>
+          <Label>{t('Mon compte')}</Label>
         </Link>
       </div>
     );
@@ -291,7 +293,7 @@ export default function AccountControl({ account, variant = 'overlay' }) {
     <div className={slot}>
       <Link href={account.accountHref ?? '/compte'} className={triggerClasses}>
         <MaskIcon src="/icons/person.svg" className="size-6" />
-        <Label>Espace personnel</Label>
+        <Label>{t('Espace personnel')}</Label>
       </Link>
     </div>
   );

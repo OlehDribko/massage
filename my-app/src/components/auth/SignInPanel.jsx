@@ -1,9 +1,13 @@
 'use client';
 
 import { useEffect, useId, useRef, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 
 import { useAuth } from '@/components/auth/AuthProvider';
+import ConsentText from '@/components/marketing/ConsentText';
+import { useRouter, useT } from '@/i18n/client';
+import { msg } from '@/i18n/translate';
+import { rich } from '@/i18n/rich';
 import Notice from '@/components/ui/Notice';
 import GoogleLogo from '@/components/ui/GoogleLogo';
 import PillButton from '@/components/ui/PillButton';
@@ -19,29 +23,31 @@ import {
 import { marketingAvailability } from '@/lib/marketing';
 
 const MODES = {
-  signin: { title: 'Se connecter', submit: 'Se connecter' },
-  signup: { title: 'Créer un compte', submit: 'Créer mon compte' },
+  signin: { title: msg('Se connecter'), submit: msg('Se connecter') },
+  signup: { title: msg('Créer un compte'), submit: msg('Créer mon compte') },
 };
 
 // Firebase default minimum; a stricter console policy is reported by Firebase.
 const MIN_PASSWORD_LENGTH = 6;
 
 const NOTICES = {
-  session_revoked:
-    'Votre session a expiré ou a été fermée sur un autre appareil. Veuillez vous reconnecter.',
-  account_disabled:
-    'Ce compte est désactivé. Contactez-nous si vous pensez qu’il s’agit d’une erreur.',
+  session_revoked: msg(
+    'Votre session a expiré ou a été fermée sur un autre appareil. Veuillez vous reconnecter.'
+  ),
+  account_disabled: msg(
+    'Ce compte est désactivé. Contactez-nous si vous pensez qu’il s’agit d’une erreur.'
+  ),
 };
 
-function validate({ email, password }, mode) {
+function validate({ email, password }, mode, t) {
   const errors = {};
-  if (!email.trim()) errors.email = 'Indiquez votre adresse e-mail.';
+  if (!email.trim()) errors.email = t('Indiquez votre adresse e-mail.');
   else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-    errors.email = 'Adresse e-mail invalide.';
+    errors.email = t('Adresse e-mail invalide.');
   }
-  if (!password) errors.password = 'Indiquez votre mot de passe.';
+  if (!password) errors.password = t('Indiquez votre mot de passe.');
   else if (mode === 'signup' && password.length < MIN_PASSWORD_LENGTH) {
-    errors.password = `${MIN_PASSWORD_LENGTH} caractères minimum.`;
+    errors.password = t('{n} caractères minimum.', { n: MIN_PASSWORD_LENGTH });
   }
   return errors;
 }
@@ -57,6 +63,7 @@ export default function SignInPanel({
   returnTo: returnToProp,
   embedded = false,
 }) {
+  const t = useT();
   const { enabled, controller, state, status } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -121,7 +128,7 @@ export default function SignInPanel({
       await task();
     } catch (caught) {
       if (!SILENT_AUTH_ERRORS.has(caught?.code)) {
-        setError({ code: caught?.code, text: authErrorMessage(caught) });
+        setError({ code: caught?.code, text: authErrorMessage(caught, t) });
       }
     } finally {
       busyRef.current = false;
@@ -148,7 +155,7 @@ export default function SignInPanel({
 
   const handleSubmit = (event) => {
     event.preventDefault();
-    const errors = validate({ email, password }, mode);
+    const errors = validate({ email, password }, mode, t);
     setFieldErrors(errors);
     if (Object.keys(errors).length) {
       focusFieldRef.current = errors.email ? ids.email : ids.password;
@@ -183,7 +190,7 @@ export default function SignInPanel({
 
   const handleReset = () => {
     if (!email.trim()) {
-      setFieldErrors({ email: 'Indiquez votre adresse e-mail.' });
+      setFieldErrors({ email: t('Indiquez votre adresse e-mail.') });
       focusFieldRef.current = ids.email;
       return;
     }
@@ -192,7 +199,9 @@ export default function SignInPanel({
       await controller.sendPasswordReset(email.trim());
       // Same answer whether or not the address has an account.
       setInfo(
-        'Si un compte existe pour cette adresse, un e-mail pour choisir un nouveau mot de passe vient d’être envoyé.'
+        t(
+          'Si un compte existe pour cette adresse, un e-mail pour choisir un nouveau mot de passe vient d’être envoyé.'
+        )
       );
     });
   };
@@ -207,9 +216,11 @@ export default function SignInPanel({
   if (!enabled) {
     return (
       <section className="flex flex-col gap-6">
-        <Title className={titleClass}>Connexion</Title>
-        <Notice>La connexion en ligne n’est pas encore disponible.</Notice>
-        <PillButton href="/reserver">Découvrir les soins</PillButton>
+        <Title className={titleClass}>{t('Connexion')}</Title>
+        <Notice>
+          {t('La connexion en ligne n’est pas encore disponible.')}
+        </Notice>
+        <PillButton href="/reserver">{t('Découvrir les soins')}</PillButton>
       </section>
     );
   }
@@ -217,16 +228,16 @@ export default function SignInPanel({
   if (status === 'unavailable') {
     return (
       <section className="flex flex-col gap-6">
-        <Title className={titleClass}>Connexion</Title>
+        <Title className={titleClass}>{t('Connexion')}</Title>
         <Notice tone="error">
-          Le service de connexion est momentanément indisponible.
+          {t('Le service de connexion est momentanément indisponible.')}
         </Notice>
         <PillButton
           variant="outline"
           tone="dark"
           onClick={() => controller.retry()}
         >
-          Réessayer
+          {t('Réessayer')}
         </PillButton>
       </section>
     );
@@ -236,16 +247,20 @@ export default function SignInPanel({
     return (
       <section className="flex flex-col gap-6">
         <Title className={titleClass}>
-          Vous êtes <span className="heading-accent">connecté·e</span>
+          {rich(t('Vous êtes <accent>connecté·e</accent>'), {
+            accent: (chunks) => (
+              <span className="heading-accent">{chunks}</span>
+            ),
+          })}
         </Title>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-          <PillButton href={AUTH_ROUTES.account}>Mon compte</PillButton>
+          <PillButton href={AUTH_ROUTES.account}>{t('Mon compte')}</PillButton>
           <PillButton
             variant="text"
             onClick={() => controller.signOut()}
             className="self-start sm:self-auto"
           >
-            Se déconnecter
+            {t('Se déconnecter')}
           </PillButton>
         </div>
       </section>
@@ -261,12 +276,12 @@ export default function SignInPanel({
   return (
     <section aria-labelledby={ids.heading} className="flex flex-col gap-8">
       <Title id={ids.heading} className={titleClass}>
-        {modeCopy.title}
+        {t(modeCopy.title)}
       </Title>
 
       <div
         role="group"
-        aria-label="Type de connexion"
+        aria-label={t('Type de connexion')}
         className="font-montserrat text-label flex border-b border-black/10 uppercase"
       >
         {Object.entries(MODES).map(([key, copy]) => (
@@ -281,18 +296,18 @@ export default function SignInPanel({
                 : 'hover:text-third-200 border-transparent text-gray-800'
             }`}
           >
-            {key === 'signin' ? 'J’ai un compte' : 'Nouveau compte'}
+            {key === 'signin' ? t('J’ai un compte') : t('Nouveau compte')}
           </button>
         ))}
       </div>
 
       {state.notice ? (
-        <Notice tone="error">{NOTICES[state.notice]}</Notice>
+        <Notice tone="error">{t(NOTICES[state.notice])}</Notice>
       ) : null}
 
       {mode === 'signup' ? (
         <p className="font-montserrat text-body text-gray-800">
-          Votre compte vous permettra de retrouver vos informations.
+          {t('Votre compte vous permettra de retrouver vos informations.')}
         </p>
       ) : null}
 
@@ -304,7 +319,7 @@ export default function SignInPanel({
         >
           <TextField
             id={ids.email}
-            label="Adresse e-mail"
+            label={t('Adresse e-mail')}
             type="email"
             name="email"
             autoComplete="email"
@@ -316,7 +331,7 @@ export default function SignInPanel({
           />
           <TextField
             id={ids.password}
-            label="Mot de passe"
+            label={t('Mot de passe')}
             type={showPassword ? 'text' : 'password'}
             name="password"
             autoComplete={
@@ -328,7 +343,7 @@ export default function SignInPanel({
             error={fieldErrors.password}
             hint={
               mode === 'signup'
-                ? `${MIN_PASSWORD_LENGTH} caractères minimum.`
+                ? t('{n} caractères minimum.', { n: MIN_PASSWORD_LENGTH })
                 : undefined
             }
             action={
@@ -338,13 +353,13 @@ export default function SignInPanel({
                 aria-controls={ids.password}
                 aria-label={
                   showPassword
-                    ? 'Masquer le mot de passe'
-                    : 'Afficher le mot de passe'
+                    ? t('Masquer le mot de passe')
+                    : t('Afficher le mot de passe')
                 }
                 onClick={() => setShowPassword((value) => !value)}
                 className="font-montserrat text-label-sm hover:text-third-200 focus-visible:outline-third-200 shrink-0 px-1 py-2 font-medium text-gray-800 uppercase focus-visible:outline-2"
               >
-                {showPassword ? 'Masquer' : 'Afficher'}
+                {showPassword ? t('Masquer') : t('Afficher')}
               </button>
             }
           />
@@ -365,13 +380,13 @@ export default function SignInPanel({
                   htmlFor={ids.newsletter}
                   className="font-montserrat text-body font-medium text-gray-900"
                 >
-                  Recevoir la newsletter du cabinet (facultatif)
+                  {t('Recevoir la newsletter du cabinet (facultatif)')}
                 </label>
                 <p
                   id={ids.consent}
                   className="font-montserrat text-body-sm text-gray-800"
                 >
-                  {MARKETING_CONSENT.text}
+                  <ConsentText />
                 </p>
               </div>
             </div>
@@ -390,7 +405,7 @@ export default function SignInPanel({
                       onClick={() => switchMode('signin')}
                       className="text-third-900 font-medium underline"
                     >
-                      Se connecter
+                      {t('Se connecter')}
                     </button>
                   </>
                 ) : null}
@@ -405,7 +420,9 @@ export default function SignInPanel({
             aria-busy={pending === 'email'}
             className="w-full disabled:opacity-60"
           >
-            {pending === 'email' || done ? 'Un instant…' : modeCopy.submit}
+            {pending === 'email' || done
+              ? t('Un instant…')
+              : t(modeCopy.submit)}
           </PillButton>
 
           {mode === 'signin' ? (
@@ -415,14 +432,14 @@ export default function SignInPanel({
               disabled={!ready || busy}
               className="self-center disabled:opacity-60"
             >
-              {pending === 'reset' ? 'Envoi…' : 'Mot de passe oublié ?'}
+              {pending === 'reset' ? t('Envoi…') : t('Mot de passe oublié ?')}
             </PillButton>
           ) : null}
         </form>
 
         <p className="font-montserrat text-label-sm flex items-center gap-4 text-gray-800 uppercase">
           <span aria-hidden className="h-px flex-1 bg-black/10" />
-          ou
+          {t('ou')}
           <span aria-hidden className="h-px flex-1 bg-black/10" />
         </p>
 
@@ -437,15 +454,15 @@ export default function SignInPanel({
           <span className="flex items-center gap-3">
             <GoogleLogo />
             {pending === 'google'
-              ? 'Connexion avec Google…'
-              : 'Continuer avec Google'}
+              ? t('Connexion avec Google…')
+              : t('Continuer avec Google')}
           </span>
         </PillButton>
       </>
 
       {!ready && !done ? (
         <p role="status" className="font-montserrat text-body-sm text-gray-800">
-          Préparation de votre session…
+          {t('Préparation de votre session…')}
         </p>
       ) : null}
     </section>

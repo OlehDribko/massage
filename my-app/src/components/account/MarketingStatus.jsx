@@ -2,6 +2,10 @@
 
 import { useEffect, useId, useRef, useState } from 'react';
 
+import { useT } from '@/i18n/client';
+import { msg } from '@/i18n/translate';
+import ConsentText from '@/components/marketing/ConsentText';
+
 import Notice from '@/components/ui/Notice';
 import PillButton from '@/components/ui/PillButton';
 import { MARKETING_CONSENT } from '@/config/marketing';
@@ -13,10 +17,11 @@ import {
 } from '@/lib/marketing';
 
 const STATE_TEXT = {
-  none: 'Vous n’êtes pas inscrit·e à la newsletter.',
-  pending:
-    'Inscription en attente : ouvrez le lien de confirmation reçu par e-mail.',
-  subscribed: 'Vous êtes inscrit·e à la newsletter.',
+  none: msg('Vous n’êtes pas inscrit·e à la newsletter.'),
+  pending: msg(
+    'Inscription en attente : ouvrez le lien de confirmation reçu par e-mail.'
+  ),
+  subscribed: msg('Vous êtes inscrit·e à la newsletter.'),
 };
 
 /**
@@ -37,6 +42,7 @@ export default function MarketingStatus({
   onSubscribe,
   onUnsubscribe,
 }) {
+  const t = useT();
   const state = subscriptionState(marketing);
   const wanted = state === 'subscribed' || state === 'pending';
   // null = follow the saved state; a boolean = an unsaved change.
@@ -69,7 +75,7 @@ export default function MarketingStatus({
       if (error?.retryAfterSeconds) {
         setWait(error.retryAfterSeconds);
       }
-      setMessage({ tone: 'error', text: marketingErrorMessage(error) });
+      setMessage({ tone: 'error', text: marketingErrorMessage(error, t) });
     } finally {
       busyRef.current = false;
       setPending(null);
@@ -79,7 +85,7 @@ export default function MarketingStatus({
   const subscribe = (kind) =>
     run(kind, async () => {
       const result = await onSubscribe(MARKETING_CONSENT.version);
-      const shown = ownSubscriptionResult(result);
+      const shown = ownSubscriptionResult(result, t);
       if (shown.retryAfterSeconds) {
         setWait(shown.retryAfterSeconds);
       }
@@ -94,7 +100,9 @@ export default function MarketingStatus({
       await onUnsubscribe();
       setMessage({
         tone: 'success',
-        text: 'Vous êtes désinscrit·e. Les e-mails liés à vos rendez-vous ne sont pas concernés.',
+        text: t(
+          'Vous êtes désinscrit·e. Les e-mails liés à vos rendez-vous ne sont pas concernés.'
+        ),
       });
     });
 
@@ -114,13 +122,15 @@ export default function MarketingStatus({
     <div className="flex flex-col gap-5">
       <p className="font-montserrat text-body text-gray-900">
         {state
-          ? STATE_TEXT[state]
-          : 'Le statut de la newsletter s’affiche une fois votre adresse e-mail confirmée.'}
+          ? t(STATE_TEXT[state])
+          : t(
+              'Le statut de la newsletter s’affiche une fois votre adresse e-mail confirmée.'
+            )}
       </p>
 
       {available === 'off' && !wanted ? (
         <p className="font-montserrat text-body-sm text-gray-800">
-          L’inscription à la newsletter n’est pas encore ouverte.
+          {t('L’inscription à la newsletter n’est pas encore ouverte.')}
         </p>
       ) : null}
 
@@ -150,13 +160,13 @@ export default function MarketingStatus({
                 htmlFor={ids.box}
                 className="font-montserrat text-body font-medium text-gray-900"
               >
-                Recevoir la newsletter du cabinet
+                {t('Recevoir la newsletter du cabinet')}
               </label>
               <p
                 id={ids.consent}
                 className="font-montserrat text-body-sm text-gray-800"
               >
-                {MARKETING_CONSENT.text}
+                <ConsentText />
               </p>
             </div>
           </div>
@@ -168,7 +178,7 @@ export default function MarketingStatus({
               aria-busy={pending === 'save'}
               className="disabled:opacity-60"
             >
-              {pending === 'save' ? 'Enregistrement…' : 'Enregistrer'}
+              {pending === 'save' ? t('Enregistrement…') : t('Enregistrer')}
             </PillButton>
             {state === 'pending' && canSubscribe ? (
               <PillButton
@@ -179,14 +189,14 @@ export default function MarketingStatus({
                 className="self-start disabled:opacity-50 sm:self-auto"
               >
                 {pending === 'resend'
-                  ? 'Envoi…'
-                  : 'Renvoyer l’e-mail de confirmation'}
+                  ? t('Envoi…')
+                  : t('Renvoyer l’e-mail de confirmation')}
               </PillButton>
             ) : null}
           </div>
           {waiting && state === 'pending' ? (
             <p className="font-montserrat text-body-sm text-gray-800">
-              Nouvel envoi possible {waitText(wait)}.
+              {t('Nouvel envoi possible {wait}.', { wait: waitText(wait, t) })}
             </p>
           ) : null}
         </form>

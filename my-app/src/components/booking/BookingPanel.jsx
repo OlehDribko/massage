@@ -1,10 +1,11 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 
 import { useAuth } from '@/components/auth/AuthProvider';
+import { Link, useFormat, useRouter, useT } from '@/i18n/client';
+import { rich } from '@/i18n/rich';
 import BookingReadiness from '@/components/booking/BookingReadiness';
 import BookingSteps from '@/components/booking/BookingSteps';
 import PriceTag from '@/components/booking/PriceTag';
@@ -24,13 +25,7 @@ import {
   errorReference,
   isRetryable,
 } from '@/lib/booking/labels';
-import {
-  formatDuration,
-  formatLocalDate,
-  formatMonthShort,
-  formatTime,
-  localDateOf,
-} from '@/lib/format';
+import { localDateOf } from '@/lib/format';
 
 const DETAILS_STEP = 'coordonnees';
 // The session is gone: the next step is to sign in again, keeping the time.
@@ -42,9 +37,9 @@ const SESSION_ERRORS = new Set([
 ]);
 
 /** "mar. 24 nov." — fits the mobile bar. */
-function shortDate(startsAt) {
+function shortDate(startsAt, { formatMonthShort, formatWeekday }) {
   const date = localDateOf(startsAt);
-  const weekday = formatLocalDate(date, { weekday: 'short' }).split(' ')[0];
+  const weekday = formatWeekday(date, 'short');
   return `${weekday} ${Number(date.slice(8))} ${formatMonthShort(date)}`;
 }
 
@@ -65,6 +60,7 @@ function CheckIcon() {
 
 /** Calendar tile + "Mardi · 10:45–11:45" for the chosen start. */
 function SlotSummary({ startsAt, durationMinutes }) {
+  const { formatLocalDate, formatMonthShort, formatTime } = useFormat();
   const date = localDateOf(startsAt);
   const end = new Date(Date.parse(startsAt) + durationMinutes * 60_000);
   const label = formatLocalDate(date, { weekday: 'long' });
@@ -101,6 +97,9 @@ function SlotSummary({ startsAt, durationMinutes }) {
  *   once, then the confirmation page is shown.
  */
 export default function BookingPanel({ service, intro }) {
+  const t = useT();
+  const format = useFormat();
+  const { formatDuration, formatTime } = format;
   const { enabled, controller, state, status } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -185,7 +184,7 @@ export default function BookingPanel({ service, intro }) {
   const confirmButton = ({
     className = '',
     size = 'md',
-    label = 'Confirmer la réservation',
+    label = null,
   } = {}) => (
     <PillButton
       onClick={book}
@@ -195,10 +194,10 @@ export default function BookingPanel({ service, intro }) {
       className={`disabled:opacity-60 ${className || 'w-full'}`}
     >
       {pending
-        ? 'Réservation…'
+        ? t('Réservation…')
         : error && isRetryable(error)
-          ? 'Réessayer'
-          : label}
+          ? t('Réessayer')
+          : (label ?? t('Confirmer la réservation'))}
     </PillButton>
   );
 
@@ -207,8 +206,9 @@ export default function BookingPanel({ service, intro }) {
   if (account === 'off') {
     action = (
       <Notice>
-        La réservation en ligne n’est pas encore disponible. Vous pouvez
-        réserver par la page de rendez-vous.
+        {t(
+          'La réservation en ligne n’est pas encore disponible. Vous pouvez réserver par la page de rendez-vous.'
+        )}
       </Notice>
     );
   } else if (account === 'unavailable' || account === 'error') {
@@ -216,8 +216,8 @@ export default function BookingPanel({ service, intro }) {
       <div className="flex flex-col gap-3">
         <Notice tone="error">
           {account === 'unavailable'
-            ? 'Le service de connexion est momentanément indisponible.'
-            : 'Votre profil n’a pas pu être chargé.'}
+            ? t('Le service de connexion est momentanément indisponible.')
+            : t('Votre profil n’a pas pu être chargé.')}
         </Notice>
         <PillButton
           variant="outline"
@@ -225,7 +225,7 @@ export default function BookingPanel({ service, intro }) {
           onClick={() => controller.retry()}
           className="w-full"
         >
-          Réessayer
+          {t('Réessayer')}
         </PillButton>
       </div>
     );
@@ -236,7 +236,7 @@ export default function BookingPanel({ service, intro }) {
         disabled
         className="rounded-pill font-montserrat text-label bg-secondary-100 min-h-[54px] w-full font-medium text-gray-800 uppercase"
       >
-        Choisissez un horaire
+        {t('Choisissez un horaire')}
       </button>
     );
   } else if (account === 'ready') {
@@ -248,15 +248,15 @@ export default function BookingPanel({ service, intro }) {
         disabled={account === 'loading'}
         className="w-full disabled:opacity-60"
       >
-        Continuer
+        {t('Continuer')}
       </PillButton>
     );
   } else {
     action = (
       <p className="font-montserrat text-body-sm text-gray-800">
         {account === 'loading'
-          ? 'Chargement de votre compte…'
-          : 'Complétez les étapes ci-contre pour confirmer.'}
+          ? t('Chargement de votre compte…')
+          : t('Complétez les étapes ci-contre pour confirmer.')}
       </p>
     );
   }
@@ -269,16 +269,16 @@ export default function BookingPanel({ service, intro }) {
   const errorNotice = error ? (
     <div role="alert">
       <Notice tone="error">
-        {bookingErrorMessage(error)}
-        {errorReference(error) ? (
-          <span className="mt-1 block text-xs">{errorReference(error)}</span>
+        {bookingErrorMessage(error, t)}
+        {errorReference(error, t) ? (
+          <span className="mt-1 block text-xs">{errorReference(error, t)}</span>
         ) : null}
         {SESSION_ERRORS.has(error.code) ? (
           <Link
             href={`/connexion?retour=${encodeURIComponent(returnTo)}`}
             className="mt-2 block font-medium underline underline-offset-4"
           >
-            Se reconnecter
+            {t('Se reconnecter')}
           </Link>
         ) : null}
       </Notice>
@@ -321,21 +321,20 @@ export default function BookingPanel({ service, intro }) {
                   onClick={() => goTo('time')}
                   className="font-montserrat text-body-sm hover:text-third-200 focus-visible:outline-third-200 flex min-h-11 items-center gap-1.5 self-start text-gray-800 underline-offset-4 hover:underline focus-visible:outline-2"
                 >
-                  ← Changer d’horaire
+                  {t('← Changer d’horaire')}
                 </button>
                 <h2 className="text-section-title text-third-900">
-                  {account === 'ready' ? (
-                    <>
-                      Tout est <span className="heading-accent">prêt</span>
-                    </>
-                  ) : (
-                    <>
-                      Encore{' '}
-                      <span className="heading-accent">
-                        quelques informations
-                      </span>
-                    </>
-                  )}
+                  {account === 'ready'
+                    ? rich(t('Tout est <accent>prêt</accent>'), {
+                        accent: (chunks) => (
+                          <span className="heading-accent">{chunks}</span>
+                        ),
+                      })
+                    : rich(t('Encore <accent>quelques informations</accent>'), {
+                        accent: (chunks) => (
+                          <span className="heading-accent">{chunks}</span>
+                        ),
+                      })}
                 </h2>
               </div>
               {errorNotice}
@@ -349,8 +348,9 @@ export default function BookingPanel({ service, intro }) {
               ) : account === 'ready' ? (
                 <div className="rounded-panel flex flex-col gap-4 border border-black/10 bg-white p-6">
                   <p className="font-montserrat text-body text-gray-800">
-                    Vérifiez le récapitulatif puis confirmez : le rendez-vous
-                    est enregistré immédiatement.
+                    {t(
+                      'Vérifiez le récapitulatif puis confirmez : le rendez-vous est enregistré immédiatement.'
+                    )}
                   </p>
                   {confirmButton({ className: 'w-full sm:w-fit' })}
                 </div>
@@ -359,7 +359,7 @@ export default function BookingPanel({ service, intro }) {
                   role="status"
                   className="font-montserrat text-body text-gray-800"
                 >
-                  Chargement de votre compte…
+                  {t('Chargement de votre compte…')}
                 </p>
               )}
             </>
@@ -367,12 +367,12 @@ export default function BookingPanel({ service, intro }) {
         </div>
 
         <aside
-          aria-label="Votre réservation"
+          aria-label={t('Votre réservation')}
           className="rounded-panel flex flex-col gap-5 border border-black/10 bg-white p-6 xl:sticky xl:top-6 xl:p-7"
         >
           <div className="flex items-baseline justify-between gap-3">
             <h2 className="font-faustina text-third-900 text-[1.75rem] leading-tight font-medium">
-              Votre réservation
+              {t('Votre réservation')}
             </h2>
             {stage === 'details' ? (
               <button
@@ -380,7 +380,7 @@ export default function BookingPanel({ service, intro }) {
                 onClick={() => goTo('time')}
                 className="font-montserrat text-body-sm text-third-900 hover:text-third-200 focus-visible:outline-third-200 min-h-11 font-medium underline underline-offset-4 focus-visible:outline-2"
               >
-                Modifier
+                {t('Modifier')}
               </button>
             ) : null}
           </div>
@@ -393,20 +393,20 @@ export default function BookingPanel({ service, intro }) {
               />
             ) : (
               <p className="bg-secondary-50 font-montserrat text-body-sm rounded-2xl p-4 text-gray-800">
-                Aucun horaire choisi
+                {t('Aucun horaire choisi')}
               </p>
             )}
           </div>
 
           <dl className="font-montserrat text-body flex flex-col gap-3">
             <div className="flex justify-between gap-4">
-              <dt className="text-gray-800">Soin</dt>
+              <dt className="text-gray-800">{t('Soin')}</dt>
               <dd className="text-right text-gray-900">
                 {service.name} · {formatDuration(service.durationMinutes)}
               </dd>
             </div>
             <div className="flex items-baseline justify-between gap-4 border-t border-black/10 pt-3">
-              <dt className="text-gray-800">À régler sur place</dt>
+              <dt className="text-gray-800">{t('À régler sur place')}</dt>
               <dd className="font-faustina text-third-900 text-[1.625rem]">
                 <PriceTag service={service} />
               </dd>
@@ -418,15 +418,15 @@ export default function BookingPanel({ service, intro }) {
           <ul className="font-montserrat text-body-sm flex flex-col gap-2 text-gray-900">
             <li className="flex gap-2.5">
               <CheckIcon />
-              Confirmation immédiate, sans acompte
+              {t('Confirmation immédiate, sans acompte')}
             </li>
             <li className="flex gap-2.5">
               <CheckIcon />
-              Report en ligne jusqu’à 12 h avant
+              {t('Report en ligne jusqu’à 12 h avant')}
             </li>
             <li className="flex gap-2.5">
               <CheckIcon />
-              Annulation en ligne jusqu’au rendez-vous
+              {t('Annulation en ligne jusqu’au rendez-vous')}
             </li>
           </ul>
         </aside>
@@ -436,7 +436,7 @@ export default function BookingPanel({ service, intro }) {
         <div className="z-header fixed inset-x-0 bottom-0 flex items-center gap-3 border-t border-black/10 bg-white px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-8px_24px_rgba(26,15,8,0.06)] xl:hidden">
           <p className="font-montserrat text-body-sm min-w-0 flex-1 text-gray-900">
             <span className="block font-semibold first-letter:uppercase">
-              {shortDate(slot.startsAt)} · {formatTime(slot.startsAt)}
+              {shortDate(slot.startsAt, format)} · {formatTime(slot.startsAt)}
             </span>
             <span className="block text-gray-800">
               {formatDuration(service.durationMinutes)} ·{' '}
@@ -448,7 +448,7 @@ export default function BookingPanel({ service, intro }) {
               confirmButton({
                 size: 'sm',
                 className: 'w-auto',
-                label: 'Confirmer',
+                label: t('Confirmer'),
               })
             ) : (
               <PillButton
@@ -457,7 +457,7 @@ export default function BookingPanel({ service, intro }) {
                 size="sm"
                 className="disabled:opacity-60"
               >
-                Continuer
+                {t('Continuer')}
               </PillButton>
             )}
           </div>

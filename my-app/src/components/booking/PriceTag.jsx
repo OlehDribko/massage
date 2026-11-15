@@ -1,9 +1,14 @@
+'use client';
+
 import { hasActiveSale } from '@/lib/booking/catalog';
-import { formatLocalDate, formatPrice, saleLastDay } from '@/lib/format';
+import { useFormat, useT } from '@/i18n/client';
+import { saleLastDay } from '@/lib/format';
 
 // Current price of a service; during an active sale (as reported by the
 // API) the regular price is struck through and the last day is shown.
 export default function PriceTag({ service, showSaleEnd = false }) {
+  const t = useT();
+  const { formatLocalDate, formatPrice } = useFormat();
   if (!hasActiveSale(service)) {
     return (
       <span>{formatPrice(service.effectivePriceCents, service.currency)}</span>
@@ -16,14 +21,15 @@ export default function PriceTag({ service, showSaleEnd = false }) {
         {formatPrice(service.effectivePriceCents, service.currency)}
       </span>
       <s className="text-gray-800">
-        <span className="sr-only">au lieu de </span>
+        <span className="sr-only">{t('au lieu de ')} </span>
         {formatPrice(service.priceCents, service.currency)}
       </s>
       {showSaleEnd ? (
         <span className="text-body-sm text-gray-800">
-          offre valable jusqu’au{' '}
-          {formatLocalDate(saleLastDay(service.saleEndsAt), {
-            weekday: undefined,
+          {t('offre valable jusqu’au {date}', {
+            date: formatLocalDate(saleLastDay(service.saleEndsAt), {
+              weekday: undefined,
+            }),
           })}
         </span>
       ) : null}

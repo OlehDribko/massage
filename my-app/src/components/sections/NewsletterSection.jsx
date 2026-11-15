@@ -4,7 +4,10 @@ import { useId, useRef, useState } from 'react';
 import Image from 'next/image';
 
 import { useAuth } from '@/components/auth/AuthProvider';
+import ConsentText from '@/components/marketing/ConsentText';
 import { MARKETING_CONSENT } from '@/config/marketing';
+import { Link, useT } from '@/i18n/client';
+import { rich } from '@/i18n/rich';
 import { subscribeNewsletter } from '@/lib/api/public';
 import { currentProfile } from '@/lib/auth/session';
 import {
@@ -45,6 +48,7 @@ function ArrowIcon() {
  *   profile is unknown the form stays and the API answer decides (404).
  */
 export default function NewsletterSection() {
+  const t = useT();
   const auth = useAuth();
   const view = currentProfile(auth.state);
   const available = marketingAvailability({
@@ -74,17 +78,22 @@ export default function NewsletterSection() {
         const result = await auth.controller.subscribeMarketing(
           MARKETING_CONSENT.version
         );
-        setState({ status: 'done', text: ownSubscriptionResult(result).text });
+        setState({
+          status: 'done',
+          text: ownSubscriptionResult(result, t).text,
+        });
       } else {
         await subscribeNewsletter(address, MARKETING_CONSENT.version);
         setState({
           status: 'done',
-          text: 'Merci ! Si cette adresse n’est pas encore inscrite, un lien de confirmation vient de lui être envoyé.',
+          text: t(
+            'Merci ! Si cette adresse n’est pas encore inscrite, un lien de confirmation vient de lui être envoyé.'
+          ),
         });
         setEmail('');
       }
     } catch (error) {
-      setState({ status: 'error', text: marketingErrorMessage(error) });
+      setState({ status: 'error', text: marketingErrorMessage(error, t) });
     } finally {
       busyRef.current = false;
     }
@@ -102,7 +111,7 @@ export default function NewsletterSection() {
     if (!EMAIL.test(value)) {
       setState({
         status: 'error',
-        text: 'Indiquez une adresse e-mail valide.',
+        text: t('Indiquez une adresse e-mail valide.'),
       });
       return;
     }
@@ -126,11 +135,12 @@ export default function NewsletterSection() {
         <div className="mx-auto flex max-w-[664px] flex-col items-center gap-10 text-center lg:gap-[60px]">
           <div className="flex flex-col gap-6">
             <h2 className="font-faustina sm:text-h3 xl:text-h2 text-[32px] leading-[1.08] font-normal tracking-[-0.64px] text-gray-900">
-              Ne manquez aucune offre
+              {t('Ne manquez aucune offre')}
             </h2>
             <p className="font-montserrat text-body-lg text-gray-200">
-              Recevez en avant-première nos offres saisonnières, tarifs spéciaux
-              et invitations pour des séances à prix réduit ou offertes.
+              {t(
+                'Recevez en avant-première nos offres saisonnières, tarifs spéciaux et invitations pour des séances à prix réduit ou offertes.'
+              )}
             </p>
           </div>
 
@@ -141,14 +151,22 @@ export default function NewsletterSection() {
           >
             {ownerMode && ownerState === 'subscribed' ? (
               <p className="font-montserrat text-body text-gray-900">
-                Vous êtes inscrit·e avec{' '}
-                <span className="font-semibold break-all">{owner.email}</span>.{' '}
-                <a
+                {rich(
+                  t('Vous êtes inscrit·e avec <email>{email}</email>.', {
+                    email: owner.email,
+                  }),
+                  {
+                    email: (chunks) => (
+                      <span className="font-semibold break-all">{chunks}</span>
+                    ),
+                  }
+                )}{' '}
+                <Link
                   href="/compte#newsletter"
                   className="hover:text-third-200 underline underline-offset-4"
                 >
-                  Gérer mon inscription
-                </a>
+                  {t('Gérer mon inscription')}
+                </Link>
               </p>
             ) : ownerMode ? (
               <div className="flex flex-col items-center gap-3">
@@ -160,15 +178,16 @@ export default function NewsletterSection() {
                 >
                   <span className="min-w-0 truncate">
                     {state.status === 'pending'
-                      ? 'Inscription…'
-                      : `S’inscrire avec ${owner.email}`}
+                      ? t('Inscription…')
+                      : t('S’inscrire avec {email}', { email: owner.email })}
                   </span>
                   <ArrowIcon />
                 </button>
                 {ownerState === 'pending' ? (
                   <p className="font-montserrat text-body-sm text-gray-800">
-                    Une inscription attend la confirmation par e-mail : ce
-                    bouton l’active tout de suite.
+                    {t(
+                      'Une inscription attend la confirmation par e-mail : ce bouton l’active tout de suite.'
+                    )}
                   </p>
                 ) : null}
                 <button
@@ -179,7 +198,7 @@ export default function NewsletterSection() {
                   }}
                   className="font-montserrat text-body-sm hover:text-third-200 text-gray-800 underline underline-offset-4"
                 >
-                  Utiliser une autre adresse
+                  {t('Utiliser une autre adresse')}
                 </button>
               </div>
             ) : (
@@ -193,7 +212,7 @@ export default function NewsletterSection() {
                 }`}
               >
                 <label htmlFor={ids.field} className="sr-only">
-                  Adresse e-mail
+                  {t('Adresse e-mail')}
                 </label>
                 <input
                   id={ids.field}
@@ -202,7 +221,7 @@ export default function NewsletterSection() {
                   autoComplete="email"
                   inputMode="email"
                   required
-                  placeholder="nom@exemple.com"
+                  placeholder={t('nom@exemple.com')}
                   value={email}
                   onChange={(event) => {
                     setEmail(event.target.value);
@@ -218,7 +237,7 @@ export default function NewsletterSection() {
                   type="submit"
                   disabled={state.status === 'pending'}
                   aria-busy={state.status === 'pending'}
-                  aria-label="S’inscrire à la newsletter"
+                  aria-label={t('S’inscrire à la newsletter')}
                   className="bg-third-200 text-on-dark hover:bg-third-900 focus-visible:outline-third-200 flex size-10 shrink-0 items-center justify-center rounded-full transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-60 motion-reduce:transition-none"
                 >
                   <ArrowIcon />
@@ -238,7 +257,7 @@ export default function NewsletterSection() {
               id={ids.consent}
               className="font-montserrat text-body-sm px-5 text-left text-gray-200"
             >
-              {MARKETING_CONSENT.text}
+              <ConsentText />
             </p>
           </form>
         </div>

@@ -206,6 +206,7 @@ test('a soin is sent as its price and a « Soin offert » line', async () => {
   assert.deepEqual(groups[0].options, [
     {
       id: 'a',
+      minutes: 60,
       label: '60 min',
       title: 'Massage relaxant — 60 min',
       cents: 8000,

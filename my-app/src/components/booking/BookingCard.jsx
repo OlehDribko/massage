@@ -1,14 +1,11 @@
-import {
-  formatDuration,
-  formatLocalDate,
-  formatMonthShort,
-  formatPrice,
-  formatTime,
-  localDateOf,
-} from '@/lib/format';
+'use client';
+
+import { useFormat, useServiceName, useT } from '@/i18n/client';
+import { localDateOf } from '@/lib/format';
 
 /** Calendar tile: "NOV." over "10". */
 export function DateTile({ startsAt, tone = 'light', size = 'md' }) {
+  const { formatMonthShort } = useFormat();
   const date = localDateOf(startsAt);
   const big = size === 'lg';
   return (
@@ -38,6 +35,10 @@ export function DateTile({ startsAt, tone = 'light', size = 'md' }) {
  * current catalogue. `eyebrow` is an optional line above the date.
  */
 export default function BookingCard({ booking, eyebrow, children }) {
+  const t = useT();
+  const serviceName = useServiceName();
+  const { formatDuration, formatLocalDate, formatPrice, formatTime } =
+    useFormat();
   const date = localDateOf(booking.startsAt);
   const cancelled = booking.status === 'cancelled';
   return (
@@ -70,9 +71,11 @@ export default function BookingCard({ booking, eyebrow, children }) {
           <p
             className={`font-montserrat text-body-sm ${cancelled ? 'text-gray-800' : 'text-secondary-200'}`}
           >
-            {booking.service.name} ·{' '}
-            {formatDuration(booking.service.durationMinutes)}, fin à{' '}
-            {formatTime(booking.endsAt)}
+            {serviceName(booking.service)} ·{' '}
+            {t('{duration}, fin à {time}', {
+              duration: formatDuration(booking.service.durationMinutes),
+              time: formatTime(booking.endsAt),
+            })}
           </p>
         </div>
         <div className="flex flex-col items-start gap-0.5 sm:items-end">
@@ -82,7 +85,7 @@ export default function BookingCard({ booking, eyebrow, children }) {
           <span
             className={`font-montserrat text-xs ${cancelled ? 'text-gray-800' : 'text-secondary-200'}`}
           >
-            à régler au cabinet
+            {t('à régler au cabinet')}
           </span>
         </div>
       </div>
