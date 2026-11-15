@@ -225,3 +225,32 @@ test('a soin is sent as its price and a « Soin offert » line', async () => {
   const long = 'x'.repeat(messageLimit(option));
   assert.equal(giftDescription(option, long).length, MAX_DESCRIPTION);
 });
+
+test('giftBlockerView: one step per state of the Figma panel', async () => {
+  const { giftBlockerView } = await import('../../src/lib/giftCards.js');
+  assert.equal(giftBlockerView(null), null);
+  assert.equal(giftBlockerView([]), null);
+
+  const guest = giftBlockerView(['anonymous_session'], { returnTo: '/#x' });
+  assert.match(guest.text, /Connectez-vous/);
+  assert.equal(guest.action, 'Se connecter');
+  assert.equal(guest.href, '/connexion?retour=%2F%23x');
+
+  const incomplete = giftBlockerView(['phone_missing', 'name_missing']);
+  assert.match(incomplete.text, /prénom et votre numéro/);
+  assert.equal(incomplete.action, 'Compléter mon profil');
+
+  // The admin case wins and has no action.
+  const admin = giftBlockerView(['phone_missing', 'not_a_client']);
+  assert.match(admin.text, /administrateur/);
+  assert.equal(admin.href, null);
+
+  // E-mail first, then the profile.
+  assert.equal(
+    giftBlockerView(['name_missing', 'email_not_verified']).blocker,
+    'email_not_verified'
+  );
+
+  const unknown = giftBlockerView(['something_new']);
+  assert.equal(unknown.href, '/compte');
+});
