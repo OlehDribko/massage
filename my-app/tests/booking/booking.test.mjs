@@ -88,15 +88,18 @@ test('catalog: durations grouped by editorial ids, never by name alone', () => {
     {
       key: 'sportif',
       serviceIds: ['s120', 's55', 'gone'],
-      description: null,
       featured: true,
     },
-    { key: 'endo', serviceIds: ['e45'], description: 'Texte validé' },
+    { key: 'endo', serviceIds: ['e45'] },
   ];
   const catalog = buildCatalog(
     [
       svc('Massage sportif', 120, 18500, null, 's120'),
-      svc('Endosphères — demi-corps, une séance', 45, 11000, null, 'e45'),
+      {
+        ...svc('Endosphères — demi-corps, une séance', 45, 11000, null, 'e45'),
+        description: 'Texte de l’API',
+        features: ['Un point.'],
+      },
       svc('Massage sportif', 55, 10000, null, 's55'),
       // Same name, but not listed in the layer: its own card.
       svc('Massage sportif', 30, 5000, null, 'new30'),
@@ -112,7 +115,11 @@ test('catalog: durations grouped by editorial ids, never by name alone', () => {
     ['s55', 's120']
   );
   assert.equal(catalog[0].featured, true);
-  assert.equal(catalog[1].description, 'Texte validé');
+  // Texts come from the API service, not from the editorial layer.
+  assert.equal(catalog[1].description, 'Texte de l’API');
+  assert.deepEqual(catalog[1].features, ['Un point.']);
+  assert.equal(catalog[0].description, null);
+  assert.deepEqual(catalog[0].features, []);
   assert.equal(lowestPrice(catalog[0]), 10000);
   assert.equal(findPrestation(catalog, 's120').key, 'sportif');
   assert.equal(findPrestation(catalog, 'nope'), null);
@@ -121,7 +128,7 @@ test('catalog: durations grouped by editorial ids, never by name alone', () => {
 test('catalog: a renamed variant leaves its group', () => {
   const catalog = buildCatalog(
     [svc('A', 60, 1, null, 'a60'), svc('A (nouveau)', 90, 2, null, 'a90')],
-    [{ key: 'a', serviceIds: ['a60', 'a90'], description: null }]
+    [{ key: 'a', serviceIds: ['a60', 'a90'] }]
   );
   assert.deepEqual(
     catalog.map((p) => p.key),
@@ -129,7 +136,7 @@ test('catalog: a renamed variant leaves its group', () => {
   );
 });
 
-test('editorial layer: 35 distinct ids in 18 prestations, no business data', () => {
+test('editorial layer: 35 distinct ids in 18 prestations, no business data or texts', () => {
   const ids = SERVICE_GROUPS.flatMap((group) => group.serviceIds);
   assert.equal(SERVICE_GROUPS.length, 18);
   assert.equal(ids.length, 35);
@@ -137,14 +144,7 @@ test('editorial layer: 35 distinct ids in 18 prestations, no business data', () 
   for (const group of SERVICE_GROUPS) {
     assert.deepEqual(
       Object.keys(group).filter(
-        (key) =>
-          ![
-            'key',
-            'serviceIds',
-            'description',
-            'featured',
-            'category',
-          ].includes(key)
+        (key) => !['key', 'serviceIds', 'featured', 'category'].includes(key)
       ),
       []
     );

@@ -58,18 +58,53 @@ export function safeReturnPath(value, fallback = '/') {
 /**
  * Error raised by the API client: HTTP status, the documented `code` and the
  * documented extra fields of the error body (`blockers`, `reason`,
- * `conflicts`, `errors`, …) in `details`.
+ * `conflicts`, `errors`, …) in `details`. Failures that are not an HTTP
+ * answer have status 0 and their own code:
+ * - `TIMEOUT` — no answer within `timeoutMs` (outcome unknown);
+ * - `NETWORK_ERROR` — offline, DNS, CORS (outcome unknown);
+ * - `INVALID_RESPONSE` — a 2xx answer that is not JSON or misses a field
+ *   the site relies on (status is the HTTP status; `details.field` is the
+ *   path, never the value);
+ * - `NOT_CONFIGURED` — no API URL in this build.
+ * `requestId` is the server's `X-Request-Id` when the answer had one;
+ * `method` and `route` (path template, no query) are for diagnostics.
  */
 export class ApiError extends Error {
-  constructor(status, code, retryAfterSeconds, details = {}) {
+  constructor(status, code, retryAfterSeconds, details = {}, meta = {}) {
     super(code);
     this.name = 'ApiError';
     this.status = status;
     this.code = code;
     this.retryAfterSeconds = retryAfterSeconds;
     this.details = details;
+    this.requestId = meta.requestId ?? null;
+    this.method = meta.method ?? null;
+    this.route = meta.route ?? null;
   }
 }
+
+/** Kind of failure, for messages and logs. */
+export function errorKind(error) {
+  if (!(error instanceof ApiError)) return 'unknown';
+  switch (error.code) {
+    case 'TIMEOUT':
+      return 'timeout';
+    case 'NETWORK_ERROR':
+      return 'network';
+    case 'INVALID_RESPONSE':
+      return 'invalid_response';
+    case 'NOT_CONFIGURED':
+      return 'not_configured';
+    default:
+      return 'http';
+  }
+}
+
+/** Default limit for one API call (a slow API must not hang the UI). */
+export const DEFAULT_TIMEOUT_MS = 15_000;
+
+/** "/api/services/abc/availability?from=…" → "/api/services/abc/availability". */
+const withoutQuery = (path) => path.split(/[?#]/, 1)[0];
 
 /**
  * One API call. With `getToken`, the Firebase ID token goes in the
@@ -77,6 +112,12 @@ export class ApiError extends Error {
  * TOKEN_EXPIRED / INVALID_TOKEN it is force-refreshed and the call repeated
  * once. Without `getToken` the call is public. Extra `headers` (e.g.
  * Idempotency-Key) are sent unchanged on the repeat.
+ *
+ * - `validate(body)` checks a 2xx JSON body: it returns null when the body
+ *   is usable, or `{ path }` of the first bad field (→ INVALID_RESPONSE);
+ * - `route` is the path template for diagnostics ("/api/services/{serviceId}");
+ * - `timeoutMs` bounds the whole call; the caller's `signal` still cancels
+ *   it (that AbortError is passed through, not turned into an ApiError).
  */
 export async function apiRequest({
   baseUrl,
@@ -87,9 +128,24 @@ export async function apiRequest({
   getToken,
   fetchImpl = fetch,
   signal,
+  validate,
+  route = withoutQuery(path),
+  timeoutMs = DEFAULT_TIMEOUT_MS,
 }) {
+  const meta = { method, route };
+
   const send = async (forceRefresh) => {
     const token = getToken ? await getToken(forceRefresh) : null;
+    const timeout = AbortSignal.timeout(timeoutMs);
+    const combined = signal ? AbortSignal.any([signal, timeout]) : timeout;
+    // A timeout (or the caller's abort) can hit the request or the body.
+    const failure = (error) => {
+      if (signal?.aborted) throw error;
+      if (timeout.aborted)
+        return new ApiError(0, 'TIMEOUT', undefined, {}, meta);
+      return null;
+    };
+
     let response;
     try {
       response = await fetchImpl(`${baseUrl}${path}`, {
@@ -101,25 +157,59 @@ export async function apiRequest({
         },
         body: body === undefined ? undefined : JSON.stringify(body),
         cache: 'no-store',
-        signal,
+        signal: combined,
       });
     } catch (error) {
-      if (error?.name === 'AbortError') throw error;
-      // Offline, DNS, CORS: the browser hides the reason.
-      throw new ApiError(0, 'NETWORK_ERROR');
+      throw (
+        failure(error) ??
+        // Offline, DNS, CORS: the browser hides the reason.
+        new ApiError(0, 'NETWORK_ERROR', undefined, {}, meta)
+      );
     }
 
+    const answered = {
+      ...meta,
+      requestId: response.headers?.get?.('X-Request-Id') ?? null,
+    };
+
     if (response.ok) {
-      return response.status === 204 ? null : response.json();
+      if (response.status === 204) return null;
+      let payload;
+      try {
+        payload = await response.json();
+      } catch (error) {
+        throw (
+          failure(error) ??
+          new ApiError(
+            response.status,
+            'INVALID_RESPONSE',
+            undefined,
+            { field: '(body)' },
+            answered
+          )
+        );
+      }
+      const mismatch = validate ? validate(payload) : null;
+      if (mismatch) {
+        throw new ApiError(
+          response.status,
+          'INVALID_RESPONSE',
+          undefined,
+          { field: mismatch.path },
+          answered
+        );
+      }
+      return payload;
     }
 
     let payload = {};
     try {
-      payload = await response.json();
+      payload = (await response.json()) ?? {};
     } catch {
       // Gateway errors may have no JSON body.
     }
-    const header = Number(response.headers.get('Retry-After'));
+    if (typeof payload !== 'object' || Array.isArray(payload)) payload = {};
+    const header = Number(response.headers?.get?.('Retry-After'));
     const retryAfter =
       typeof payload.retryAfterSeconds === 'number'
         ? payload.retryAfterSeconds
@@ -127,13 +217,14 @@ export async function apiRequest({
           ? header
           : undefined;
     // The English `message` is for logs only; the UI maps `code` to French.
-    const { code, ...details } = payload ?? {};
+    const { code, ...details } = payload;
     delete details.message;
     throw new ApiError(
       response.status,
       typeof code === 'string' ? code : `HTTP_${response.status}`,
       retryAfter,
-      details
+      details,
+      answered
     );
   };
 
@@ -208,6 +299,10 @@ export function profileErrorMessage(error) {
       return 'Le service de compte est momentanément indisponible.';
     case 'NETWORK_ERROR':
       return 'Impossible de joindre le service de compte. Vérifiez votre connexion.';
+    case 'TIMEOUT':
+      return 'Le service de compte met trop de temps à répondre.';
+    case 'INVALID_RESPONSE':
+      return 'Le service de compte a envoyé une réponse incomplète.';
     case 'NOT_CONFIGURED':
       return 'Le service de compte n’est pas encore configuré.';
     default:

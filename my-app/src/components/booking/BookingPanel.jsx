@@ -10,8 +10,13 @@ import PriceTag from '@/components/booking/PriceTag';
 import SlotPicker from '@/components/booking/SlotPicker';
 import Notice from '@/components/ui/Notice';
 import PillButton from '@/components/ui/PillButton';
+import { validatorFor } from '@/lib/api/contract';
 import { currentProfile } from '@/lib/auth/session';
-import { bookingErrorMessage, isRetryable } from '@/lib/booking/labels';
+import {
+  bookingErrorMessage,
+  errorReference,
+  isRetryable,
+} from '@/lib/booking/labels';
 import {
   formatDuration,
   formatLocalDate,
@@ -145,6 +150,7 @@ export default function BookingPanel({ service, intro }) {
         method: 'POST',
         headers: { 'Idempotency-Key': keyFor(slot.startsAt) },
         body: { serviceId: service.id, startsAt: slot.startsAt },
+        validate: validatorFor('booking'),
       });
       router.push(`/compte/reservations/${booking.id}?confirmee=1`);
       return; // keep the button disabled while leaving
@@ -272,7 +278,12 @@ export default function BookingPanel({ service, intro }) {
       (stage === 'time' && (account === 'missing' || account === 'loading')));
   const errorNotice = error ? (
     <div role="alert">
-      <Notice tone="error">{bookingErrorMessage(error)}</Notice>
+      <Notice tone="error">
+        {bookingErrorMessage(error)}
+        {errorReference(error) ? (
+          <span className="mt-1 block text-xs">{errorReference(error)}</span>
+        ) : null}
+      </Notice>
     </div>
   ) : null;
 

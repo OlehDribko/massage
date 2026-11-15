@@ -114,8 +114,25 @@ function fakeApi() {
   return { fetchImpl, pending };
 }
 
-const profileView = (role = 'client', authState = 'registered') => ({
-  profile: { role, authState, name: null, email: null, emailVerified: false },
+// Smallest answer that satisfies the profile contract (src/lib/api/contract.js).
+const profileView = (
+  role = 'client',
+  authState = 'registered',
+  extra = {}
+) => ({
+  profile: {
+    id: 'p-1',
+    role,
+    authState,
+    name: null,
+    email: null,
+    emailVerified: false,
+    phone: null,
+    ...extra,
+  },
+  bookingReadiness: { ready: false, blockers: ['email_not_verified'] },
+  marketing: null,
+  marketingAvailable: false,
 });
 
 function setup(options = {}) {
@@ -345,9 +362,7 @@ test('updateProfile: the answer replaces the profile only for the same user', as
   // The user switches account before the answer arrives.
   fb.replaceUser(makeUser('member-2'));
   await flush();
-  patch.respond(200, {
-    profile: { role: 'client', authState: 'registered', name: 'Léa' },
-  });
+  patch.respond(200, profileView('client', 'registered', { name: 'Léa' }));
   await saving;
   await flush();
 

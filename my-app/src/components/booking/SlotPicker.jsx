@@ -5,7 +5,7 @@ import { useEffect, useId, useState, useSyncExternalStore } from 'react';
 import Notice from '@/components/ui/Notice';
 import PillButton from '@/components/ui/PillButton';
 import { fetchAvailability } from '@/lib/api/public';
-import { bookingErrorMessage } from '@/lib/booking/labels';
+import { bookingErrorMessage, errorReference } from '@/lib/booking/labels';
 import { groupSlotsByPeriod, pickDay } from '@/lib/booking/slots';
 import {
   addDays,
@@ -202,7 +202,14 @@ export default function SlotPicker({
 
       {view.status === 'error' ? (
         <div className="flex flex-col gap-3">
-          <Notice tone="error">{bookingErrorMessage(view.error)}</Notice>
+          <Notice tone="error">
+            {bookingErrorMessage(view.error)}
+            {errorReference(view.error) ? (
+              <span className="mt-1 block text-xs">
+                {errorReference(view.error)}
+              </span>
+            ) : null}
+          </Notice>
           <PillButton
             variant="outline"
             tone="dark"

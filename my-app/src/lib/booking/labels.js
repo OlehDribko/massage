@@ -99,18 +99,44 @@ export function bookingErrorMessage(error) {
       return 'Le service de compte est momentanément indisponible. Réessayez dans quelques instants.';
     case 'NETWORK_ERROR':
       return 'Impossible de joindre le service. Vérifiez votre connexion et réessayez.';
+    case 'TIMEOUT':
+      return 'Le service met trop de temps à répondre. Réessayez dans quelques instants.';
+    case 'INVALID_RESPONSE':
+      return 'La réponse du service est incomplète. Réessayez dans quelques instants.';
+    case 'NOT_CONFIGURED':
+      return 'Le service de réservation n’est pas encore configuré.';
     default:
       return 'Une erreur est survenue. Réessayez dans quelques instants.';
   }
 }
 
-/** Errors after which the same write may be sent again by the user. */
+/**
+ * Errors after which the same write may be sent again by the user — with
+ * the same Idempotency-Key, because the outcome is unknown: no answer
+ * (network, timeout), a 5xx / CALENDAR_BUSY, or a 2xx whose body could not
+ * be read (the booking may exist; the replay returns it).
+ */
 export function isRetryable(error) {
   return (
-    ['NETWORK_ERROR', 'CALENDAR_BUSY', 'AUTH_UNAVAILABLE'].includes(
-      error?.code
-    ) || (error?.status ?? 0) >= 500
+    [
+      'NETWORK_ERROR',
+      'TIMEOUT',
+      'INVALID_RESPONSE',
+      'CALENDAR_BUSY',
+      'AUTH_UNAVAILABLE',
+    ].includes(error?.code) || (error?.status ?? 0) >= 500
   );
+}
+
+/**
+ * "Référence : <X-Request-Id>" for errors worth reporting (no answer from
+ * the backend's logic: 5xx, unreadable answer), or null. Only the server's
+ * id is shown — never the request, the token or personal data.
+ */
+export function errorReference(error) {
+  if (!error?.requestId) return null;
+  const worth = error.code === 'INVALID_RESPONSE' || (error.status ?? 0) >= 500;
+  return worth ? `Référence : ${error.requestId}` : null;
 }
 
 /** Client email about the latest change (`notification`) → text or null. */
