@@ -7,14 +7,19 @@
  * - `client({ phone: null })`: a registered client missing a step;
  * - `firstFreeSlot(serviceId)`: the first free start the site will show
  *   (today's week, first day with a start);
- * - `bookAs(user, …)`, `bookingsOf(user)`: the API as that client.
+ * - `bookAs(user, …)`, `bookingsOf(user)`: the API as that client;
+ * - `admin()`: a registered account given the admin role by the backend's
+ *   own owner command (src/admin/assign-role.ts) on the throw-away test
+ *   database — there is no HTTP route for roles.
  * Every account has a unique address, so tests never share a profile.
  */
+import { execFileSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
+import path from 'node:path';
 
 import { test as base } from '@playwright/test';
 
-import { E2E } from './env.mjs';
+import { BACKEND_DIR, E2E, PG, testDatabaseUrl } from './env.mjs';
 
 const identity = `${E2E.authUrl}/identitytoolkit.googleapis.com/v1`;
 const PASSWORD = 'e2e-password-1';
@@ -122,10 +127,59 @@ export async function client({
       );
     }
   }
-  return { email, password: PASSWORD, token, name };
+  return {
+    email,
+    password: PASSWORD,
+    token,
+    name,
+    profileId: synced.body.profile.id,
+  };
 }
 
 export const readyClient = () => client();
+
+/** Registered account with the admin role (local test database only). */
+export async function admin() {
+  const user = await client({ name: 'Admin Test' });
+  execFileSync(
+    'npx',
+    [
+      'tsx',
+      'src/admin/assign-role.ts',
+      '--profile-id',
+      user.profileId,
+      '--email',
+      user.email,
+      '--role',
+      'admin',
+      '--apply',
+    ],
+    {
+      cwd: path.join(BACKEND_DIR, 'services/booking'),
+      env: {
+        ...process.env,
+        DATABASE_URL: testDatabaseUrl('booking_app', PG.app),
+        DATABASE_SSL_MODE: 'disable',
+        DOTENV_CONFIG_PATH: '/dev/null',
+      },
+      stdio: 'pipe',
+    }
+  );
+  const synced = await api(user.token, '/api/me/sync', { method: 'POST' });
+  if (synced.body?.profile?.role !== 'admin') {
+    throw new Error(`admin role not granted: ${synced.status}`);
+  }
+  return user;
+}
+
+/** Free starts of one date for a service (public availability). */
+export async function slotsOn(serviceId, date) {
+  const response = await fetch(
+    `${E2E.apiUrl}/api/services/${serviceId}/availability?from=${date}&to=${date}`
+  );
+  const { days } = await json(response, 'availability');
+  return days.find((item) => item.date === date)?.slots ?? [];
+}
 
 /** First free start in the site's first week (what the picker preselects). */
 export async function firstFreeSlot(serviceId) {

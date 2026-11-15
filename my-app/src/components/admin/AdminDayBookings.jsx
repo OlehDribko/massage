@@ -5,11 +5,21 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 import AdminShell, { AdminError } from '@/components/admin/AdminShell';
+import BlockDialog, { BLOCK_STYLE } from '@/components/admin/BlockDialog';
 import { useAccountData } from '@/components/auth/useAccountData';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import DateField from '@/components/ui/DateField';
 import Notice from '@/components/ui/Notice';
+import {
+  agendaItems,
+  applyBlockChange,
+  blockTimeLabel,
+  blocksCountLabel,
+  blocksOf,
+  layoutLanes,
+} from '@/lib/admin/blocks';
 import { dayState } from '@/lib/admin/calendar';
+import { validatorFor } from '@/lib/api/contract';
 import { sortDayBookings } from '@/lib/booking/bookings';
 import {
   ADMIN_NOTIFICATION_REASONS,
@@ -36,12 +46,7 @@ const noopSubscribe = () => () => {};
 const MAX_REASON = 500;
 const HOUR_PX = 64;
 const BREAK_MINUTES = 15; // docs/booking.md §2: one break after each session
-
-// Studio-time minutes of an instant: "10:45" → 645.
-const minuteOf = (instant) => {
-  const [hours, minutes] = formatTime(instant).split(':').map(Number);
-  return hours * 60 + minutes;
-};
+const checkDays = validatorFor('scheduleDays');
 
 const PHASE_LABEL = {
   upcoming: 'confirmé',
@@ -50,8 +55,8 @@ const PHASE_LABEL = {
   cancelled: 'annulé',
 };
 
-/** "4 rendez-vous · 5 h réservées · 1 annulé". */
-function daySummary(bookings) {
+/** "4 rendez-vous · 5 h réservées · 1 annulé · 1 indisponibilité". */
+function daySummary(bookings, blockCount = 0) {
   const confirmed = bookings.filter((b) => b.status !== 'cancelled');
   const minutes = confirmed.reduce(
     (sum, b) => sum + (Date.parse(b.endsAt) - Date.parse(b.startsAt)) / 60_000,
@@ -67,6 +72,7 @@ function daySummary(bookings) {
     `${confirmed.length} rendez-vous`,
     confirmed.length ? `${time} réservées` : null,
     cancelled ? `${cancelled} annulé${cancelled > 1 ? 's' : ''}` : null,
+    blockCount ? blocksCountLabel(blockCount) : null,
   ]
     .filter(Boolean)
     .join(' · ');
@@ -93,16 +99,23 @@ const hatch =
 
 /**
  * The day as a vertical timeline (Figma-like «Agenda du jour»): hours,
- * time outside the working hours hatched, each booking a block (a click
- * selects it), followed by the 15-minute break the calendar keeps free.
+ * time outside the working hours hatched, bookings and busy times
+ * («indisponibilités») in time order — overlapping ones side by side. A
+ * booking (a click selects it) is followed by the 15-minute break the
+ * calendar keeps free; a busy time opens its form.
  */
-function DayTimeline({ bookings, scheduleDay, selectedId, onSelect }) {
+function DayTimeline({
+  date,
+  bookings,
+  blocks,
+  timeZone,
+  scheduleDay,
+  selectedId,
+  onSelect,
+  onOpenBlock,
+}) {
   const state = dayState(scheduleDay);
-  const spans = bookings.map((booking) => ({
-    booking,
-    start: minuteOf(booking.startsAt),
-    end: minuteOf(booking.endsAt) || 24 * 60,
-  }));
+  const spans = layoutLanes(agendaItems(bookings, blocks, date, timeZone));
   const hoursOpen = state.kind === 'open' ? state.hours : [];
   const first = Math.min(
     9 * 60,
@@ -173,16 +186,45 @@ function DayTimeline({ bookings, scheduleDay, selectedId, onSelect }) {
             {top(to) - top(from) >= 24 ? closedLabel : null}
           </div>
         ))}
-        {spans.map(({ booking, start, end }) => {
+        {spans.map(({ kind, item, start, end, lane, lanes }) => {
+          const place = {
+            left: `calc(0.75rem + (100% - 1.5rem) * ${lane / lanes})`,
+            width: `calc((100% - 1.5rem) / ${lanes} - ${lanes > 1 ? 4 : 0}px)`,
+          };
+          if (kind === 'block') {
+            return (
+              <button
+                key={`block-${item.id}`}
+                type="button"
+                onClick={() => onOpenBlock(item)}
+                className={`font-montserrat focus-visible:outline-third-200 absolute z-[1] flex flex-col items-start gap-0.5 overflow-hidden rounded-xl px-3 py-1.5 text-left transition-shadow hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 ${BLOCK_STYLE}`}
+                style={{
+                  ...place,
+                  top: top(start) + 1,
+                  height: Math.max(((end - start) / 60) * HOUR_PX - 2, 26),
+                }}
+              >
+                <span className="text-xs font-semibold">
+                  {blockTimeLabel(item, date)} · indisponible
+                </span>
+                <span className="w-full truncate text-sm font-semibold">
+                  {item.title}
+                </span>
+                <span className="sr-only"> — modifier ou supprimer</span>
+              </button>
+            );
+          }
+          const booking = item;
           const cancelled = booking.status === 'cancelled';
           const selected = booking.id === selectedId;
           return (
-            <div key={booking.id}>
+            <div key={`booking-${booking.id}`}>
               {!cancelled ? (
                 <span
                   aria-hidden
-                  className="absolute inset-x-3 rounded bg-[repeating-linear-gradient(90deg,rgb(205_152_79/0.28)_0_4px,transparent_4px_8px)]"
+                  className="absolute rounded bg-[repeating-linear-gradient(90deg,rgb(205_152_79/0.28)_0_4px,transparent_4px_8px)]"
                   style={{
+                    ...place,
                     top: top(end),
                     height: (BREAK_MINUTES / 60) * HOUR_PX,
                   }}
@@ -192,7 +234,7 @@ function DayTimeline({ bookings, scheduleDay, selectedId, onSelect }) {
                 type="button"
                 aria-pressed={selected}
                 onClick={() => onSelect(booking.id)}
-                className={`font-montserrat focus-visible:outline-third-200 absolute inset-x-3 flex flex-col items-start gap-0.5 overflow-hidden rounded-xl px-3 py-1.5 text-left transition-shadow focus-visible:outline-2 focus-visible:outline-offset-2 ${
+                className={`font-montserrat focus-visible:outline-third-200 absolute flex flex-col items-start gap-0.5 overflow-hidden rounded-xl px-3 py-1.5 text-left transition-shadow focus-visible:outline-2 focus-visible:outline-offset-2 ${
                   cancelled
                     ? 'z-0 border border-dashed border-black/30 bg-white text-gray-800'
                     : selected
@@ -200,6 +242,7 @@ function DayTimeline({ bookings, scheduleDay, selectedId, onSelect }) {
                       : 'bg-primary-50 text-third-900 z-[1] hover:shadow-md'
                 }`}
                 style={{
+                  ...place,
                   top: top(start) + 1,
                   height: Math.max(((end - start) / 60) * HOUR_PX - 2, 26),
                 }}
@@ -458,16 +501,19 @@ function defaultSelection(bookings) {
   return (live[0] ?? kept[0] ?? bookings[0])?.id ?? null;
 }
 
-function DayContent({ date, enabled, controller, header }) {
+function DayContent({ date, today, enabled, controller, header }) {
   const bookings = useAccountData(`/api/admin/bookings?date=${date}`, {
     enabled,
   });
   const schedule = useAccountData(
     `/api/admin/schedule/days?from=${date}&to=${date}`,
-    { enabled }
+    { enabled, validate: checkDays }
   );
   const [chosen, setChosen] = useState(null);
+  const [editor, setEditor] = useState(null); // { date } | { block }
+  const [blockNotice, setBlockNotice] = useState(null);
   const panelRef = useRef(null);
+  const addButtonRef = useRef(null);
 
   if (bookings.status === 'loading' || bookings.status === 'idle') {
     return (
@@ -493,8 +539,29 @@ function DayContent({ date, enabled, controller, header }) {
   }
 
   const list = sortDayBookings(bookings.data.bookings);
-  const scheduleDay =
-    schedule.status === 'ready' ? schedule.data.days?.[0] : null;
+  const scheduleDay = schedule.data?.days?.[0] ?? null;
+  const blocks = blocksOf(scheduleDay);
+
+  // The open day is the only one loaded: a block moved to another date
+  // leaves it at once, a block moved here joins it; then reload.
+  const blockChanged = ({ removedId, block, action }) => {
+    if (schedule.data) {
+      schedule.replace({
+        ...schedule.data,
+        days: applyBlockChange(schedule.data.days, { removedId, block }),
+      });
+    }
+    schedule.reload();
+    setEditor(null);
+    setBlockNotice(
+      action === 'deleted'
+        ? 'Indisponibilité supprimée : le créneau est de nouveau réservable selon les horaires.'
+        : action === 'created'
+          ? 'Indisponibilité ajoutée : les clients ne peuvent plus réserver ce créneau.'
+          : 'Indisponibilité modifiée.'
+    );
+  };
+  const canAdd = Boolean(today) && date >= today;
   const selectedId = list.some((booking) => booking.id === chosen)
     ? chosen
     : defaultSelection(list);
@@ -512,13 +579,53 @@ function DayContent({ date, enabled, controller, header }) {
 
   return (
     <>
-      {header(list.length ? daySummary(list) : 'Aucun rendez-vous')}
+      {header(
+        list.length || blocks.length
+          ? daySummary(list, blocks.length)
+          : 'Aucun rendez-vous'
+      )}
+      <div className="flex flex-wrap items-center gap-3">
+        <button
+          ref={addButtonRef}
+          type="button"
+          onClick={() => {
+            setBlockNotice(null);
+            setEditor({ date: canAdd ? date : today });
+          }}
+          disabled={!today}
+          className="font-montserrat text-body-sm hover:border-third-200 focus-visible:outline-third-200 min-h-11 rounded-full border border-black/20 bg-white px-5 font-medium text-gray-900 transition-colors focus-visible:outline-2 disabled:opacity-50"
+        >
+          <span aria-hidden>+ </span>Ajouter une indisponibilité
+        </button>
+        {schedule.status === 'error' ? (
+          <p className="font-montserrat text-body-sm text-error">
+            Horaires et indisponibilités non chargés.{' '}
+            <button
+              type="button"
+              onClick={schedule.reload}
+              className="underline underline-offset-2"
+            >
+              Réessayer
+            </button>
+          </p>
+        ) : null}
+      </div>
+      <div role="status">
+        {blockNotice ? <Notice>{blockNotice}</Notice> : null}
+      </div>
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,26rem)] lg:items-start">
         <DayTimeline
+          date={date}
           bookings={list}
+          blocks={blocks}
+          timeZone={bookings.data.timeZone}
           scheduleDay={scheduleDay}
           selectedId={selectedId}
           onSelect={select}
+          onOpenBlock={(block) => {
+            setBlockNotice(null);
+            setEditor({ block });
+          }}
         />
         <div ref={panelRef} className="scroll-mt-6">
           {selected ? (
@@ -549,6 +656,18 @@ function DayContent({ date, enabled, controller, header }) {
           )}
         </div>
       </div>
+      {editor ? (
+        <BlockDialog
+          key={editor.block?.id ?? `new-${editor.date}`}
+          editor={editor}
+          today={today}
+          controller={controller}
+          fallbackFocus={addButtonRef}
+          onClose={() => setEditor(null)}
+          onChanged={blockChanged}
+          onGone={schedule.reload}
+        />
+      ) : null}
     </>
   );
 }
@@ -610,6 +729,7 @@ export default function AdminDayBookings() {
             <DayContent
               key={date}
               date={date}
+              today={today}
               enabled={status === 'admin'}
               controller={controller}
               header={(summaryText) => (

@@ -2,7 +2,7 @@
   "source": {
     "repository": "OlehDribko/Massage-backend",
     "file": "docs/openapi.json",
-    "commit": "310f29ed07fa600d75b4cde6211cd838fe81848c",
+    "commit": "c2610b6319d7e8ae6fb90b3ea6fb33cc53741bb3",
     "apiVersion": "1.0.0"
   },
   "components": {
@@ -840,6 +840,492 @@
       ],
       "additionalProperties": false
     },
+    "ScheduleDays": {
+      "type": "object",
+      "properties": {
+        "timeZone": {
+          "type": "string",
+          "const": "Europe/Paris"
+        },
+        "days": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "date": {
+                "type": "string",
+                "format": "date",
+                "description": "Local date of the studio (Europe/Paris), YYYY-MM-DD",
+                "examples": ["2027-03-02"]
+              },
+              "weekday": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 7,
+                "description": "ISO weekday, 1 = Monday … 7 = Sunday"
+              },
+              "closed": {
+                "type": "boolean",
+                "description": "The date's schedule (exception or weekly rule) has no working hours. Not about closures: see `closure`"
+              },
+              "source": {
+                "type": "string",
+                "enum": ["weekly", "exception"],
+                "description": "`weekly`: the weekly rule applies; `exception`: hours set for this date"
+              },
+              "intervals": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "start": {
+                      "type": "string",
+                      "description": "Local time of the studio, HH:MM (00:00–24:00)",
+                      "examples": ["09:00"]
+                    },
+                    "end": {
+                      "type": "string",
+                      "description": "Local time of the studio, HH:MM (00:00–24:00)",
+                      "examples": ["09:00"]
+                    }
+                  },
+                  "required": ["start", "end"],
+                  "additionalProperties": false
+                },
+                "description": "The date's schedule — also what the date returns to when its closure is removed"
+              },
+              "closure": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "closedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Moment in UTC, ISO 8601 with Z",
+                        "examples": ["2027-03-02T08:00:00.000Z"]
+                      }
+                    },
+                    "required": ["closedAt"],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "The date is closed for new bookings and moves (existing bookings stay); null: not closed"
+              },
+              "effective": {
+                "type": "object",
+                "properties": {
+                  "open": {
+                    "type": "boolean",
+                    "description": "Something can be booked on this date (subject to booking rules and other bookings)"
+                  },
+                  "intervals": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "start": {
+                          "type": "string",
+                          "description": "Local time of the studio, HH:MM (00:00–24:00)",
+                          "examples": ["09:00"]
+                        },
+                        "end": {
+                          "type": "string",
+                          "description": "Local time of the studio, HH:MM (00:00–24:00)",
+                          "examples": ["09:00"]
+                        }
+                      },
+                      "required": ["start", "end"],
+                      "additionalProperties": false
+                    },
+                    "description": "Hours open for booking: none while closed, else the schedule"
+                  }
+                },
+                "required": ["open", "intervals"],
+                "additionalProperties": false,
+                "description": "What can be booked now: the working hours. Blocks are not cut out of them: see `blocks`"
+              },
+              "blocks": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "Shown to the admin only (1–100 characters)"
+                    },
+                    "note": {
+                      "description": "Optional, admin only (up to 500 characters); null: none",
+                      "type": ["string", "null"]
+                    },
+                    "start": {
+                      "type": "string",
+                      "description": "Local date and time of the studio (Europe/Paris), YYYY-MM-DDTHH:MM, no offset",
+                      "examples": ["2027-03-02T14:00"]
+                    },
+                    "end": {
+                      "type": "string",
+                      "description": "Local end; a block ending at midnight shows the next date at 00:00",
+                      "examples": ["2027-03-02T14:00"]
+                    },
+                    "startsAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "description": "Moment in UTC, ISO 8601 with Z",
+                      "examples": ["2027-03-02T08:00:00.000Z"]
+                    },
+                    "endsAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "description": "Moment in UTC, ISO 8601 with Z",
+                      "examples": ["2027-03-02T08:00:00.000Z"]
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "description": "Moment in UTC, ISO 8601 with Z",
+                      "examples": ["2027-03-02T08:00:00.000Z"]
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "description": "Moment in UTC, ISO 8601 with Z",
+                      "examples": ["2027-03-02T08:00:00.000Z"]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "title",
+                    "note",
+                    "start",
+                    "end",
+                    "startsAt",
+                    "endsAt",
+                    "createdAt",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                },
+                "description": "Blocks of the calendar overlapping this date, by start; their time (plus a break on each side) takes no bookings"
+              }
+            },
+            "required": [
+              "date",
+              "weekday",
+              "closed",
+              "source",
+              "intervals",
+              "closure",
+              "effective",
+              "blocks"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": ["timeZone", "days"],
+      "additionalProperties": false
+    },
+    "ScheduleBlock": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "title": {
+          "type": "string",
+          "description": "Shown to the admin only (1–100 characters)"
+        },
+        "note": {
+          "description": "Optional, admin only (up to 500 characters); null: none",
+          "type": ["string", "null"]
+        },
+        "start": {
+          "type": "string",
+          "description": "Local date and time of the studio (Europe/Paris), YYYY-MM-DDTHH:MM, no offset",
+          "examples": ["2027-03-02T14:00"]
+        },
+        "end": {
+          "type": "string",
+          "description": "Local end; a block ending at midnight shows the next date at 00:00",
+          "examples": ["2027-03-02T14:00"]
+        },
+        "startsAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Moment in UTC, ISO 8601 with Z",
+          "examples": ["2027-03-02T08:00:00.000Z"]
+        },
+        "endsAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Moment in UTC, ISO 8601 with Z",
+          "examples": ["2027-03-02T08:00:00.000Z"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Moment in UTC, ISO 8601 with Z",
+          "examples": ["2027-03-02T08:00:00.000Z"]
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Moment in UTC, ISO 8601 with Z",
+          "examples": ["2027-03-02T08:00:00.000Z"]
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "note",
+        "start",
+        "end",
+        "startsAt",
+        "endsAt",
+        "createdAt",
+        "updatedAt"
+      ],
+      "additionalProperties": false
+    },
+    "ScheduleBlockResult": {
+      "type": "object",
+      "properties": {
+        "timeZone": {
+          "type": "string",
+          "const": "Europe/Paris"
+        },
+        "block": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "title": {
+              "type": "string",
+              "description": "Shown to the admin only (1–100 characters)"
+            },
+            "note": {
+              "description": "Optional, admin only (up to 500 characters); null: none",
+              "type": ["string", "null"]
+            },
+            "start": {
+              "type": "string",
+              "description": "Local date and time of the studio (Europe/Paris), YYYY-MM-DDTHH:MM, no offset",
+              "examples": ["2027-03-02T14:00"]
+            },
+            "end": {
+              "type": "string",
+              "description": "Local end; a block ending at midnight shows the next date at 00:00",
+              "examples": ["2027-03-02T14:00"]
+            },
+            "startsAt": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Moment in UTC, ISO 8601 with Z",
+              "examples": ["2027-03-02T08:00:00.000Z"]
+            },
+            "endsAt": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Moment in UTC, ISO 8601 with Z",
+              "examples": ["2027-03-02T08:00:00.000Z"]
+            },
+            "createdAt": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Moment in UTC, ISO 8601 with Z",
+              "examples": ["2027-03-02T08:00:00.000Z"]
+            },
+            "updatedAt": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Moment in UTC, ISO 8601 with Z",
+              "examples": ["2027-03-02T08:00:00.000Z"]
+            }
+          },
+          "required": [
+            "id",
+            "title",
+            "note",
+            "start",
+            "end",
+            "startsAt",
+            "endsAt",
+            "createdAt",
+            "updatedAt"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": ["timeZone", "block"],
+      "additionalProperties": false
+    },
+    "ScheduleBlockUpdateResult": {
+      "type": "object",
+      "properties": {
+        "timeZone": {
+          "type": "string",
+          "const": "Europe/Paris"
+        },
+        "block": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "title": {
+              "type": "string",
+              "description": "Shown to the admin only (1–100 characters)"
+            },
+            "note": {
+              "description": "Optional, admin only (up to 500 characters); null: none",
+              "type": ["string", "null"]
+            },
+            "start": {
+              "type": "string",
+              "description": "Local date and time of the studio (Europe/Paris), YYYY-MM-DDTHH:MM, no offset",
+              "examples": ["2027-03-02T14:00"]
+            },
+            "end": {
+              "type": "string",
+              "description": "Local end; a block ending at midnight shows the next date at 00:00",
+              "examples": ["2027-03-02T14:00"]
+            },
+            "startsAt": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Moment in UTC, ISO 8601 with Z",
+              "examples": ["2027-03-02T08:00:00.000Z"]
+            },
+            "endsAt": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Moment in UTC, ISO 8601 with Z",
+              "examples": ["2027-03-02T08:00:00.000Z"]
+            },
+            "createdAt": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Moment in UTC, ISO 8601 with Z",
+              "examples": ["2027-03-02T08:00:00.000Z"]
+            },
+            "updatedAt": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Moment in UTC, ISO 8601 with Z",
+              "examples": ["2027-03-02T08:00:00.000Z"]
+            }
+          },
+          "required": [
+            "id",
+            "title",
+            "note",
+            "start",
+            "end",
+            "startsAt",
+            "endsAt",
+            "createdAt",
+            "updatedAt"
+          ],
+          "additionalProperties": false
+        },
+        "changed": {
+          "type": "boolean",
+          "description": "false: the block already had these values, nothing was written"
+        }
+      },
+      "required": ["timeZone", "block", "changed"],
+      "additionalProperties": false
+    },
+    "ScheduleBlockList": {
+      "type": "object",
+      "properties": {
+        "timeZone": {
+          "type": "string",
+          "const": "Europe/Paris"
+        },
+        "blocks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "title": {
+                "type": "string",
+                "description": "Shown to the admin only (1–100 characters)"
+              },
+              "note": {
+                "description": "Optional, admin only (up to 500 characters); null: none",
+                "type": ["string", "null"]
+              },
+              "start": {
+                "type": "string",
+                "description": "Local date and time of the studio (Europe/Paris), YYYY-MM-DDTHH:MM, no offset",
+                "examples": ["2027-03-02T14:00"]
+              },
+              "end": {
+                "type": "string",
+                "description": "Local end; a block ending at midnight shows the next date at 00:00",
+                "examples": ["2027-03-02T14:00"]
+              },
+              "startsAt": {
+                "type": "string",
+                "format": "date-time",
+                "description": "Moment in UTC, ISO 8601 with Z",
+                "examples": ["2027-03-02T08:00:00.000Z"]
+              },
+              "endsAt": {
+                "type": "string",
+                "format": "date-time",
+                "description": "Moment in UTC, ISO 8601 with Z",
+                "examples": ["2027-03-02T08:00:00.000Z"]
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time",
+                "description": "Moment in UTC, ISO 8601 with Z",
+                "examples": ["2027-03-02T08:00:00.000Z"]
+              },
+              "updatedAt": {
+                "type": "string",
+                "format": "date-time",
+                "description": "Moment in UTC, ISO 8601 with Z",
+                "examples": ["2027-03-02T08:00:00.000Z"]
+              }
+            },
+            "required": [
+              "id",
+              "title",
+              "note",
+              "start",
+              "end",
+              "startsAt",
+              "endsAt",
+              "createdAt",
+              "updatedAt"
+            ],
+            "additionalProperties": false
+          },
+          "description": "By start"
+        }
+      },
+      "required": ["timeZone", "blocks"],
+      "additionalProperties": false
+    },
     "Error": {
       "type": "object",
       "properties": {
@@ -963,6 +1449,22 @@
           ]
         }
       ]
+    }
+  },
+  "responses": {
+    "DELETE /api/admin/schedule/blocks/{blockId} 200": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "deleted": {
+          "type": "boolean"
+        }
+      },
+      "required": ["id", "deleted"],
+      "additionalProperties": false
     }
   }
 }
