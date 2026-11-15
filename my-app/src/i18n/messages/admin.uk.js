@@ -95,8 +95,8 @@ const messages = {
     'Торкніться дат (від сьогодні), щоб вибрати їх, а потім оберіть дію внизу.',
   'Touchez une date pour ouvrir l’agenda du jour. Pour fermer ou rouvrir des dates, passez en sélection.':
     'Торкніться дати, щоб відкрити розклад дня. Щоб закрити або відкрити дати, перейдіть у режим вибору.',
-  'Touchez une date pour ouvrir l’agenda du jour. Cochez des jours pour les fermer aux nouvelles réservations ou retirer leur fermeture.':
-    'Торкніться дати, щоб відкрити розклад дня. Позначте дні, щоб закрити їх для нових записів або зняти закриття.',
+  'Touchez un créneau libre pour ajouter une indisponibilité, une date pour ouvrir l’agenda du jour. Cochez des jours pour les fermer aux nouvelles réservations ou retirer leur fermeture.':
+    'Торкніться вільного проміжку, щоб додати зайнятий час, або дати, щоб відкрити розклад дня. Позначте дні, щоб закрити їх для нових записів або зняти закриття.',
   'Ajouter une indisponibilité': 'Додати зайнятий час',
   'Terminer la sélection': 'Завершити вибір',
   'Sélectionner des dates': 'Вибрати дати',
@@ -386,6 +386,11 @@ const messages = {
   indisponible: 'зайнято',
   'Indisponibilité terminée': 'Зайнятий час минув',
   ' pour {day}': ' для: {day}',
+  ' (annulé)': ' (скасовано)',
+  'Jours affichés': 'Показані дні',
+  'Jours affichés — flèches gauche et droite pour changer de période':
+    'Показані дні — стрілки вліво й вправо змінюють період',
+  'Changer de jours': 'Змінити дні',
 };
 
 export default messages;

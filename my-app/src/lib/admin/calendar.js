@@ -144,3 +144,147 @@ export function selectionSummary(selected, daysByDate) {
 export function isSelectable(date, today) {
   return Boolean(today) && date >= today;
 }
+
+/* --- Phones: a window of consecutive days ---------------------------------- */
+
+/** Days shown at once on a phone; buttons and swipes move it by one day. */
+export const COMPACT_DAYS = 3;
+
+/** `days` consecutive dates from `anchor` (may cross a week boundary). */
+export function windowRange(anchor, days = COMPACT_DAYS) {
+  const to = addDays(anchor, days - 1);
+  return { from: anchor, to, dates: datesBetween(anchor, to), month: null };
+}
+
+/**
+ * The page shown for a view: month, week (Monday → Sunday) or, on a phone
+ * (`compact`), COMPACT_DAYS days from the anchor. The title, the columns
+ * and both requests use this one range.
+ */
+export function visibleRange(view, anchor, compact = false) {
+  return view === 'week' && compact
+    ? windowRange(anchor)
+    : calendarRange(view, anchor);
+}
+
+/** Anchor of the previous / next page: one day in the phone window. */
+export function stepAnchor(view, anchor, delta, compact = false) {
+  return view === 'week' && compact
+    ? addDays(anchor, delta)
+    : shiftAnchor(view, anchor, delta);
+}
+
+/* --- Time grid ------------------------------------------------------------- */
+
+/** Rows of the grid (minutes). */
+export const SLOT_MINUTES = 15;
+/** docs/booking.md §2: one break kept free after each session. */
+export const BREAK_MINUTES = 15;
+/** Proposed length of a new busy time; shorter when the gap is shorter. */
+export const SUGGESTED_MINUTES = 60;
+/** Shortest busy time the API accepts (lib/admin/blocks.js MIN_MINUTES). */
+export const SHORTEST_MINUTES = 15;
+const DAY_MINUTES = 24 * 60;
+
+/** "09:35" → 575 ("24:00" → 1440); null when not a time. */
+export function toMinutes(time) {
+  const match = /^(\d{2}):(\d{2})$/.exec(time ?? '');
+  if (!match) return null;
+  const minutes = Number(match[1]) * 60 + Number(match[2]);
+  return minutes <= DAY_MINUTES ? minutes : null;
+}
+
+/** 575 → "09:35" (1440 → "24:00"). */
+export function minutesLabel(minutes) {
+  const hours = Math.floor(minutes / 60);
+  return `${String(hours).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
+}
+
+/** Minute of the day at `now` in the studio's time zone. */
+export function studioMinute(now = new Date(), timeZone = 'Europe/Paris') {
+  const [hours, minutes] = new Intl.DateTimeFormat('en-GB', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+    timeZone,
+  })
+    .format(now)
+    .split(':')
+    .map(Number);
+  return hours * 60 + minutes;
+}
+
+/** Parts of [from, to] (minutes) not covered by the working intervals. */
+export function gapsOf(intervals, from, to) {
+  const ranges = (intervals ?? [])
+    .map(({ start, end }) => [toMinutes(start), toMinutes(end)])
+    .filter(([a, b]) => a !== null && b !== null)
+    .sort((x, y) => x[0] - y[0]);
+  const gaps = [];
+  let cursor = from;
+  for (const [a, b] of ranges) {
+    if (a > cursor) gaps.push([cursor, Math.min(a, to)]);
+    cursor = Math.max(cursor, b);
+  }
+  if (cursor < to) gaps.push([cursor, to]);
+  return gaps.filter(([a, b]) => b > a);
+}
+
+/**
+ * Free parts of the working hours, as [start, end] minutes: without the
+ * bookings (and the break after each one, cancelled ones ignored), the
+ * busy times and, today, the time already past (`notBefore`). Parts
+ * shorter than the shortest busy time are left out.
+ * `items`: agendaItems() of the date.
+ */
+export function freeSegments(
+  intervals,
+  items,
+  { notBefore = 0, breakMinutes = BREAK_MINUTES } = {}
+) {
+  const busy = (items ?? [])
+    .filter(
+      (entry) => entry.kind === 'block' || entry.item?.status !== 'cancelled'
+    )
+    .map((entry) => [
+      entry.start,
+      entry.kind === 'booking'
+        ? Math.min(DAY_MINUTES, entry.end + breakMinutes)
+        : entry.end,
+    ])
+    .sort((a, b) => a[0] - b[0]);
+  const floor = Math.ceil(notBefore / 5) * 5;
+  const segments = [];
+  for (const { start, end } of intervals ?? []) {
+    let from = toMinutes(start);
+    const to = toMinutes(end);
+    if (from === null || to === null) continue;
+    from = Math.max(from, floor);
+    let cursor = from;
+    for (const [a, b] of busy) {
+      if (b <= cursor || a >= to) continue;
+      if (a > cursor) segments.push([cursor, a]);
+      cursor = Math.max(cursor, b);
+      if (cursor >= to) break;
+    }
+    if (cursor < to) segments.push([cursor, to]);
+  }
+  return segments.filter(([a, b]) => b - a >= SHORTEST_MINUTES);
+}
+
+/**
+ * What a click at `minute` proposes: from the 15-minute row it falls in
+ * (never before the free part starts) for SUGGESTED_MINUTES, cut at the
+ * next booking, busy time or break. Near the end of a free part the start
+ * moves back so the time keeps the shortest length. null outside the free
+ * parts. → { start, end } in minutes.
+ */
+export function slotAt(minute, segments) {
+  const segment = (segments ?? []).find(([a, b]) => minute >= a && minute < b);
+  if (!segment) return null;
+  const [from, to] = segment;
+  let start = Math.max(from, Math.floor(minute / SLOT_MINUTES) * SLOT_MINUTES);
+  if (to - start < SHORTEST_MINUTES) start = to - SHORTEST_MINUTES;
+  if (start < from) return null;
+  return { start, end: Math.min(to, start + SUGGESTED_MINUTES) };
+}

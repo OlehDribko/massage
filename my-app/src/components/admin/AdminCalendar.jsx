@@ -11,13 +11,7 @@ import { useSearchParams } from 'next/navigation';
 
 import { DAY_PATH } from '@/components/admin/AdminDayBookings';
 import AdminShell, { AdminError } from '@/components/admin/AdminShell';
-import {
-  Link,
-  useFormat,
-  useRouter,
-  useServiceName,
-  useT,
-} from '@/i18n/client';
+import { Link, useFormat, useRouter, useT } from '@/i18n/client';
 import { msg } from '@/i18n/translate';
 import { rich } from '@/i18n/rich';
 import BlockDialog, { BLOCK_STYLE } from '@/components/admin/BlockDialog';
@@ -32,16 +26,24 @@ import {
   blockTimeLabel,
   blocksCountLabel,
   blocksOf,
+  layoutLanes,
 } from '@/lib/admin/blocks';
 import {
   bookingsByDate,
-  calendarRange,
   dayState,
+  freeSegments,
+  gapsOf,
   hoursLabel,
   isSelectable,
   mergeDays,
+  minutesLabel,
   selectionSummary,
-  shiftAnchor,
+  SLOT_MINUTES,
+  slotAt,
+  stepAnchor,
+  studioMinute,
+  toMinutes,
+  visibleRange,
 } from '@/lib/admin/calendar';
 import { bookingErrorMessage } from '@/lib/booking/labels';
 import { studioToday } from '@/lib/format';
@@ -49,6 +51,17 @@ import { studioToday } from '@/lib/format';
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const checkDays = validatorFor('scheduleDays');
 const noopSubscribe = () => () => {};
+// Phones (below 640 px): three days at once instead of the week.
+const COMPACT_QUERY = '(max-width: 39.99rem)';
+const subscribeCompact = (onChange) => {
+  const query = window.matchMedia(COMPACT_QUERY);
+  query.addEventListener('change', onChange);
+  return () => query.removeEventListener('change', onChange);
+};
+const isCompact = () => window.matchMedia(COMPACT_QUERY).matches;
+// Arrow keys stay native in fields, menus and dialogs.
+const KEEPS_ARROWS =
+  'input, textarea, select, [contenteditable="true"], dialog, [role="dialog"], [role="listbox"], [role="menu"], [role="slider"]';
 // Monday-first short weekday names in the admin's language.
 const weekdayShort = (intlLocale) =>
   Array.from({ length: 7 }, (_, index) =>
@@ -137,66 +150,6 @@ const activeBookings = (list) =>
       booking.phase !== 'cancelled'
   );
 
-function BookingItem({ booking, date }) {
-  const t = useT();
-  const serviceName = useServiceName();
-  const { formatTime } = useFormat();
-  const cancelled = booking.status === 'cancelled';
-  return (
-    <Link
-      href={`/admin/reservations/${booking.id}?date=${date}`}
-      className={`font-montserrat focus-visible:outline-third-200 flex flex-col gap-1 rounded-2xl px-3.5 py-3 transition-shadow hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 ${
-        cancelled
-          ? 'border border-dashed border-black/20 bg-white/70 text-gray-800'
-          : 'bg-third-900 text-cream'
-      }`}
-    >
-      <span className="flex items-center justify-between gap-2 text-xs font-semibold">
-        <span>
-          {formatTime(booking.startsAt)} – {formatTime(booking.endsAt)}
-        </span>
-        {cancelled ? (
-          <span className="font-medium uppercase">{t('Annulé')}</span>
-        ) : null}
-      </span>
-      <span
-        className={`text-sm leading-snug font-medium break-words ${cancelled ? 'line-through' : ''}`}
-      >
-        {booking.client?.name ?? t('Nom non renseigné')}
-      </span>
-      <span
-        className={`line-clamp-2 text-xs leading-snug ${cancelled ? 'line-through' : 'text-secondary-200'}`}
-      >
-        {serviceName(booking.service)}
-      </span>
-      <span className="sr-only">{t(' — voir le détail')}</span>
-    </Link>
-  );
-}
-
-/** A busy time in a day column: a click opens it (edit, delete). */
-function BlockItem({ block, date, onOpen }) {
-  const t = useT();
-  return (
-    <button
-      type="button"
-      onClick={() => onOpen(block)}
-      className={`font-montserrat focus-visible:outline-third-200 flex w-full flex-col gap-1 rounded-2xl px-3.5 py-3 text-left transition-shadow hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 ${BLOCK_STYLE}`}
-    >
-      <span className="text-[0.6875rem] font-medium tracking-wide uppercase">
-        {t('Indisponible')}
-      </span>
-      <span className="text-xs font-semibold break-words">
-        {blockTimeLabel(block, date, t)}
-      </span>
-      <span className="text-sm leading-snug font-medium break-words">
-        {block.title}
-      </span>
-      <span className="sr-only">{t(' — modifier ou supprimer')}</span>
-    </button>
-  );
-}
-
 /** Round checkbox in the corner of a day (today or later only). */
 function DayCheckbox({ date, checked, onToggle }) {
   const t = useT();
@@ -260,10 +213,219 @@ function DayStatus({ state }) {
   return null;
 }
 
+// Time grid: 48 px per hour, one row per 15 minutes.
+const HOUR_PX = 48;
+const MINUTE_PX = HOUR_PX / 60;
+const hatch =
+  'bg-[repeating-linear-gradient(135deg,var(--color-secondary-50)_0_8px,var(--color-secondary-100)_8px_16px)]';
+// Quarter-hour lines inside the working hours.
+const quarterLines = {
+  backgroundImage: `repeating-linear-gradient(to bottom, rgb(0 0 0 / 0.055) 0 1px, transparent 1px ${SLOT_MINUTES * MINUTE_PX}px)`,
+};
+
+/** A booking in the grid: opens its detail page. */
+function GridBooking({ booking, date, style }) {
+  const t = useT();
+  const { formatTime } = useFormat();
+  const cancelled = booking.status === 'cancelled';
+  return (
+    <Link
+      href={`/admin/reservations/${booking.id}?date=${date}`}
+      style={style}
+      className={`font-montserrat focus-visible:outline-third-200 absolute flex flex-col overflow-hidden rounded-lg px-1.5 py-1 text-left leading-tight transition-shadow hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 sm:px-2 ${
+        cancelled
+          ? 'z-0 border border-dashed border-black/25 bg-white/80 text-gray-800'
+          : 'bg-third-900 text-cream z-[2]'
+      }`}
+    >
+      <span className="truncate text-[0.6875rem] font-semibold">
+        {formatTime(booking.startsAt)}–{formatTime(booking.endsAt)}
+      </span>
+      <span
+        className={`truncate text-xs font-medium ${cancelled ? 'line-through' : ''}`}
+      >
+        {booking.client?.name ?? t('Nom non renseigné')}
+      </span>
+      <span className="sr-only">
+        {cancelled ? t(' (annulé)') : ''}
+        {t(' — voir le détail')}
+      </span>
+    </Link>
+  );
+}
+
+/** A busy time in the grid: opens its form (edit, delete). */
+function GridBlock({ block, date, style, onOpen }) {
+  const t = useT();
+  return (
+    <button
+      type="button"
+      onClick={() => onOpen(block)}
+      style={style}
+      className={`font-montserrat focus-visible:outline-third-200 absolute z-[2] flex flex-col overflow-hidden rounded-lg px-1.5 py-1 text-left leading-tight transition-shadow hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 sm:px-2 ${BLOCK_STYLE}`}
+    >
+      <span className="truncate text-[0.6875rem] font-semibold">
+        {blockTimeLabel(block, date, t)}
+      </span>
+      <span className="truncate text-xs font-medium">{block.title}</span>
+      <span className="sr-only">
+        {t('Indisponible')}
+        {t(' — modifier ou supprimer')}
+      </span>
+    </button>
+  );
+}
+
 /**
- * Week (main view): 7 vertical columns, Monday → Sunday. All 7 side by
- * side on wide screens; on narrower ones the row scrolls horizontally and
- * the week buttons stay the way to change weeks.
+ * One day of the grid: working hours ruled every 15 minutes, time outside
+ * them hatched, bookings and busy times at their place (overlapping ones
+ * side by side). A click (or tap) on a free part proposes a busy time
+ * there; a pointer shows the proposal first. Keyboard users have the
+ * « Indisponibilité » button under the grid.
+ */
+function DayGrid({
+  date,
+  state,
+  items,
+  segments,
+  from,
+  to,
+  hover,
+  onHover,
+  onPick,
+  onOpenBlock,
+  ignoreClick,
+}) {
+  const t = useT();
+  const top = (minute) => (minute - from) * MINUTE_PX;
+  const hours = Array.from(
+    { length: (to - from) / 60 + 1 },
+    (_, index) => from + index * 60
+  );
+  const working = state.kind === 'open' ? state.hours : [];
+  const gaps = gapsOf(working, from, to);
+  const pickAt = (event, [a]) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    return slotAt(a + (event.clientY - rect.top) / MINUTE_PX, segments);
+  };
+
+  return (
+    <div className="relative" style={{ height: (to - from) * MINUTE_PX }}>
+      {working.map(({ start, end }) => {
+        const a = toMinutes(start);
+        const b = toMinutes(end);
+        if (a === null || b === null || b <= from) return null;
+        return (
+          <div
+            key={start}
+            aria-hidden
+            className="absolute inset-x-0"
+            style={{
+              ...quarterLines,
+              backgroundPositionY: `${-((a - from) % SLOT_MINUTES) * MINUTE_PX}px`,
+              top: top(Math.max(a, from)),
+              height: (Math.min(b, to) - Math.max(a, from)) * MINUTE_PX,
+            }}
+          />
+        );
+      })}
+      {gaps.map(([a, b]) => (
+        <div
+          key={a}
+          aria-hidden
+          className={`absolute inset-x-0 ${hatch}`}
+          style={{ top: top(a), height: (b - a) * MINUTE_PX }}
+        />
+      ))}
+      {hours.map((minute) => (
+        <span
+          key={minute}
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 z-[1] border-t border-black/10"
+          style={{ top: top(minute) }}
+        >
+          <span className="font-montserrat absolute top-0.5 left-0.5 text-[0.625rem] leading-none text-gray-800/80">
+            {minutesLabel(minute)}
+          </span>
+        </span>
+      ))}
+      {segments.map((segment) => (
+        <div
+          key={segment[0]}
+          aria-hidden
+          onClick={(event) => {
+            if (ignoreClick()) return;
+            const slot = pickAt(event, segment);
+            if (slot) onPick(date, slot);
+          }}
+          onPointerMove={(event) => {
+            if (event.pointerType !== 'mouse') return;
+            const slot = pickAt(event, segment);
+            onHover(slot ? { date, ...slot } : null);
+          }}
+          onPointerLeave={() => onHover(null)}
+          className="absolute inset-x-0 cursor-pointer"
+          style={{
+            top: top(segment[0]),
+            height: (segment[1] - segment[0]) * MINUTE_PX,
+          }}
+        />
+      ))}
+      {hover?.date === date ? (
+        <div
+          aria-hidden
+          className="border-third-200 bg-primary-50/70 font-montserrat text-third-900 pointer-events-none absolute inset-x-0.5 z-[1] overflow-hidden rounded-lg border border-dashed px-1.5 py-0.5 text-[0.6875rem] leading-tight font-semibold"
+          style={{
+            top: top(hover.start),
+            height: (hover.end - hover.start) * MINUTE_PX,
+          }}
+        >
+          + {minutesLabel(hover.start)}–{minutesLabel(hover.end)}
+        </div>
+      ) : null}
+      {layoutLanes(items).map(({ kind, item, start, end, lane, lanes }) => {
+        const style = {
+          top: top(start) + 1,
+          height: Math.max((end - start) * MINUTE_PX - 2, 22),
+          left: `calc(2px + (100% - 4px) * ${lane / lanes})`,
+          width: `calc((100% - 4px) / ${lanes} - ${lanes > 1 ? 2 : 0}px)`,
+        };
+        return kind === 'block' ? (
+          <GridBlock
+            key={`block-${item.id}`}
+            block={item}
+            date={date}
+            style={style}
+            onOpen={onOpenBlock}
+          />
+        ) : (
+          <GridBooking
+            key={`booking-${item.id}`}
+            booking={item}
+            date={date}
+            style={style}
+          />
+        );
+      })}
+      {state.kind !== 'open' && !items.length ? (
+        <p className="font-montserrat pointer-events-none absolute inset-x-0 top-8 z-[1] px-2 text-center text-xs text-gray-800">
+          {state.kind === 'closed'
+            ? t('Fermé')
+            : state.kind === 'off'
+              ? t('Repos')
+              : ''}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Week (main view): one column per day, Monday → Sunday, each with its
+ * time grid. All 7 side by side from 1024 px; between 640 and 1024 px the
+ * row scrolls sideways. On a phone (`compact`): three consecutive days,
+ * moved one day by the buttons or a horizontal swipe (vertical scrolling
+ * stays native; a swipe never counts as a tap).
  */
 function WeekView({
   dates,
@@ -271,46 +433,122 @@ function WeekView({
   byDate,
   timeZone,
   today,
+  compact,
   selected,
   onToggle,
   onOpenBlock,
   onAddBlock,
+  onShift,
 }) {
   const t = useT();
   const { formatLocalDate, formatMonthShort, formatWeekday } = useFormat();
   const scrollerRef = useRef(null);
+  const [hover, setHover] = useState(null);
+  const touchRef = useRef(null);
+  const ignoreUntilRef = useRef(0);
 
   // When the row scrolls, start it at today's column.
+  const datesKey = dates.join();
   useEffect(() => {
     const scroller = scrollerRef.current;
     const column = scroller?.querySelector('[data-today="true"]');
     if (scroller && column && scroller.scrollWidth > scroller.clientWidth) {
       scroller.scrollLeft = column.offsetLeft - scroller.offsetLeft;
     }
-  }, [dates]);
+  }, [datesKey]);
+
+  const nowMinute = today ? studioMinute(new Date(), timeZone) : 0;
+  const columns = dates.map((date) => {
+    const day = daysByDate.get(date);
+    const state = dayState(day);
+    const items = agendaItems(byDate.get(date), blocksOf(day), date, timeZone);
+    const selectable = isSelectable(date, today);
+    const segments =
+      selectable && state.kind === 'open'
+        ? freeSegments(state.hours, items, {
+            notBefore: date === today ? nowMinute : 0,
+          })
+        : [];
+    return { date, state, items, selectable, segments };
+  });
+  // One time scale for all the columns: 09:00–20:00 at least, widened to
+  // the working hours and events of the days on screen.
+  const first = Math.min(
+    9 * 60,
+    ...columns.flatMap(({ state, items }) => [
+      ...state.hours.map((hour) => toMinutes(hour.start) ?? 9 * 60),
+      ...items.map((item) => item.start),
+    ])
+  );
+  const last = Math.max(
+    20 * 60,
+    ...columns.flatMap(({ state, items }) => [
+      ...state.hours.map((hour) => toMinutes(hour.end) ?? 20 * 60),
+      ...items.map((item) => item.end),
+    ])
+  );
+  const from = Math.floor(first / 60) * 60;
+  const to = Math.min(24 * 60, Math.ceil(last / 60) * 60);
+
+  const onTouchStart = (event) => {
+    const touch = event.touches[0];
+    touchRef.current = { x: touch.clientX, y: touch.clientY };
+  };
+  const onTouchMove = (event) => {
+    const start = touchRef.current;
+    const touch = event.touches[0];
+    // Any real movement: the gesture is a scroll or a swipe, not a tap.
+    if (
+      start &&
+      Math.hypot(touch.clientX - start.x, touch.clientY - start.y) > 10
+    ) {
+      ignoreUntilRef.current = Date.now() + 600;
+    }
+  };
+  const onTouchEnd = (event) => {
+    const start = touchRef.current;
+    touchRef.current = null;
+    if (!start || !compact) return;
+    const touch = event.changedTouches[0];
+    const dx = touch.clientX - start.x;
+    const dy = touch.clientY - start.y;
+    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+      ignoreUntilRef.current = Date.now() + 600;
+      onShift(dx < 0 ? 1 : -1);
+    }
+  };
 
   return (
     <div
       ref={scrollerRef}
-      className="sm:-mx-section-x-tablet sm:px-section-x-tablet sm:scroll-px-section-x-tablet relative -mx-4 snap-x snap-mandatory scroll-px-4 overflow-x-auto px-4 pb-3 xl:mx-0 xl:snap-none xl:overflow-visible xl:px-0 xl:pb-0"
+      tabIndex={0}
+      aria-label={t(
+        'Jours affichés — flèches gauche et droite pour changer de période'
+      )}
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+      className={`focus-visible:outline-third-200 relative rounded-[1.25rem] focus-visible:outline-2 focus-visible:outline-offset-4 ${
+        compact
+          ? 'touch-pan-y'
+          : 'sm:-mx-section-x-tablet sm:px-section-x-tablet sm:scroll-px-section-x-tablet snap-x snap-mandatory overflow-x-auto pb-3 lg:mx-0 lg:snap-none lg:overflow-visible lg:px-0 lg:pb-0'
+      }`}
     >
-      <ol className="grid w-max grid-cols-[repeat(7,minmax(15rem,1fr))] gap-3 sm:grid-cols-[repeat(7,minmax(13.5rem,1fr))] xl:w-full xl:grid-cols-7 xl:gap-2.5">
-        {dates.map((date) => {
-          const state = dayState(daysByDate.get(date));
-          const items = agendaItems(
-            byDate.get(date),
-            blocksOf(daysByDate.get(date)),
-            date,
-            timeZone
-          );
+      <ol
+        className={
+          compact
+            ? 'grid grid-cols-3 gap-1.5'
+            : 'grid w-max grid-cols-[repeat(7,minmax(11rem,1fr))] gap-2.5 lg:w-full lg:grid-cols-7 lg:gap-2'
+        }
+      >
+        {columns.map(({ date, state, items, selectable, segments }) => {
           const isToday = date === today;
           const isSelected = selected.has(date);
-          const selectable = isSelectable(date, today);
           return (
             <li
               key={date}
               data-today={isToday || undefined}
-              className={`rounded-panel flex min-h-72 min-w-0 snap-start flex-col gap-4 border p-4 transition-shadow ${STATE_STYLE[state.kind].card} ${
+              className={`flex min-w-0 snap-start flex-col gap-2 rounded-2xl border p-1.5 transition-shadow sm:gap-3 sm:rounded-[1.25rem] sm:p-2.5 ${STATE_STYLE[state.kind].card} ${
                 isSelected
                   ? 'ring-primary-200 ring-2 ring-offset-2'
                   : isToday && state.kind !== 'closed'
@@ -318,27 +556,26 @@ function WeekView({
                     : ''
               } ${selectable ? '' : 'opacity-70'}`}
             >
-              <div className="flex items-start justify-between gap-2">
-                <h3>
+              <div className="flex items-start justify-between gap-1 px-1 pt-1">
+                <h3 className="min-w-0">
                   <Link
                     href={`${DAY_PATH}?date=${date}`}
                     className="group focus-visible:outline-third-200 flex flex-col rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2"
                   >
                     <span
-                      className={`font-montserrat text-[0.6875rem] tracking-[0.12em] uppercase ${isToday ? 'text-primary-300 font-semibold' : 'text-gray-800'}`}
+                      className={`font-montserrat truncate text-[0.6875rem] tracking-[0.1em] uppercase ${isToday ? 'text-primary-300 font-semibold' : 'text-gray-800'}`}
                       aria-hidden
                     >
                       {isToday ? t('Aujourd’hui') : formatWeekday(date)}
                     </span>
-                    <span aria-hidden className="flex items-baseline gap-1.5">
+                    <span aria-hidden className="flex items-baseline gap-1">
                       <span
-                        className={`font-faustina text-[2.25rem] leading-none ${isToday ? 'text-primary-300' : 'text-third-900'}`}
+                        className={`font-faustina text-[1.75rem] leading-none ${isToday ? 'text-primary-300' : 'text-third-900'}`}
                       >
                         {Number(date.slice(8))}
                       </span>
-                      <span className="font-montserrat text-body-sm group-hover:text-third-200 text-gray-800 transition-colors">
+                      <span className="font-montserrat text-body-sm group-hover:text-third-200 truncate text-gray-800 transition-colors">
                         {formatMonthShort(date)}
-                        <span className="text-third-200 ml-1.5">→</span>
                       </span>
                     </span>
                     <span className="sr-only">
@@ -357,39 +594,41 @@ function WeekView({
                 ) : null}
               </div>
 
-              <DayStatus state={state} />
+              <div className="px-1">
+                <DayStatus state={state} />
+              </div>
 
-              {items.length ? (
-                <ul className="flex flex-col gap-2">
-                  {items.map((entry) => (
-                    <li key={`${entry.kind}-${entry.id}`}>
-                      {entry.kind === 'block' ? (
-                        <BlockItem
-                          block={entry.item}
-                          date={date}
-                          onOpen={onOpenBlock}
-                        />
-                      ) : (
-                        <BookingItem booking={entry.item} date={date} />
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="font-montserrat mt-auto pb-1 text-center text-xs text-gray-800/80">
-                  {t('Aucun rendez-vous')}
-                </p>
-              )}
+              <DayGrid
+                date={date}
+                state={state}
+                items={items}
+                segments={segments}
+                from={from}
+                to={to}
+                hover={hover}
+                onHover={setHover}
+                onPick={(day, slot) =>
+                  onAddBlock(day, {
+                    start: minutesLabel(slot.start),
+                    end: minutesLabel(slot.end),
+                  })
+                }
+                onOpenBlock={onOpenBlock}
+                ignoreClick={() => Date.now() < ignoreUntilRef.current}
+              />
+
               {selectable ? (
                 <button
                   type="button"
                   onClick={() => onAddBlock(date)}
-                  className={`font-montserrat hover:border-third-200 hover:text-third-900 focus-visible:outline-third-200 flex min-h-11 items-center justify-center gap-1 rounded-2xl border border-dashed border-black/20 px-2 text-xs text-gray-800 transition-colors focus-visible:outline-2 ${items.length ? 'mt-auto' : ''}`}
+                  className="font-montserrat hover:border-third-200 hover:text-third-900 focus-visible:outline-third-200 flex min-h-11 items-center justify-center gap-1 rounded-xl border border-dashed border-black/20 px-1 text-xs text-gray-800 transition-colors focus-visible:outline-2"
                 >
                   <span aria-hidden className="text-lg leading-none">
                     +
                   </span>
-                  {t('Indisponibilité')}
+                  <span className={compact ? 'sr-only' : ''}>
+                    {t('Indisponibilité')}
+                  </span>
                   <span className="sr-only">
                     {' '}
                     {t('le {date}', {
@@ -678,6 +917,11 @@ function CalendarContent({ controller, enabled }) {
   const view = searchParams.get('vue') === 'mois' ? 'month' : 'week';
   const asked = searchParams.get('date');
   const anchor = asked && DATE.test(asked) ? asked : today;
+  const compact = useSyncExternalStore(
+    subscribeCompact,
+    isCompact,
+    () => false
+  );
 
   const [selected, setSelected] = useState(() => new Set());
   // Month: a tap opens the day; this mode makes taps select dates instead.
@@ -691,7 +935,8 @@ function CalendarContent({ controller, enabled }) {
   const [blockNotice, setBlockNotice] = useState(null);
   const addButtonRef = useRef(null);
 
-  const range = anchor ? calendarRange(view, anchor) : null;
+  // One range for the title, the columns and both requests.
+  const range = anchor ? visibleRange(view, anchor, compact) : null;
   const query = range ? `from=${range.from}&to=${range.to}` : null;
   const days = useAccountData(
     query ? `/api/admin/schedule/days?${query}` : null,
@@ -719,6 +964,20 @@ function CalendarContent({ controller, enabled }) {
     setSelected(new Set());
     if (nextView !== view) setSelecting(false);
     router.replace(`/admin/calendrier?${params}`, { scroll: false });
+  };
+
+  // Previous / next page: a week (a day on a phone) or a month.
+  const step = (delta) => go(view, stepAnchor(view, anchor, delta, compact));
+
+  // ← / → anywhere in the calendar change the page, except where the
+  // arrows already mean something (fields, open menus, dialogs).
+  const onKeyDown = (event) => {
+    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+    if (event.defaultPrevented || event.altKey || event.ctrlKey) return;
+    if (event.metaKey || event.shiftKey) return;
+    if (event.target.closest?.(KEEPS_ARROWS)) return;
+    event.preventDefault();
+    step(event.key === 'ArrowRight' ? 1 : -1);
   };
 
   const toggle = (date) =>
@@ -844,12 +1103,17 @@ function CalendarContent({ controller, enabled }) {
 
   return (
     <div
+      onKeyDown={onKeyDown}
       className={`flex flex-col gap-6 ${selected.size ? 'pb-56 sm:pb-36 lg:pb-28' : ''}`}
     >
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="flex flex-col gap-1">
           <p className="font-montserrat text-label-sm font-medium text-gray-800 uppercase">
-            {view === 'month' ? t('Vue du mois') : t('Semaine affichée')}
+            {view === 'month'
+              ? t('Vue du mois')
+              : compact
+                ? t('Jours affichés')
+                : t('Semaine affichée')}
           </p>
           <h2
             aria-live="polite"
@@ -886,13 +1150,17 @@ function CalendarContent({ controller, enabled }) {
 
       <nav
         aria-label={
-          view === 'month' ? t('Changer de mois') : t('Changer de semaine')
+          view === 'month'
+            ? t('Changer de mois')
+            : compact
+              ? t('Changer de jours')
+              : t('Changer de semaine')
         }
         className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 rounded-full border border-black/10 bg-white p-1"
       >
         <button
           type="button"
-          onClick={() => go(view, shiftAnchor(view, anchor, -1))}
+          onClick={() => step(-1)}
           className={`${navButton} justify-self-start`}
         >
           <span aria-hidden>←</span>
@@ -900,7 +1168,11 @@ function CalendarContent({ controller, enabled }) {
             {t('Préc.')}
           </span>
           <span className="sr-only sm:not-sr-only">
-            {view === 'month' ? t('Mois précédent') : t('Semaine précédente')}
+            {view === 'month'
+              ? t('Mois précédent')
+              : compact
+                ? t('Jour précédent')
+                : t('Semaine précédente')}
           </span>
         </button>
         <button
@@ -913,14 +1185,18 @@ function CalendarContent({ controller, enabled }) {
         </button>
         <button
           type="button"
-          onClick={() => go(view, shiftAnchor(view, anchor, 1))}
+          onClick={() => step(1)}
           className={`${navButton} justify-self-end`}
         >
           <span aria-hidden className="sm:hidden">
             {t('Suiv.')}
           </span>
           <span className="sr-only sm:not-sr-only">
-            {view === 'month' ? t('Mois suivant') : t('Semaine suivante')}
+            {view === 'month'
+              ? t('Mois suivant')
+              : compact
+                ? t('Jour suivant')
+                : t('Semaine suivante')}
           </span>
           <span aria-hidden>→</span>
         </button>
@@ -939,7 +1215,7 @@ function CalendarContent({ controller, enabled }) {
                     'Touchez une date pour ouvrir l’agenda du jour. Pour fermer ou rouvrir des dates, passez en sélection.'
                   )
               : t(
-                  'Touchez une date pour ouvrir l’agenda du jour. Cochez des jours pour les fermer aux nouvelles réservations ou retirer leur fermeture.'
+                  'Touchez un créneau libre pour ajouter une indisponibilité, une date pour ouvrir l’agenda du jour. Cochez des jours pour les fermer aux nouvelles réservations ou retirer leur fermeture.'
                 )}
           </p>
           <div className="flex flex-wrap gap-2">
@@ -1001,12 +1277,12 @@ function CalendarContent({ controller, enabled }) {
           <span className="sr-only">{t('Chargement du calendrier…')}</span>
           <div
             aria-hidden
-            className={`grid gap-2 overflow-hidden ${view === 'month' ? 'grid-cols-7' : 'grid-cols-[repeat(7,minmax(13.5rem,1fr))] xl:grid-cols-7'}`}
+            className={`grid gap-2 overflow-hidden ${view === 'month' ? 'grid-cols-7' : compact ? 'grid-cols-3' : 'grid-cols-[repeat(7,minmax(11rem,1fr))] lg:grid-cols-7'}`}
           >
             {range.dates.map((date) => (
               <span
                 key={date}
-                className={`bg-secondary-50 animate-pulse rounded-xl motion-reduce:animate-none ${view === 'month' ? 'h-16 sm:h-28' : 'h-72'}`}
+                className={`bg-secondary-50 animate-pulse rounded-xl motion-reduce:animate-none ${view === 'month' ? 'h-16 sm:h-28' : 'h-[36rem]'}`}
               />
             ))}
           </div>
@@ -1029,15 +1305,17 @@ function CalendarContent({ controller, enabled }) {
           byDate={byDate}
           timeZone={bookings.data?.timeZone}
           today={today}
+          compact={compact}
           selected={selected}
           onToggle={toggle}
+          onShift={step}
           onOpenBlock={(block) => {
             setBlockNotice(null);
             setEditor({ block });
           }}
-          onAddBlock={(date) => {
+          onAddBlock={(date, times) => {
             setBlockNotice(null);
-            setEditor({ date });
+            setEditor({ date, ...times });
           }}
         />
       )}
@@ -1096,7 +1374,7 @@ function CalendarContent({ controller, enabled }) {
 
       {editor ? (
         <BlockDialog
-          key={editor.block?.id ?? `new-${editor.date}`}
+          key={editor.block?.id ?? `new-${editor.date}-${editor.start ?? ''}`}
           editor={editor}
           today={today}
           controller={controller}
