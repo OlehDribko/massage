@@ -1,0 +1,42 @@
+name: Branch Policy Validation
+
+# main accepts pull requests only from the develop branch of this
+# repository (feature -> develop -> main). A fork's "develop" is refused.
+
+on:
+  pull_request:
+    branches:
+      - main
+    # `edited` re-runs the check when a PR is retargeted to main.
+    types: [opened, synchronize, reopened, edited]
+
+permissions:
+  contents: read
+
+jobs:
+  validate-source-branch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Validate PR source branch
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+          BASE_REF: ${{ github.base_ref }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          BASE_REPO: ${{ github.repository }}
+        run: |
+          printf 'Source: %s:%s\n' "$HEAD_REPO" "$HEAD_REF"
+          printf 'Target: %s:%s\n' "$BASE_REPO" "$BASE_REF"
+
+          if [ "$HEAD_REPO" != "$BASE_REPO" ]; then
+            echo "::error::Pull requests into main must come from this repository, not a fork."
+            exit 1
+          fi
+
+          if [ "$HEAD_REF" != "develop" ]; then
+            echo "::error::Only the develop branch can be merged into main."
+            exit 1
+          fi
+
+          echo "OK: develop -> main"

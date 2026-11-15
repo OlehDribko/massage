@@ -1,0 +1,60 @@
+name: CI
+
+# Frontend checks (Next.js app in my-app/) for every pull request into
+# develop or main. No secrets and no live data: the build runs without
+# NEXT_PUBLIC_* variables, so sign-in is off and the build is noindex.
+
+on:
+  pull_request:
+    branches:
+      - develop
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  quality-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    defaults:
+      run:
+        working-directory: my-app
+
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      # Node 24 = Vercel's default runtime; Next 16 needs >= 20.9 and
+      # `node --test` with a glob (npm test) needs >= 22.
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: my-app/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Check Prettier formatting
+        run: npx --no-install prettier . --check
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build project
+        run: npm run build
