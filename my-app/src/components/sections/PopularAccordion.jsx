@@ -12,6 +12,7 @@ import { Link, useFormat, useT } from '@/i18n/client';
 import { msg } from '@/i18n/translate';
 
 import MaskIcon from '@/components/ui/MaskIcon';
+import { POPULAR_CARDS } from '@/content/services';
 import { lowestPrice } from '@/lib/booking/catalog';
 
 /** "60-90 min" (Figma) for the durations of a prestation. */
@@ -55,6 +56,20 @@ const VIDEOS = {
   'drainage-lymphatique': clip('lymphatique'),
   maderotherapie: clip('anti-cellulite'),
 };
+
+// The order and titles of the mock-up (content/services.js).
+const cardIndex = (prestation) => {
+  const index = POPULAR_CARDS.findIndex((card) => card.key === prestation.key);
+  return index < 0 ? POPULAR_CARDS.length : index;
+};
+const inMockupOrder = (prestations) =>
+  prestations
+    .map((prestation, index) => ({ prestation, index }))
+    .sort(
+      (a, b) =>
+        cardIndex(a.prestation) - cardIndex(b.prestation) || a.index - b.index
+    )
+    .map(({ prestation }) => prestation);
 
 const mediaFor = (prestation, index) =>
   VIDEOS[prestation?.key] ?? PHOTOS[Math.max(index, 0) % PHOTOS.length];
@@ -152,8 +167,13 @@ function PlayPause({ paused, onToggle }) {
  * follows the open item (from 1024 px); below, it sits inside the open
  * item.
  */
-export default function PopularAccordion({ prestations }) {
+export default function PopularAccordion({ prestations: featured }) {
   const t = useT();
+  const prestations = inMockupOrder(featured);
+  const titleOf = (prestation) => {
+    const card = POPULAR_CARDS.find((item) => item.key === prestation.key);
+    return card ? t(card.title) : prestation.name;
+  };
   const { formatPrice } = useFormat();
   const [open, setOpen] = useState(0);
   const id = useId();
@@ -202,7 +222,7 @@ export default function PopularAccordion({ prestations }) {
                   {number}
                 </span>
                 <span className="font-montserrat text-title-sm sm:text-service-title group-hover:text-third-200 min-w-0 font-normal text-gray-900 transition-colors motion-reduce:transition-none">
-                  {prestation.name}
+                  {titleOf(prestation)}
                 </span>
                 <MaskIcon
                   src="/icons/arrow-up-right.svg"
