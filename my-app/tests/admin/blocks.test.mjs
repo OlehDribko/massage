@@ -237,7 +237,7 @@ test('validateBlockForm: hints per field', () => {
   assert.deepEqual(validateBlockForm(form(), today), {});
   assert.equal(
     validateBlockForm(form({ title: '  ' }), today).title,
-    'Indiquez un titre.'
+    'Choisissez la source : Treatwell ou Planity.'
   );
   assert.match(
     validateBlockForm(form({ title: 'x'.repeat(101) }), today).title,

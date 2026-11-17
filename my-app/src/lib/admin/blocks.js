@@ -30,6 +30,20 @@ export const blockPath = (id) => `${BLOCKS_PATH}/${encodeURIComponent(id)}`;
 export const BLOCK_ROUTE = `${BLOCKS_PATH}/{blockId}`;
 
 export const TITLE_MAX = 100;
+/**
+ * Where a busy time was booked: the form offers these as its « Source »,
+ * sent in `title` (the API field is unchanged). Older blocks may have any
+ * title; it is kept until the admin picks a source.
+ */
+export const BLOCK_SOURCES = ['Treatwell', 'Planity'];
+
+/** Options of the « Source » select: the sources, plus an older title. */
+export function sourceOptions(title) {
+  const current = (title ?? '').trim();
+  return current && !BLOCK_SOURCES.includes(current)
+    ? [current, ...BLOCK_SOURCES]
+    : [...BLOCK_SOURCES];
+}
 export const NOTE_MAX = 500;
 export const STEP_MINUTES = 5;
 export const MIN_MINUTES = 15;
@@ -213,7 +227,7 @@ export function patchBody(block, form) {
 export function validateBlockForm(form, today, t = frenchT) {
   const errors = {};
   const title = form.title.trim();
-  if (!title) errors.title = t('Indiquez un titre.');
+  if (!title) errors.title = t('Choisissez la source : Treatwell ou Planity.');
   else if (title.length > TITLE_MAX)
     errors.title = t('{n} caractères maximum.', { n: TITLE_MAX });
   if (form.note.trim().length > NOTE_MAX)

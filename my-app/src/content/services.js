@@ -123,6 +123,8 @@ export const SERVICE_GROUPS = [
       '97b3295d-8d7e-4c7f-a8a8-bbe1df1af633',
       '0eb52a15-863f-4981-8354-e1a4ab84c088',
     ],
+
+    featured: true,
   },
   {
     key: 'drainage-lymphatique',
@@ -166,4 +168,19 @@ export const SERVICE_GROUPS = [
 ];
 
 /** Endosphères — the "soin signature" banner of the home page books it. */
+/**
+ * « Nos soins populaires » on the home page (Figma 704:1296): the featured
+ * prestations in this order, each under the short title of the mock-up
+ * (French keys, translated at render). Prices, durations, descriptions and
+ * the booking link stay those of the API prestation. A featured prestation
+ * missing here comes after these, under its API name.
+ */
+export const POPULAR_CARDS = [
+  { key: 'tuina-huiles-chaudes', title: msg('Massage Tuina') },
+  { key: 'sportif', title: msg('Massage sportif') },
+  { key: 'endospheres', title: msg('Endospheres therapy') },
+  { key: 'drainage-lymphatique', title: msg('Massage lymphatique') },
+  { key: 'maderotherapie', title: msg('Massage anti-cellulite') },
+];
+
 export const ENDOSPHERES_SERVICE_ID = '57f78078-f65b-4723-b20b-aad89495c898';
