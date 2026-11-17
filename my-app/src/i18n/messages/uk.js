@@ -527,6 +527,8 @@ const messages = {
   'Avis Planity': 'Відгук на Planity',
   '{rating} sur 5': '{rating} з 5',
   'Reprendre le défilement des avis': 'Відновити прокручування відгуків',
+  'Lire la vidéo': 'Відтворити відео',
+  'Mettre en pause la vidéo': 'Призупинити відео',
   'Mettre en pause le défilement des avis':
     'Призупинити прокручування відгуків',
   'Avis précédent': 'Попередній відгук',

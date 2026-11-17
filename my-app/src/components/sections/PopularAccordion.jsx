@@ -1,6 +1,12 @@
 'use client';
 
-import { useId, useState } from 'react';
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import Image from 'next/image';
 import { Link, useFormat, useT } from '@/i18n/client';
 import { msg } from '@/i18n/translate';
@@ -32,7 +38,108 @@ const PHOTOS = [
   },
 ];
 
-const photoFor = (index) => PHOTOS[Math.max(index, 0) % PHOTOS.length];
+/*
+ * Short muted clips of each soin (public/videos, 720×1280 H.264 without
+ * sound, ~2 MB each), by editorial key (content/services.js). They replace
+ * the photo of their prestation; one without a clip keeps the photos.
+ * The poster is the first frame, so nothing jumps when playback starts.
+ */
+const clip = (name) => ({
+  video: `/videos/popular-${name}.mp4`,
+  poster: `/videos/popular-${name}.jpg`,
+});
+const VIDEOS = {
+  'tuina-huiles-chaudes': clip('relax'),
+  sportif: clip('sportif'),
+  endospheres: clip('endospheres'),
+  'drainage-lymphatique': clip('lymphatique'),
+  maderotherapie: clip('anti-cellulite'),
+};
+
+const mediaFor = (prestation, index) =>
+  VIDEOS[prestation?.key] ?? PHOTOS[Math.max(index, 0) % PHOTOS.length];
+
+// Which of the two places shows the media: the column (from 1024 px) or
+// the open item (below). Only the clip in the visible place plays.
+// null before hydration (server render): nothing plays yet.
+const DESKTOP = '(min-width: 64rem)';
+const REDUCED = '(prefers-reduced-motion: reduce)';
+const useMedia = (media) =>
+  useSyncExternalStore(
+    (onChange) => {
+      const query = window.matchMedia(media);
+      query.addEventListener('change', onChange);
+      return () => query.removeEventListener('change', onChange);
+    },
+    () => window.matchMedia(media).matches,
+    () => null
+  );
+
+/**
+ * A muted looping clip that plays only while `playing` and on screen.
+ * preload="none": a clip downloads only once it is asked to play; until
+ * then (and on reduced motion) its poster stands in.
+ */
+function Clip({ media, playing, className }) {
+  const ref = useRef(null);
+  const [onScreen, setOnScreen] = useState(false);
+
+  useEffect(() => {
+    const element = ref.current;
+    if (!element) return undefined;
+    const observer = new IntersectionObserver(([entry]) =>
+      setOnScreen(entry.isIntersecting)
+    );
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const element = ref.current;
+    if (!element) return;
+    if (playing && onScreen) {
+      // Refused (power saving…): the poster stays, nothing to report.
+      element.play().catch(() => {});
+    } else {
+      element.pause();
+    }
+  }, [playing, onScreen]);
+
+  return (
+    <video
+      ref={ref}
+      src={media.video}
+      poster={media.poster}
+      muted
+      loop
+      playsInline
+      preload="none"
+      aria-hidden
+      className={className}
+    />
+  );
+}
+
+function PlayPause({ paused, onToggle }) {
+  const t = useT();
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-pressed={paused}
+      aria-label={paused ? t('Lire la vidéo') : t('Mettre en pause la vidéo')}
+      className="text-on-dark focus-visible:outline-on-dark absolute right-3 bottom-3 z-10 flex size-11 items-center justify-center rounded-full bg-black/35 backdrop-blur-sm transition-colors hover:bg-black/55 focus-visible:outline-2 focus-visible:outline-offset-2 motion-reduce:transition-none"
+    >
+      <svg viewBox="0 0 24 24" aria-hidden className="size-4 fill-current">
+        {paused ? (
+          <path d="M8 5v14l11-7z" />
+        ) : (
+          <path d="M7 5h4v14H7zM13 5h4v14h-4z" />
+        )}
+      </svg>
+    </button>
+  );
+}
 
 /**
  * Figma «Nos soins populaires» (704:1296, tablet 704:2255, mobile
@@ -41,7 +148,7 @@ const photoFor = (index) => PHOTOS[Math.max(index, 0) % PHOTOS.length];
  * state (↗ open, ↘ closed). The open item shows the API description of
  * the prestation's shortest duration — the one « Réserver ce soin » opens
  * (when one exists), the lowest current price and the durations, and
- * « Réserver ce soin » books that prestation. The photo next to the list
+ * « Réserver ce soin » books that prestation. The clip (or photo) next to the list
  * follows the open item (from 1024 px); below, it sits inside the open
  * item.
  */
@@ -51,6 +158,22 @@ export default function PopularAccordion({ prestations }) {
   const [open, setOpen] = useState(0);
   const id = useId();
   const shown = open < 0 ? 0 : open;
+  const desktop = useMedia(DESKTOP);
+  // Clips loop for more than 5 s: a pause button (WCAG 2.2.2), and none
+  // plays by itself with reduced motion.
+  // The person's own choice wins; until then, paused on reduced motion.
+  const [choice, setChoice] = useState(null);
+  const reduced = useMedia(REDUCED);
+  const paused = choice ?? reduced !== false;
+  const togglePaused = () => setChoice(!paused);
+  // One layer per distinct clip or photo of the column.
+  const layers = [];
+  prestations.forEach((prestation, index) => {
+    const media = mediaFor(prestation, index);
+    const layer = layers.find((item) => item.media === media);
+    if (layer) layer.indexes.push(index);
+    else layers.push({ media, indexes: [index] });
+  });
 
   return (
     <div className="flex flex-col lg:flex-row lg:items-stretch">
@@ -59,7 +182,7 @@ export default function PopularAccordion({ prestations }) {
           const isOpen = index === open;
           const panelId = `${id}-${index}`;
           const number = String(index + 1).padStart(2, '0');
-          const photo = photoFor(index);
+          const media = mediaFor(prestation, index);
           return (
             <li
               key={prestation.key}
@@ -127,21 +250,34 @@ export default function PopularAccordion({ prestations }) {
                     </div>
                   </div>
 
-                  {/* Phones and tablets (Figma 704:1465): the photo of the
-                      open item, inside it. Always mounted and loaded ahead
-                      (1px wide from 1024 px, where it is hidden), so it
+                  {/* Phones and tablets (Figma 704:1465): the clip (or photo)
+                      of the open item, inside it. Always mounted, so it
                       never pops in: it fades in as the item opens (the scroll
-                      parallax of HomeMotion already moves it). */}
+                      parallax of HomeMotion already moves it). A clip shows
+                      its poster until it plays. */}
                   <div className="relative mt-6 aspect-[358/398] w-full overflow-hidden rounded-[4px] sm:aspect-[4/3] lg:hidden">
-                    <Image
-                      src={photo.src}
-                      alt={isOpen ? t(photo.alt) : ''}
-                      fill
-                      loading="eager"
-                      fetchPriority="low"
-                      sizes="(min-width: 1024px) 1px, (min-width: 640px) 90vw, 100vw"
-                      className={`object-cover ${photo.position} transition-opacity ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${isOpen ? 'opacity-100 delay-150 duration-1000' : 'opacity-0 duration-300'}`}
-                    />
+                    {media.video ? (
+                      <>
+                        <Clip
+                          media={media}
+                          playing={isOpen && desktop === false && !paused}
+                          className={`absolute inset-0 size-full object-cover transition-opacity ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${isOpen ? 'opacity-100 delay-150 duration-1000' : 'opacity-0 duration-300'}`}
+                        />
+                        {isOpen ? (
+                          <PlayPause paused={paused} onToggle={togglePaused} />
+                        ) : null}
+                      </>
+                    ) : (
+                      <Image
+                        src={media.src}
+                        alt={isOpen ? t(media.alt) : ''}
+                        fill
+                        loading="eager"
+                        fetchPriority="low"
+                        sizes="(min-width: 1024px) 1px, (min-width: 640px) 90vw, 100vw"
+                        className={`object-cover ${media.position} transition-opacity ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${isOpen ? 'opacity-100 delay-150 duration-1000' : 'opacity-0 duration-300'}`}
+                      />
+                    )}
                   </div>
                 </div>
               </div>
@@ -150,19 +286,34 @@ export default function PopularAccordion({ prestations }) {
         })}
       </ul>
 
-      {/* From 1024 px: the photo of the open item, cross-faded. */}
+      {/* From 1024 px: the clip (or photo) of the open item, cross-faded.
+          Items sharing a photo share one layer. */}
       <div className="relative hidden shrink-0 overflow-hidden lg:block lg:min-h-[703px] lg:w-[554px]">
-        {PHOTOS.map((photo, index) => (
-          <Image
-            key={photo.src}
-            src={photo.src}
-            alt={index === shown % PHOTOS.length ? t(photo.alt) : ''}
-            aria-hidden={index === shown % PHOTOS.length ? undefined : true}
-            fill
-            sizes="554px"
-            className={`object-cover ${photo.position} transition-opacity duration-1000 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${index === shown % PHOTOS.length ? 'opacity-100' : 'opacity-0'}`}
-          />
-        ))}
+        {layers.map(({ media, indexes }) => {
+          const active = indexes.includes(shown);
+          const fade = `transition-opacity duration-1000 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${active ? 'opacity-100' : 'opacity-0'}`;
+          return media.video ? (
+            <Clip
+              key={media.video}
+              media={media}
+              playing={active && desktop === true && !paused}
+              className={`absolute inset-0 size-full object-cover ${fade}`}
+            />
+          ) : (
+            <Image
+              key={media.src}
+              src={media.src}
+              alt={active ? t(media.alt) : ''}
+              aria-hidden={active ? undefined : true}
+              fill
+              sizes="554px"
+              className={`object-cover ${media.position} ${fade}`}
+            />
+          );
+        })}
+        {mediaFor(prestations[shown], shown).video ? (
+          <PlayPause paused={paused} onToggle={togglePaused} />
+        ) : null}
       </div>
     </div>
   );
