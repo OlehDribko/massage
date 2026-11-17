@@ -522,6 +522,8 @@ const messages = {
   'Avis Planity': 'Planity review',
   '{rating} sur 5': '{rating} out of 5',
   'Reprendre le défilement des avis': 'Resume the reviews slideshow',
+  'Lire la vidéo': 'Play the video',
+  'Mettre en pause la vidéo': 'Pause the video',
   'Massage Tuina': 'Tuina massage',
   'Massage sportif': 'Sports massage',
   'Endospheres therapy': 'Endospheres therapy',

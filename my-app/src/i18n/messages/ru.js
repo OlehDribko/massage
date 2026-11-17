@@ -525,6 +525,8 @@ const messages = {
   'Avis Planity': 'Отзыв на Planity',
   '{rating} sur 5': '{rating} из 5',
   'Reprendre le défilement des avis': 'Возобновить прокрутку отзывов',
+  'Lire la vidéo': 'Воспроизвести видео',
+  'Mettre en pause la vidéo': 'Приостановить видео',
   'Massage Tuina': 'Массаж Туйна',
   'Massage sportif': 'Спортивный массаж',
   'Endospheres therapy': 'Endospheres-терапия',

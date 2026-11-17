@@ -91,6 +91,38 @@ const useMedia = (media) =>
   );
 
 /**
+ * The whole clip is the pause / play control, with no button drawn on it:
+ * a soft translucent icon in the middle appears on mouse hover and keyboard
+ * focus (pause while it plays), and the play icon stays while it is paused.
+ * Touch: a tap toggles it (no hover on touch screens).
+ */
+function PauseOverlay({ paused, onToggle }) {
+  const t = useT();
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-pressed={paused}
+      aria-label={paused ? t('Lire la vidéo') : t('Mettre en pause la vidéo')}
+      className="group absolute inset-0 z-10 flex cursor-pointer items-center justify-center focus-visible:outline-2 focus-visible:-outline-offset-4 focus-visible:outline-white/70"
+    >
+      <span
+        aria-hidden
+        className={`flex size-16 items-center justify-center rounded-full bg-black/20 text-white/80 backdrop-blur-[2px] transition-[opacity,scale] duration-300 ease-out group-hover:scale-100 group-hover:opacity-100 group-focus-visible:scale-100 group-focus-visible:opacity-100 motion-reduce:transition-none ${paused ? 'scale-100 opacity-100' : 'scale-90 opacity-0'}`}
+      >
+        <svg viewBox="0 0 24 24" className="size-7 fill-current">
+          {paused ? (
+            <path d="M8.5 5.5v13l10-6.5z" />
+          ) : (
+            <path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z" />
+          )}
+        </svg>
+      </span>
+    </button>
+  );
+}
+
+/**
  * A muted looping clip that plays only while `playing` and on screen.
  * preload="none": a clip downloads only once it is asked to play; until
  * then (and on reduced motion) its poster stands in.
@@ -158,8 +190,13 @@ export default function PopularAccordion({ prestations: featured }) {
   const id = useId();
   const shown = open < 0 ? 0 : open;
   const desktop = useMedia(DESKTOP);
-  // No clip plays by itself with reduced motion: its poster stays.
-  const paused = useMedia(REDUCED) !== false;
+  // A click on the clip pauses / resumes it (WCAG 2.2.2: the clips loop
+  // for more than 5 s). The person's own choice wins; until then, no clip
+  // plays by itself with reduced motion (its poster stays).
+  const [choice, setChoice] = useState(null);
+  const reduced = useMedia(REDUCED);
+  const paused = choice ?? reduced !== false;
+  const togglePaused = () => setChoice(!paused);
   // One layer per distinct clip or photo of the column.
   const layers = [];
   prestations.forEach((prestation, index) => {
@@ -256,7 +293,11 @@ export default function PopularAccordion({ prestations: featured }) {
                         playing={isOpen && desktop === false && !paused}
                         className={`absolute inset-0 size-full object-cover transition-opacity ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${isOpen ? 'opacity-100 delay-150 duration-1000' : 'opacity-0 duration-300'}`}
                       />
-                    ) : (
+                    ) : null}
+                    {media.video && isOpen ? (
+                      <PauseOverlay paused={paused} onToggle={togglePaused} />
+                    ) : null}
+                    {media.video ? null : (
                       <Image
                         src={media.src}
                         alt={isOpen ? t(media.alt) : ''}
@@ -285,7 +326,7 @@ export default function PopularAccordion({ prestations: featured }) {
             <Clip
               key={media.video}
               media={media}
-              playing={active && desktop === true && !paused}
+              playing={active && open >= 0 && desktop === true && !paused}
               className={`absolute inset-0 size-full object-cover ${fade}`}
             />
           ) : (
@@ -300,6 +341,9 @@ export default function PopularAccordion({ prestations: featured }) {
             />
           );
         })}
+        {open >= 0 && mediaFor(prestations[open], open).video ? (
+          <PauseOverlay paused={paused} onToggle={togglePaused} />
+        ) : null}
       </div>
     </div>
   );
