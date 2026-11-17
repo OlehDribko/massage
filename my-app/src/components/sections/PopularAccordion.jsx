@@ -1,11 +1,18 @@
 'use client';
 
-import { useId, useState } from 'react';
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import Image from 'next/image';
 import { Link, useFormat, useT } from '@/i18n/client';
 import { msg } from '@/i18n/translate';
 
 import MaskIcon from '@/components/ui/MaskIcon';
+import { POPULAR_CARDS } from '@/content/services';
 import { lowestPrice } from '@/lib/booking/catalog';
 
 /** "60-90 min" (Figma) for the durations of a prestation. */
@@ -32,7 +39,133 @@ const PHOTOS = [
   },
 ];
 
-const photoFor = (index) => PHOTOS[Math.max(index, 0) % PHOTOS.length];
+/*
+ * Short muted clips of each soin (public/videos, 720×1280 H.264 without
+ * sound, ~2 MB each), by editorial key (content/services.js). They replace
+ * the photo of their prestation; one without a clip keeps the photos.
+ * The poster is the first frame, so nothing jumps when playback starts.
+ */
+const clip = (name) => ({
+  video: `/videos/popular-${name}.mp4`,
+  poster: `/videos/popular-${name}.jpg`,
+});
+const VIDEOS = {
+  'tuina-huiles-chaudes': clip('relax'),
+  sportif: clip('sportif'),
+  endospheres: clip('endospheres'),
+  'drainage-lymphatique': clip('lymphatique'),
+  maderotherapie: clip('anti-cellulite'),
+};
+
+// The order and titles of the mock-up (content/services.js).
+const cardIndex = (prestation) => {
+  const index = POPULAR_CARDS.findIndex((card) => card.key === prestation.key);
+  return index < 0 ? POPULAR_CARDS.length : index;
+};
+const inMockupOrder = (prestations) =>
+  prestations
+    .map((prestation, index) => ({ prestation, index }))
+    .sort(
+      (a, b) =>
+        cardIndex(a.prestation) - cardIndex(b.prestation) || a.index - b.index
+    )
+    .map(({ prestation }) => prestation);
+
+const mediaFor = (prestation, index) =>
+  VIDEOS[prestation?.key] ?? PHOTOS[Math.max(index, 0) % PHOTOS.length];
+
+// Which of the two places shows the media: the column (from 1024 px) or
+// the open item (below). Only the clip in the visible place plays.
+// null before hydration (server render): nothing plays yet.
+const DESKTOP = '(min-width: 64rem)';
+const REDUCED = '(prefers-reduced-motion: reduce)';
+const useMedia = (media) =>
+  useSyncExternalStore(
+    (onChange) => {
+      const query = window.matchMedia(media);
+      query.addEventListener('change', onChange);
+      return () => query.removeEventListener('change', onChange);
+    },
+    () => window.matchMedia(media).matches,
+    () => null
+  );
+
+/**
+ * The whole clip is the pause / play control, with no button drawn on it:
+ * a soft translucent icon in the middle appears on mouse hover and keyboard
+ * focus (pause while it plays), and the play icon stays while it is paused.
+ * Touch: a tap toggles it (no hover on touch screens).
+ */
+function PauseOverlay({ paused, onToggle }) {
+  const t = useT();
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-pressed={paused}
+      aria-label={paused ? t('Lire la vidéo') : t('Mettre en pause la vidéo')}
+      className="group absolute inset-0 z-10 flex cursor-pointer items-center justify-center focus-visible:outline-2 focus-visible:-outline-offset-4 focus-visible:outline-white/70"
+    >
+      <span
+        aria-hidden
+        className={`flex size-16 items-center justify-center rounded-full bg-black/20 text-white/80 backdrop-blur-[2px] transition-[opacity,scale] duration-300 ease-out group-hover:scale-100 group-hover:opacity-100 group-focus-visible:scale-100 group-focus-visible:opacity-100 motion-reduce:transition-none ${paused ? 'scale-100 opacity-100' : 'scale-90 opacity-0'}`}
+      >
+        <svg viewBox="0 0 24 24" className="size-7 fill-current">
+          {paused ? (
+            <path d="M8.5 5.5v13l10-6.5z" />
+          ) : (
+            <path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z" />
+          )}
+        </svg>
+      </span>
+    </button>
+  );
+}
+
+/**
+ * A muted looping clip that plays only while `playing` and on screen.
+ * preload="none": a clip downloads only once it is asked to play; until
+ * then (and on reduced motion) its poster stands in.
+ */
+function Clip({ media, playing, className }) {
+  const ref = useRef(null);
+  const [onScreen, setOnScreen] = useState(false);
+
+  useEffect(() => {
+    const element = ref.current;
+    if (!element) return undefined;
+    const observer = new IntersectionObserver(([entry]) =>
+      setOnScreen(entry.isIntersecting)
+    );
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const element = ref.current;
+    if (!element) return;
+    if (playing && onScreen) {
+      // Refused (power saving…): the poster stays, nothing to report.
+      element.play().catch(() => {});
+    } else {
+      element.pause();
+    }
+  }, [playing, onScreen]);
+
+  return (
+    <video
+      ref={ref}
+      src={media.video}
+      poster={media.poster}
+      muted
+      loop
+      playsInline
+      preload="none"
+      aria-hidden
+      className={className}
+    />
+  );
+}
 
 /**
  * Figma «Nos soins populaires» (704:1296, tablet 704:2255, mobile
@@ -41,16 +174,37 @@ const photoFor = (index) => PHOTOS[Math.max(index, 0) % PHOTOS.length];
  * state (↗ open, ↘ closed). The open item shows the API description of
  * the prestation's shortest duration — the one « Réserver ce soin » opens
  * (when one exists), the lowest current price and the durations, and
- * « Réserver ce soin » books that prestation. The photo next to the list
+ * « Réserver ce soin » books that prestation. The clip (or photo) next to the list
  * follows the open item (from 1024 px); below, it sits inside the open
  * item.
  */
-export default function PopularAccordion({ prestations }) {
+export default function PopularAccordion({ prestations: featured }) {
   const t = useT();
+  const prestations = inMockupOrder(featured);
+  const titleOf = (prestation) => {
+    const card = POPULAR_CARDS.find((item) => item.key === prestation.key);
+    return card ? t(card.title) : prestation.name;
+  };
   const { formatPrice } = useFormat();
   const [open, setOpen] = useState(0);
   const id = useId();
   const shown = open < 0 ? 0 : open;
+  const desktop = useMedia(DESKTOP);
+  // A click on the clip pauses / resumes it (WCAG 2.2.2: the clips loop
+  // for more than 5 s). The person's own choice wins; until then, no clip
+  // plays by itself with reduced motion (its poster stays).
+  const [choice, setChoice] = useState(null);
+  const reduced = useMedia(REDUCED);
+  const paused = choice ?? reduced !== false;
+  const togglePaused = () => setChoice(!paused);
+  // One layer per distinct clip or photo of the column.
+  const layers = [];
+  prestations.forEach((prestation, index) => {
+    const media = mediaFor(prestation, index);
+    const layer = layers.find((item) => item.media === media);
+    if (layer) layer.indexes.push(index);
+    else layers.push({ media, indexes: [index] });
+  });
 
   return (
     <div className="flex flex-col lg:flex-row lg:items-stretch">
@@ -59,7 +213,7 @@ export default function PopularAccordion({ prestations }) {
           const isOpen = index === open;
           const panelId = `${id}-${index}`;
           const number = String(index + 1).padStart(2, '0');
-          const photo = photoFor(index);
+          const media = mediaFor(prestation, index);
           return (
             <li
               key={prestation.key}
@@ -79,7 +233,7 @@ export default function PopularAccordion({ prestations }) {
                   {number}
                 </span>
                 <span className="font-montserrat text-title-sm sm:text-service-title group-hover:text-third-200 min-w-0 font-normal text-gray-900 transition-colors motion-reduce:transition-none">
-                  {prestation.name}
+                  {titleOf(prestation)}
                 </span>
                 <MaskIcon
                   src="/icons/arrow-up-right.svg"
@@ -127,21 +281,33 @@ export default function PopularAccordion({ prestations }) {
                     </div>
                   </div>
 
-                  {/* Phones and tablets (Figma 704:1465): the photo of the
-                      open item, inside it. Always mounted and loaded ahead
-                      (1px wide from 1024 px, where it is hidden), so it
+                  {/* Phones and tablets (Figma 704:1465): the clip (or photo)
+                      of the open item, inside it. Always mounted, so it
                       never pops in: it fades in as the item opens (the scroll
-                      parallax of HomeMotion already moves it). */}
+                      parallax of HomeMotion already moves it). A clip shows
+                      its poster until it plays. */}
                   <div className="relative mt-6 aspect-[358/398] w-full overflow-hidden rounded-[4px] sm:aspect-[4/3] lg:hidden">
-                    <Image
-                      src={photo.src}
-                      alt={isOpen ? t(photo.alt) : ''}
-                      fill
-                      loading="eager"
-                      fetchPriority="low"
-                      sizes="(min-width: 1024px) 1px, (min-width: 640px) 90vw, 100vw"
-                      className={`object-cover ${photo.position} transition-opacity ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${isOpen ? 'opacity-100 delay-150 duration-1000' : 'opacity-0 duration-300'}`}
-                    />
+                    {media.video ? (
+                      <Clip
+                        media={media}
+                        playing={isOpen && desktop === false && !paused}
+                        className={`absolute inset-0 size-full object-cover transition-opacity ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${isOpen ? 'opacity-100 delay-150 duration-1000' : 'opacity-0 duration-300'}`}
+                      />
+                    ) : null}
+                    {media.video && isOpen ? (
+                      <PauseOverlay paused={paused} onToggle={togglePaused} />
+                    ) : null}
+                    {media.video ? null : (
+                      <Image
+                        src={media.src}
+                        alt={isOpen ? t(media.alt) : ''}
+                        fill
+                        loading="eager"
+                        fetchPriority="low"
+                        sizes="(min-width: 1024px) 1px, (min-width: 640px) 90vw, 100vw"
+                        className={`object-cover ${media.position} transition-opacity ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${isOpen ? 'opacity-100 delay-150 duration-1000' : 'opacity-0 duration-300'}`}
+                      />
+                    )}
                   </div>
                 </div>
               </div>
@@ -150,19 +316,34 @@ export default function PopularAccordion({ prestations }) {
         })}
       </ul>
 
-      {/* From 1024 px: the photo of the open item, cross-faded. */}
+      {/* From 1024 px: the clip (or photo) of the open item, cross-faded.
+          Items sharing a photo share one layer. */}
       <div className="relative hidden shrink-0 overflow-hidden lg:block lg:min-h-[703px] lg:w-[554px]">
-        {PHOTOS.map((photo, index) => (
-          <Image
-            key={photo.src}
-            src={photo.src}
-            alt={index === shown % PHOTOS.length ? t(photo.alt) : ''}
-            aria-hidden={index === shown % PHOTOS.length ? undefined : true}
-            fill
-            sizes="554px"
-            className={`object-cover ${photo.position} transition-opacity duration-1000 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${index === shown % PHOTOS.length ? 'opacity-100' : 'opacity-0'}`}
-          />
-        ))}
+        {layers.map(({ media, indexes }) => {
+          const active = indexes.includes(shown);
+          const fade = `transition-opacity duration-1000 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${active ? 'opacity-100' : 'opacity-0'}`;
+          return media.video ? (
+            <Clip
+              key={media.video}
+              media={media}
+              playing={active && open >= 0 && desktop === true && !paused}
+              className={`absolute inset-0 size-full object-cover ${fade}`}
+            />
+          ) : (
+            <Image
+              key={media.src}
+              src={media.src}
+              alt={active ? t(media.alt) : ''}
+              aria-hidden={active ? undefined : true}
+              fill
+              sizes="554px"
+              className={`object-cover ${media.position} ${fade}`}
+            />
+          );
+        })}
+        {open >= 0 && mediaFor(prestations[open], open).video ? (
+          <PauseOverlay paused={paused} onToggle={togglePaused} />
+        ) : null}
       </div>
     </div>
   );

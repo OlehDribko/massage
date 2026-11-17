@@ -151,8 +151,8 @@ export default function HomeMotion() {
           });
         }
 
-        /* Photos: a curtain opens upwards, then a slow parallax. */
-        for (const image of section.querySelectorAll('img')) {
+        /* Photos and videos: a curtain opens upwards, then a slow parallax. */
+        for (const image of section.querySelectorAll('img, video')) {
           const frame = image.parentElement;
           if (!frame || image.closest('a, button')) continue;
           gsap.set(frame, { overflow: 'hidden' });
