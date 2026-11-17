@@ -135,27 +135,6 @@ function Clip({ media, playing, className }) {
   );
 }
 
-function PlayPause({ paused, onToggle }) {
-  const t = useT();
-  return (
-    <button
-      type="button"
-      onClick={onToggle}
-      aria-pressed={paused}
-      aria-label={paused ? t('Lire la vidéo') : t('Mettre en pause la vidéo')}
-      className="text-on-dark focus-visible:outline-on-dark absolute right-3 bottom-3 z-10 flex size-11 items-center justify-center rounded-full bg-black/35 backdrop-blur-sm transition-colors hover:bg-black/55 focus-visible:outline-2 focus-visible:outline-offset-2 motion-reduce:transition-none"
-    >
-      <svg viewBox="0 0 24 24" aria-hidden className="size-4 fill-current">
-        {paused ? (
-          <path d="M8 5v14l11-7z" />
-        ) : (
-          <path d="M7 5h4v14H7zM13 5h4v14h-4z" />
-        )}
-      </svg>
-    </button>
-  );
-}
-
 /**
  * Figma «Nos soins populaires» (704:1296, tablet 704:2255, mobile
  * 704:1465): a numbered accordion, one item open at a time (the first by
@@ -179,13 +158,8 @@ export default function PopularAccordion({ prestations: featured }) {
   const id = useId();
   const shown = open < 0 ? 0 : open;
   const desktop = useMedia(DESKTOP);
-  // Clips loop for more than 5 s: a pause button (WCAG 2.2.2), and none
-  // plays by itself with reduced motion.
-  // The person's own choice wins; until then, paused on reduced motion.
-  const [choice, setChoice] = useState(null);
-  const reduced = useMedia(REDUCED);
-  const paused = choice ?? reduced !== false;
-  const togglePaused = () => setChoice(!paused);
+  // No clip plays by itself with reduced motion: its poster stays.
+  const paused = useMedia(REDUCED) !== false;
   // One layer per distinct clip or photo of the column.
   const layers = [];
   prestations.forEach((prestation, index) => {
@@ -277,16 +251,11 @@ export default function PopularAccordion({ prestations: featured }) {
                       its poster until it plays. */}
                   <div className="relative mt-6 aspect-[358/398] w-full overflow-hidden rounded-[4px] sm:aspect-[4/3] lg:hidden">
                     {media.video ? (
-                      <>
-                        <Clip
-                          media={media}
-                          playing={isOpen && desktop === false && !paused}
-                          className={`absolute inset-0 size-full object-cover transition-opacity ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${isOpen ? 'opacity-100 delay-150 duration-1000' : 'opacity-0 duration-300'}`}
-                        />
-                        {isOpen ? (
-                          <PlayPause paused={paused} onToggle={togglePaused} />
-                        ) : null}
-                      </>
+                      <Clip
+                        media={media}
+                        playing={isOpen && desktop === false && !paused}
+                        className={`absolute inset-0 size-full object-cover transition-opacity ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${isOpen ? 'opacity-100 delay-150 duration-1000' : 'opacity-0 duration-300'}`}
+                      />
                     ) : (
                       <Image
                         src={media.src}
@@ -331,9 +300,6 @@ export default function PopularAccordion({ prestations: featured }) {
             />
           );
         })}
-        {mediaFor(prestations[shown], shown).video ? (
-          <PlayPause paused={paused} onToggle={togglePaused} />
-        ) : null}
       </div>
     </div>
   );

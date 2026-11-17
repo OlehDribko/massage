@@ -530,8 +530,6 @@ const messages = {
   'Endospheres therapy': 'Endospheres-терапия',
   'Massage lymphatique': 'Лимфатический массаж',
   'Massage anti-cellulite': 'Антицеллюлитный массаж',
-  'Lire la vidéo': 'Воспроизвести видео',
-  'Mettre en pause la vidéo': 'Приостановить видео',
   'Mettre en pause le défilement des avis': 'Приостановить прокрутку отзывов',
   'Avis précédent': 'Предыдущий отзыв',
   'Avis suivant': 'Следующий отзыв',

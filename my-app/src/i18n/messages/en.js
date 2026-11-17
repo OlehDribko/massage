@@ -527,8 +527,6 @@ const messages = {
   'Endospheres therapy': 'Endospheres therapy',
   'Massage lymphatique': 'Lymphatic massage',
   'Massage anti-cellulite': 'Anti-cellulite massage',
-  'Lire la vidéo': 'Play the video',
-  'Mettre en pause la vidéo': 'Pause the video',
   'Mettre en pause le défilement des avis': 'Pause the reviews slideshow',
   'Avis précédent': 'Previous review',
   'Avis suivant': 'Next review',
