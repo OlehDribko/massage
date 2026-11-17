@@ -66,6 +66,33 @@ export function maskTimeInput(value) {
     : digits;
 }
 
+/**
+ * Typing a digit over a full "HH:MM": the digit replaces the one at the
+ * caret, the colon is skipped ("09:30", caret before 3, "4" → "09:40").
+ * Only for a collapsed caret before the last digit of a full value; any
+ * other case (selection, paste, unfinished value, caret at the end)
+ * returns null and the input works as usual (maskTimeInput).
+ * → { value, caret } (caret after the written digit, past the colon).
+ */
+export function overwriteTimeDigit(value, selectionStart, selectionEnd, digit) {
+  if (!/^\d$/.test(digit ?? '')) return null;
+  if (!/^\d{2}:\d{2}$/.test(value ?? '')) return null;
+  if (selectionStart !== selectionEnd) return null;
+  let position = selectionStart === 2 ? 3 : selectionStart;
+  if (!(position >= 0 && position < 5)) return null;
+  const next = `${value.slice(0, position)}${digit}${value.slice(position + 1)}`;
+  position += 1;
+  if (position === 2) position = 3;
+  return { value: next, caret: position };
+}
+
+/** A full, valid time: "HH:MM" up to 23:55, or "24:00" when `allowMidnight`. */
+export function isCompleteTime(value, { allowMidnight = false } = {}) {
+  if (typeof value !== 'string' || value.length !== 5) return false;
+  if (!HH_MM.test(value)) return false;
+  return allowMidnight || value !== '24:00';
+}
+
 /** "09:30" → 570; invalid → null. Accepts what normalizeTime() accepts. */
 export function toMinutes(value) {
   const time = normalizeTime(value);

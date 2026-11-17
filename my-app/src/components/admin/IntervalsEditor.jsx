@@ -1,13 +1,15 @@
 'use client';
 
-import { useId } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef } from 'react';
 
 import { useT } from '@/i18n/client';
 
 import {
   MAX_INTERVALS_PER_DAY,
+  isCompleteTime,
   maskTimeInput,
   normalizeTime,
+  overwriteTimeDigit,
 } from '@/lib/booking/schedule';
 
 export const DEFAULT_INTERVAL = { start: '09:00', end: '20:30' };
@@ -15,15 +17,82 @@ export const DEFAULT_INTERVAL = { start: '09:00', end: '20:30' };
 // Text inputs, not type="time": the API accepts "24:00" as an end (a day
 // that ends at midnight), which time inputs cannot express. The colon is
 // typed for you ("15" then "0" shows "15:0"); "15" alone becomes "15:00"
-// on leaving the field. Also used by the busy-time form (BlockDialog).
-export function TimeBox({ id, label, value, onChange, invalid, describedBy }) {
+// on leaving the field. In a full time a typed digit replaces the one at
+// the caret, skipping the colon (overwriteTimeDigit); a selection or a
+// paste works as usual. `onComplete(value)` runs when typing writes the
+// last digit of a valid time (never on mount or on a value set by code).
+// `allowMidnight`: "24:00" counts as complete (an end field).
+// Also used by the busy-time form (BlockDialog).
+export function TimeBox({
+  id,
+  label,
+  value,
+  onChange,
+  onComplete,
+  allowMidnight = false,
+  invalid,
+  describedBy,
+}) {
+  const inputRef = useRef(null);
+  const caretRef = useRef(null);
+  const latest = useRef({ onChange, onComplete, allowMidnight });
+  useEffect(() => {
+    latest.current = { onChange, onComplete, allowMidnight };
+  });
+
+  // Put the caret back where the overwrite left it (React moves it to the
+  // end when it writes the new value).
+  useLayoutEffect(() => {
+    const caret = caretRef.current;
+    if (caret === null || !inputRef.current) return;
+    caretRef.current = null;
+    if (document.activeElement === inputRef.current) {
+      inputRef.current.setSelectionRange(caret, caret);
+    }
+  }, [value]);
+
+  const complete = (next, caret) => {
+    const { onComplete: done, allowMidnight: midnight } = latest.current;
+    if (done && caret >= 5 && isCompleteTime(next, { allowMidnight: midnight }))
+      done(next);
+  };
+
+  // Native beforeinput: the same path for hardware and phone keyboards.
+  useEffect(() => {
+    const input = inputRef.current;
+    if (!input) return undefined;
+    const onBeforeInput = (event) => {
+      if (event.inputType !== 'insertText') return;
+      const result = overwriteTimeDigit(
+        input.value,
+        input.selectionStart,
+        input.selectionEnd,
+        event.data
+      );
+      if (!result) return;
+      event.preventDefault();
+      caretRef.current = result.caret;
+      latest.current.onChange(result.value);
+      complete(result.value, result.caret);
+    };
+    input.addEventListener('beforeinput', onBeforeInput);
+    return () => input.removeEventListener('beforeinput', onBeforeInput);
+  }, []);
+
   return (
     <input
+      ref={inputRef}
       id={id}
       aria-label={label}
       aria-describedby={describedBy}
       value={value}
-      onChange={(event) => onChange(maskTimeInput(event.target.value))}
+      onChange={(event) => {
+        const next = maskTimeInput(event.target.value);
+        onChange(next);
+        const typed = event.nativeEvent?.inputType === 'insertText';
+        const atEnd = event.target.selectionStart >= event.target.value.length;
+        if (typed && atEnd) complete(next, next.length);
+      }}
       onBlur={(event) => {
         const next = normalizeTime(event.target.value);
         if (next !== event.target.value) onChange(next);

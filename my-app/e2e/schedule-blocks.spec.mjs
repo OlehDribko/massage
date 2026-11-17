@@ -67,11 +67,16 @@ function expectNoSlotIn(slots, block) {
   expect(inside).toEqual([]);
 }
 
-/** Fills the open block form (start / end / title) with the keyboard. */
-async function fillBlock(dialog, { start, end, title }) {
+/**
+ * Fills the open block form: start / end with the keyboard, the source
+ * (Treatwell / Planity, stored as the title) and a note. The note is what
+ * tells this test's block apart from the others with the same source.
+ */
+async function fillBlock(dialog, { start, end, source, note }) {
   await dialog.getByLabel('Début (HH:MM)').fill(start);
   await dialog.getByLabel('Fin (HH:MM, 24:00 pour minuit)').fill(end);
-  await dialog.getByLabel(/^Titre/).fill(title);
+  await dialog.getByLabel('Source').selectOption(source);
+  await dialog.getByLabel(/^Note/).fill(note);
 }
 
 test('[real API] @mobile admin adds a busy time: the client loses those times, booking it is refused', async ({
@@ -81,7 +86,7 @@ test('[real API] @mobile admin adds a busy time: the client loses those times, b
   const visitor = await readyClient();
   const slot = await firstFreeSlot(SERVICE);
   const start = studioTime(slot.startsAt);
-  const title = `Planity ${randomUUID().slice(0, 8)}`;
+  const note = `Client ${randomUUID().slice(0, 8)}`;
 
   await signInOnSite(page, owner, `/admin/calendrier/jour?date=${slot.date}`);
   const add = page.getByRole('button', { name: 'Ajouter une indisponibilité' });
@@ -93,9 +98,16 @@ test('[real API] @mobile admin adds a busy time: the client loses those times, b
   await expect(dialog.getByRole('button', { name: /^Date/ })).toContainText(
     frenchDate(slot.date)
   );
-  await fillBlock(dialog, { start, end: plus(start, 60), title });
-  // Keyboard: Enter in the title submits the form.
-  await dialog.getByLabel(/^Titre/).press('Enter');
+  // No source is preselected: it has to be chosen explicitly.
+  await expect(dialog.getByLabel('Source')).toHaveValue('');
+  await fillBlock(dialog, {
+    start,
+    end: plus(start, 60),
+    source: 'Planity',
+    note,
+  });
+  // Keyboard: Enter in a time field submits the form.
+  await dialog.getByLabel('Fin (HH:MM, 24:00 pour minuit)').press('Enter');
 
   await expect(dialog).toBeHidden();
   await expect(
@@ -104,13 +116,18 @@ test('[real API] @mobile admin adds a busy time: the client loses those times, b
   await expect(add).toBeFocused();
   const timeline = page.getByRole('region', { name: 'Planning du jour' });
   await expect(
-    timeline.getByRole('button', { name: new RegExp(title) })
-  ).toContainText(`${start}–${plus(start, 60)}`);
+    timeline
+      .getByRole('button', { name: /Planity/ })
+      .filter({ hasText: `${start}–${plus(start, 60)}` })
+  ).toBeVisible();
 
   const [block] = (await blocksOn(owner, slot.date)).filter(
-    (item) => item.title === title
+    (item) => item.note === note
   );
-  expect(block.start).toBe(`${slot.date}T${start}`);
+  expect(block).toMatchObject({
+    title: 'Planity',
+    start: `${slot.date}T${start}`,
+  });
 
   // The client's availability no longer offers that time (nor its breaks).
   const slots = await slotsOn(SERVICE, slot.date);
@@ -136,7 +153,7 @@ test('[real API] a busy time over a confirmed booking shows the conflict with a 
   expect(booked.status).toBe(201);
   const bookingId = booked.body.booking.id;
   const start = studioTime(slot.startsAt);
-  const title = `Formation ${randomUUID().slice(0, 8)}`;
+  const note = `Conflit ${randomUUID().slice(0, 8)}`;
 
   await signInOnSite(page, owner, `/admin/calendrier/jour?date=${slot.date}`);
   await page
@@ -145,7 +162,12 @@ test('[real API] a busy time over a confirmed booking shows the conflict with a 
   const dialog = page.getByRole('dialog', {
     name: 'Ajouter une indisponibilité',
   });
-  await fillBlock(dialog, { start, end: plus(start, 30), title });
+  await fillBlock(dialog, {
+    start,
+    end: plus(start, 30),
+    source: 'Treatwell',
+    note,
+  });
   await dialog.getByRole('button', { name: 'Ajouter' }).click();
 
   const alert = dialog.getByRole('alert');
@@ -156,7 +178,7 @@ test('[real API] a busy time over a confirmed booking shows the conflict with a 
   );
   await expect(dialog).toBeVisible(); // the form stays to change the times
   expect(
-    (await blocksOn(owner, slot.date)).filter((item) => item.title === title)
+    (await blocksOn(owner, slot.date)).filter((item) => item.note === note)
   ).toEqual([]);
 
   // Escape closes the form; the focus is back on the button that opened it.
@@ -315,15 +337,18 @@ test.describe('browser in another time zone', () => {
         request.method() === 'PATCH' &&
         request.url().includes('/api/admin/schedule/blocks/')
     );
-    await dialog.getByLabel(/^Titre/).fill(`${title} (bis)`);
+    // An older free title stays selected until a source is chosen.
+    await expect(dialog.getByLabel('Source')).toHaveValue(title);
+    await dialog.getByLabel('Source').selectOption('Treatwell');
     await dialog.getByRole('button', { name: 'Enregistrer' }).click();
-    expect((await patched).postDataJSON()).toEqual({ title: `${title} (bis)` });
+    expect((await patched).postDataJSON()).toEqual({ title: 'Treatwell' });
     await expect(dialog).toBeHidden();
 
-    const [saved] = (await blocksOn(owner, date)).filter((item) =>
-      item.title.startsWith(title)
+    const [saved] = (await blocksOn(owner, date)).filter(
+      (item) => item.id === created.body.block.id
     );
     expect(saved).toMatchObject({
+      title: 'Treatwell',
       start: `${date}T21:00`,
       end: `${nextDate(date)}T00:00`,
       startsAt: created.body.block.startsAt,
@@ -389,16 +414,16 @@ test('[real API] a block that has started but is not over can be edited', async 
     .click();
   const dialog = page.getByRole('dialog', { name: 'Indisponibilité' });
   await expect(dialog.getByLabel('Début (HH:MM)')).toBeEditable();
-  await dialog.getByLabel(/^Titre/).fill(`${title} (modifié)`);
-  await dialog.getByLabel('Note (facultatif').fill('Prolongé');
+  await dialog.getByLabel('Source').selectOption('Planity');
+  await dialog.getByLabel(/^Note/).fill('Prolongé');
   await dialog.getByRole('button', { name: 'Enregistrer' }).click();
   await expect(dialog).toBeHidden();
 
-  const [saved] = (await blocksOn(owner, bounds.date)).filter((item) =>
-    item.title.startsWith(title)
+  const [saved] = (await blocksOn(owner, bounds.date)).filter(
+    (item) => item.id === created.body.block.id
   );
   expect(saved).toMatchObject({
-    title: `${title} (modifié)`,
+    title: 'Planity',
     note: 'Prolongé',
     startsAt: created.body.block.startsAt,
     endsAt: created.body.block.endsAt,
@@ -497,7 +522,7 @@ test('[mocked] the block ends while its form is open: the server error is on the
     .getByRole('button', { name: new RegExp(title) })
     .click();
   const dialog = page.getByRole('dialog', { name: 'Indisponibilité' });
-  await dialog.getByLabel(/^Titre/).fill(`${title} !`);
+  await dialog.getByLabel('Source').selectOption('Treatwell');
   await dialog.getByRole('button', { name: 'Enregistrer' }).click();
 
   const end = dialog.getByLabel('Fin (HH:MM, 24:00 pour minuit)');

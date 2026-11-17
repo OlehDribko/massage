@@ -311,8 +311,8 @@ const messages = {
   '« {title} » —': '«{title}» —',
   '{time}. Ce créneau redevient réservable par les clients selon les horaires du cabinet.':
     '{time}. Цей проміжок знову стане доступним для запису клієнтів за графіком кабінету.',
-  'Temps déjà pris ailleurs (Planity, rendez-vous personnel…). Les clients ne peuvent plus réserver sur ce créneau, ni dans la pause de 15 min avant et après. Visible uniquement par l’administration.':
-    'Час, уже зайнятий деінде (Planity, особиста зустріч…). Клієнти не зможуть записатися на цей проміжок, а також на 15 хв перерви до й після нього. Бачить лише адміністрація.',
+  'Temps déjà pris ailleurs (Treatwell, Planity). Les clients ne peuvent plus réserver sur ce créneau, ni dans la pause de 15 min avant et après. Visible uniquement par l’administration.':
+    'Час, уже зайнятий деінде (Treatwell, Planity). Клієнти не зможуть записатися на цей проміжок, а також на 15 хв перерви до й після нього. Бачить лише адміністрація.',
   'Date et horaires': 'Дата й час',
   'Cette indisponibilité dépasse minuit (créée hors de ce formulaire) : ses horaires restent tels quels. Vous pouvez modifier le titre et la note, ou la supprimer puis en créer une par jour.':
     'Цей зайнятий час виходить за північ (створений не через цю форму): його час залишається без змін. Можна змінити назву й нотатку або видалити його й створити окремий на кожен день.',
@@ -322,8 +322,10 @@ const messages = {
   'Fin (HH:MM, 24:00 pour minuit)': 'Кінець (ГГ:ХХ, 24:00 — північ)',
   'Un seul jour, heure de Paris, par pas de 5 min. Pour aller jusqu’à minuit, indiquez 24:00. Au moins 15 min.':
     'Лише один день, час Парижа, крок 5 хв. Щоб до півночі, вкажіть 24:00. Щонайменше 15 хв.',
-  'Titre ({n}/{max})': 'Назва ({n}/{max})',
-  'Planity, rendez-vous personnel…': 'Planity, особиста зустріч…',
+  Source: 'Джерело',
+  'Choisissez la source': 'Виберіть джерело',
+  '{title} (titre actuel)': '{title} (поточна назва)',
+  'Nom du client, détails internes…': 'Ім’я клієнта, внутрішні деталі…',
   Note: 'Нотатка',
   '(facultatif, {n}/{max})': '(необов’язково, {n}/{max})',
   Annuler: 'Скасувати',
@@ -336,7 +338,8 @@ const messages = {
   'Aucune réservation possible ce jour-là.': 'Цього дня записатися неможливо.',
   '{time} (depuis la veille)': '{time} (з попереднього дня)',
   '{time} (jusqu’au lendemain {end})': '{time} (до наступного дня, {end})',
-  'Indiquez un titre.': 'Вкажіть назву.',
+  'Choisissez la source : Treatwell ou Planity.':
+    'Виберіть джерело: Treatwell або Planity.',
   'Choisissez une date.': 'Оберіть дату.',
   'La date ne peut pas être passée.': 'Дата не може бути в минулому.',
   'Au plus {n} jours à l’avance.': 'Не більше ніж на {n} днів уперед.',
