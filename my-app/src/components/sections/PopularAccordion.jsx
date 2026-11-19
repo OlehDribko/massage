@@ -7,9 +7,7 @@ import {
   useState,
   useSyncExternalStore,
 } from 'react';
-import Image from 'next/image';
 import { Link, useFormat, useT } from '@/i18n/client';
-import { msg } from '@/i18n/translate';
 
 import MaskIcon from '@/components/ui/MaskIcon';
 import { POPULAR_CARDS } from '@/content/services';
@@ -23,38 +21,17 @@ function durationRange(variants, minutes = 'min') {
 }
 
 /*
- * The two photos of the mock-up (variants 789:513 / 789:515 / 789:658):
- * the open item changes the photo. They alternate down the list.
- */
-const PHOTOS = [
-  {
-    src: '/images/popular-neck.jpg',
-    alt: msg('Massage du cou, cliente allongée en cabine'),
-    position: 'object-[50%_62%]',
-  },
-  {
-    src: '/images/popular-back.jpg',
-    alt: msg('Massage du dos et des épaules en cabine'),
-    position: 'object-[50%_35%]',
-  },
-];
-
-/*
  * Short muted clips of each soin (public/videos, 720×1280 H.264 without
- * sound, ~2 MB each), by editorial key (content/services.js). They replace
- * the photo of their prestation; one without a clip keeps the photos.
- * The poster is the first frame, so nothing jumps when playback starts.
+ * sound, ~2 MB each), by editorial key (content/services.js). No photo or
+ * still frame: the open item shows its clip, playing. A featured
+ * prestation without a clip shows no media.
  */
-const clip = (name) => ({
-  video: `/videos/popular-${name}.mp4`,
-  poster: `/videos/popular-${name}.jpg`,
-});
 const VIDEOS = {
-  'tuina-huiles-chaudes': clip('relax'),
-  sportif: clip('sportif'),
-  endospheres: clip('endospheres'),
-  'drainage-lymphatique': clip('lymphatique'),
-  maderotherapie: clip('anti-cellulite'),
+  'tuina-huiles-chaudes': '/videos/popular-relax.mp4',
+  sportif: '/videos/popular-sportif.mp4',
+  endospheres: '/videos/popular-endospheres.mp4',
+  'drainage-lymphatique': '/videos/popular-lymphatique.mp4',
+  maderotherapie: '/videos/popular-anti-cellulite.mp4',
 };
 
 // The order and titles of the mock-up (content/services.js).
@@ -71,14 +48,12 @@ const inMockupOrder = (prestations) =>
     )
     .map(({ prestation }) => prestation);
 
-const mediaFor = (prestation, index) =>
-  VIDEOS[prestation?.key] ?? PHOTOS[Math.max(index, 0) % PHOTOS.length];
+const videoOf = (prestation) => VIDEOS[prestation?.key] ?? null;
 
-// Which of the two places shows the media: the column (from 1024 px) or
+// Which of the two places shows the clip: the column (from 1024 px) or
 // the open item (below). Only the clip in the visible place plays.
 // null before hydration (server render): nothing plays yet.
 const DESKTOP = '(min-width: 64rem)';
-const REDUCED = '(prefers-reduced-motion: reduce)';
 const useMedia = (media) =>
   useSyncExternalStore(
     (onChange) => {
@@ -123,11 +98,11 @@ function PauseOverlay({ paused, onToggle }) {
 }
 
 /**
- * A muted looping clip that plays only while `playing` and on screen.
- * preload="none": a clip downloads only once it is asked to play; until
- * then (and on reduced motion) its poster stands in.
+ * A muted looping clip that plays while `playing` and on screen (scrolled
+ * away it waits, and goes on when back). preload="none": only the clips
+ * asked to play are downloaded.
  */
-function Clip({ media, playing, className }) {
+function Clip({ src, playing, className }) {
   const ref = useRef(null);
   const [onScreen, setOnScreen] = useState(false);
 
@@ -145,7 +120,7 @@ function Clip({ media, playing, className }) {
     const element = ref.current;
     if (!element) return;
     if (playing && onScreen) {
-      // Refused (power saving…): the poster stays, nothing to report.
+      // Refused (power saving…): nothing to report.
       element.play().catch(() => {});
     } else {
       element.pause();
@@ -155,8 +130,7 @@ function Clip({ media, playing, className }) {
   return (
     <video
       ref={ref}
-      src={media.video}
-      poster={media.poster}
+      src={src}
       muted
       loop
       playsInline
@@ -169,14 +143,16 @@ function Clip({ media, playing, className }) {
 
 /**
  * Figma «Nos soins populaires» (704:1296, tablet 704:2255, mobile
- * 704:1465): a numbered accordion, one item open at a time (the first by
- * default). A click on a row opens or closes it; the arrow only shows the
- * state (↗ open, ↘ closed). The open item shows the API description of
+ * 704:1465): a numbered accordion, always one item open (the first by
+ * default). A click on a closed row opens it and closes the other; the
+ * open one cannot be folded. The arrow only shows the state (↗ open,
+ * ↘ closed). The open item shows the API description of
  * the prestation's shortest duration — the one « Réserver ce soin » opens
  * (when one exists), the lowest current price and the durations, and
- * « Réserver ce soin » books that prestation. The clip (or photo) next to the list
+ * « Réserver ce soin » books that prestation. The clip next to the list
  * follows the open item (from 1024 px); below, it sits inside the open
- * item.
+ * item. It plays until the person pauses it (a click on the clip);
+ * opening another item plays that one's clip again.
  */
 export default function PopularAccordion({ prestations: featured }) {
   const t = useT();
@@ -188,23 +164,16 @@ export default function PopularAccordion({ prestations: featured }) {
   const { formatPrice } = useFormat();
   const [open, setOpen] = useState(0);
   const id = useId();
-  const shown = open < 0 ? 0 : open;
   const desktop = useMedia(DESKTOP);
   // A click on the clip pauses / resumes it (WCAG 2.2.2: the clips loop
-  // for more than 5 s). The person's own choice wins; until then, no clip
-  // plays by itself with reduced motion (its poster stays).
-  const [choice, setChoice] = useState(null);
-  const reduced = useMedia(REDUCED);
-  const paused = choice ?? reduced !== false;
-  const togglePaused = () => setChoice(!paused);
-  // One layer per distinct clip or photo of the column.
-  const layers = [];
-  prestations.forEach((prestation, index) => {
-    const media = mediaFor(prestation, index);
-    const layer = layers.find((item) => item.media === media);
-    if (layer) layer.indexes.push(index);
-    else layers.push({ media, indexes: [index] });
-  });
+  // for more than 5 s). Nothing else stops it.
+  const [paused, setPaused] = useState(false);
+  const togglePaused = () => setPaused((value) => !value);
+  const openItem = (index) => {
+    if (index === open) return;
+    setOpen(index);
+    setPaused(false);
+  };
 
   return (
     <div className="flex flex-col lg:flex-row lg:items-stretch">
@@ -213,7 +182,7 @@ export default function PopularAccordion({ prestations: featured }) {
           const isOpen = index === open;
           const panelId = `${id}-${index}`;
           const number = String(index + 1).padStart(2, '0');
-          const media = mediaFor(prestation, index);
+          const video = videoOf(prestation);
           return (
             <li
               key={prestation.key}
@@ -223,7 +192,7 @@ export default function PopularAccordion({ prestations: featured }) {
                 type="button"
                 aria-expanded={isOpen}
                 aria-controls={panelId}
-                onClick={() => setOpen(isOpen ? -1 : index)}
+                onClick={() => openItem(index)}
                 className="group focus-visible:outline-primary-200 flex w-full min-w-0 items-start gap-6 text-left focus-visible:outline-2 focus-visible:outline-offset-4 sm:gap-20"
               >
                 <span
@@ -281,34 +250,22 @@ export default function PopularAccordion({ prestations: featured }) {
                     </div>
                   </div>
 
-                  {/* Phones and tablets (Figma 704:1465): the clip (or photo)
-                      of the open item, inside it. Always mounted, so it
-                      never pops in: it fades in as the item opens (the scroll
-                      parallax of HomeMotion already moves it). A clip shows
-                      its poster until it plays. */}
-                  <div className="relative mt-6 aspect-[358/398] w-full overflow-hidden rounded-[4px] sm:aspect-[4/3] lg:hidden">
-                    {media.video ? (
+                  {/* Phones and tablets (Figma 704:1465): the clip of the
+                      open item, inside it. Always mounted, so it never pops
+                      in: it fades in as the item opens (the scroll parallax
+                      of HomeMotion already moves it). */}
+                  {video ? (
+                    <div className="relative mt-6 aspect-[358/398] w-full overflow-hidden rounded-[4px] sm:aspect-[4/3] lg:hidden">
                       <Clip
-                        media={media}
+                        src={video}
                         playing={isOpen && desktop === false && !paused}
                         className={`absolute inset-0 size-full object-cover transition-opacity ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${isOpen ? 'opacity-100 delay-150 duration-1000' : 'opacity-0 duration-300'}`}
                       />
-                    ) : null}
-                    {media.video && isOpen ? (
-                      <PauseOverlay paused={paused} onToggle={togglePaused} />
-                    ) : null}
-                    {media.video ? null : (
-                      <Image
-                        src={media.src}
-                        alt={isOpen ? t(media.alt) : ''}
-                        fill
-                        loading="eager"
-                        fetchPriority="low"
-                        sizes="(min-width: 1024px) 1px, (min-width: 640px) 90vw, 100vw"
-                        className={`object-cover ${media.position} transition-opacity ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${isOpen ? 'opacity-100 delay-150 duration-1000' : 'opacity-0 duration-300'}`}
-                      />
-                    )}
-                  </div>
+                      {isOpen ? (
+                        <PauseOverlay paused={paused} onToggle={togglePaused} />
+                      ) : null}
+                    </div>
+                  ) : null}
                 </div>
               </div>
             </li>
@@ -316,32 +273,22 @@ export default function PopularAccordion({ prestations: featured }) {
         })}
       </ul>
 
-      {/* From 1024 px: the clip (or photo) of the open item, cross-faded.
-          Items sharing a photo share one layer. */}
+      {/* From 1024 px: the clip of the open item, cross-faded. */}
       <div className="relative hidden shrink-0 overflow-hidden lg:block lg:min-h-[703px] lg:w-[554px]">
-        {layers.map(({ media, indexes }) => {
-          const active = indexes.includes(shown);
-          const fade = `transition-opacity duration-1000 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${active ? 'opacity-100' : 'opacity-0'}`;
-          return media.video ? (
+        {prestations.map((prestation, index) => {
+          const video = videoOf(prestation);
+          if (!video) return null;
+          const active = index === open;
+          return (
             <Clip
-              key={media.video}
-              media={media}
-              playing={active && open >= 0 && desktop === true && !paused}
-              className={`absolute inset-0 size-full object-cover ${fade}`}
-            />
-          ) : (
-            <Image
-              key={media.src}
-              src={media.src}
-              alt={active ? t(media.alt) : ''}
-              aria-hidden={active ? undefined : true}
-              fill
-              sizes="554px"
-              className={`object-cover ${media.position} ${fade}`}
+              key={prestation.key}
+              src={video}
+              playing={active && desktop === true && !paused}
+              className={`absolute inset-0 size-full object-cover transition-opacity duration-1000 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${active ? 'opacity-100' : 'opacity-0'}`}
             />
           );
         })}
-        {open >= 0 && mediaFor(prestations[open], open).video ? (
+        {videoOf(prestations[open]) ? (
           <PauseOverlay paused={paused} onToggle={togglePaused} />
         ) : null}
       </div>
