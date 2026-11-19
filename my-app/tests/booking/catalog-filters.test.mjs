@@ -3,6 +3,7 @@ import { test } from 'node:test';
 
 import {
   OTHERS,
+  POPULAR,
   PROMOTIONS,
   catalogSections,
   hasPromotion,
@@ -42,6 +43,7 @@ const CATALOG = [
   {
     key: 'dos',
     category: 'express',
+    featured: true,
     variants: [variant('d30', 30, 5000)],
   },
   { key: 'api-only', category: null, variants: [variant('x45', 45, 7000)] },
@@ -77,6 +79,13 @@ test('promotions: one section of the prestations on sale, or none', () => {
   assert.deepEqual(catalogSections([CATALOG[0]], CATEGORIES, PROMOTIONS), []);
   assert.equal(hasPromotion(CATALOG[1]), true);
   assert.equal(hasPromotion(CATALOG[0]), false);
+});
+
+test('popular: one section of the featured prestations, or none', () => {
+  assert.deepEqual(shape(catalogSections(CATALOG, CATEGORIES, POPULAR)), [
+    [POPULAR, ['dos']],
+  ]);
+  assert.deepEqual(catalogSections([CATALOG[0]], CATEGORIES, POPULAR), []);
 });
 
 test('shown duration: the one on sale, else the closest to 1 h', () => {

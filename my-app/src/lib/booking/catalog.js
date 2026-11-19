@@ -127,11 +127,13 @@ export function lowestPrice(group) {
 
 /*
  * Booking catalogue (/reserver), after the designer mock-up « Choix du
- * soin »: one filter at a time — « Promotions », everything (null) or one
- * category. Everything is shown in sections, one per category, in the
+ * soin »: one filter at a time — « Promotions », « Populaires » (the
+ * prestations marked `featured` in content/services.js), everything (null)
+ * or one category. Everything is shown in sections, one per category, in the
  * order of CATEGORIES; prestations keep the order of content/services.js.
  */
 export const PROMOTIONS = 'promotions';
+export const POPULAR = 'populaires';
 /** Section of the prestations without a known category (API-only ones). */
 export const OTHERS = 'autres';
 
@@ -157,15 +159,17 @@ export function shownVariant(prestation) {
 }
 
 /**
- * Catalogue → sections `{ key, items }` for one filter (`PROMOTIONS`, a
- * category key, or null for everything). Empty sections are left out;
+ * Catalogue → sections `{ key, items }` for one filter (`PROMOTIONS`,
+ * `POPULAR`, a category key, or null for everything). Empty sections are left out;
  * an unknown filter shows everything.
  */
 export function catalogSections(catalog, categories, filter = null) {
   const list = catalog ?? [];
-  if (filter === PROMOTIONS) {
-    const items = list.filter(hasPromotion);
-    return items.length ? [{ key: PROMOTIONS, items }] : [];
+  if (filter === PROMOTIONS || filter === POPULAR) {
+    const items = list.filter(
+      filter === PROMOTIONS ? hasPromotion : (prestation) => prestation.featured
+    );
+    return items.length ? [{ key: filter, items }] : [];
   }
   const known = categories.some((category) => category.key === filter);
   const sections = categories

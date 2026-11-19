@@ -4,10 +4,11 @@ import ServiceCard from '@/components/booking/ServiceCard';
 import { CATEGORIES } from '@/content/services';
 import { useT } from '@/i18n/client';
 import { msg } from '@/i18n/translate';
-import { OTHERS, PROMOTIONS } from '@/lib/booking/catalog';
+import { OTHERS, POPULAR, PROMOTIONS } from '@/lib/booking/catalog';
 
 const TITLES = {
   [PROMOTIONS]: msg('Promotions en cours'),
+  [POPULAR]: msg('Massages populaires'),
   [OTHERS]: msg('Autres soins'),
 };
 
@@ -17,7 +18,8 @@ const categoryOf = (key) =>
 /**
  * Catalogue sections of /reserver (`catalogSections`): a serif title with
  * the number of prestations, the category's intro if any, then the rows.
- * In « Promotions en cours » each row names its category. Section heads
+ * In « Promotions en cours » and « Massages populaires » each row names
+ * its category. Section heads
  * and rows carry `data-flip-id` for the glide of CatalogBrowser.
  */
 export default function CatalogSections({ sections }) {
@@ -53,7 +55,7 @@ export default function CatalogSections({ sections }) {
                   <ServiceCard
                     prestation={prestation}
                     categoryLabel={
-                      section.key === PROMOTIONS &&
+                      [PROMOTIONS, POPULAR].includes(section.key) &&
                       categoryOf(prestation.category)
                         ? t(categoryOf(prestation.category).label)
                         : undefined

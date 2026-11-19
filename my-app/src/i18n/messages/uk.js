@@ -828,6 +828,7 @@ const messages = {
   Promotion: 'Акція',
   'La thérapie Endosphères est une technologie de massage esthétique par micro-vibrations et compression. Elle aide à réduire la cellulite et les gonflements, améliore la tonicité de la peau et redessine les contours du corps, sans douleur.':
     'Endospheres-терапія — це технологія естетичного масажу мікровібрацією та компресією. Вона допомагає зменшити целюліт і набряки, покращує тонус шкіри та моделює контури тіла, без болю.',
+  Populaires: 'Популярні',
 };
 
 export default messages;

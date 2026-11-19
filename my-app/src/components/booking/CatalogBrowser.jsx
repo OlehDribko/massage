@@ -11,7 +11,7 @@ import { StarIcon } from '@/components/booking/ServiceCard';
 import { useT } from '@/i18n/client';
 import { rich } from '@/i18n/rich';
 import { CATEGORIES } from '@/content/services';
-import { PROMOTIONS, catalogSections } from '@/lib/booking/catalog';
+import { POPULAR, PROMOTIONS, catalogSections } from '@/lib/booking/catalog';
 
 gsap.registerPlugin(useGSAP, Flip);
 
@@ -27,7 +27,8 @@ const pillOff = 'border-secondary-200 text-gray-900 hover:border-third-200';
 
 /**
  * /reserver catalogue (designer mock-up « Choix du soin »): one pill
- * chosen at a time — « Promotions », « Toutes les prestations » or a
+ * chosen at a time — « Promotions », « Populaires » (featured
+ * prestations), « Toutes les prestations » or a
  * category (after the studio's Planity sections). Everything shows in
  * sections, one per category; « Promotions » gathers the prestations on
  * sale in one section. The choice lives in the URL (?categorie=) so a
@@ -54,6 +55,7 @@ export default function CatalogBrowser({ catalog }) {
   const asked = searchParams.get('categorie');
   const current =
     asked === PROMOTIONS ||
+    asked === POPULAR ||
     categoriesInUse.some((category) => category.key === asked)
       ? asked
       : null;
@@ -167,7 +169,8 @@ export default function CatalogBrowser({ catalog }) {
   );
 
   const pills = [
-    { key: PROMOTIONS, label: t('Promotions'), icon: true },
+    { key: PROMOTIONS, label: t('Promotions'), icon: 'star' },
+    { key: POPULAR, label: t('Populaires'), icon: 'heart' },
     { key: null, label: t('Toutes les prestations') },
     ...categoriesInUse.map((category) => ({
       key: category.key,
@@ -193,8 +196,18 @@ export default function CatalogBrowser({ catalog }) {
               onClick={() => choose(option.key)}
               className={`${pill} ${active ? pillOn : pillOff}`}
             >
-              {option.icon ? (
+              {option.icon === 'star' ? (
                 <StarIcon className="text-primary-200 size-5" />
+              ) : null}
+              {option.icon === 'heart' ? (
+                <svg
+                  viewBox="0 0 24 24"
+                  aria-hidden
+                  fill="currentColor"
+                  className="text-third-200 size-5"
+                >
+                  <path d="M12 20.5s-7.5-4.6-9.3-9.2C1.5 8 3.6 4.5 7.1 4.5c2 0 3.4 1.1 4.9 2.9 1.5-1.8 2.9-2.9 4.9-2.9 3.5 0 5.6 3.5 4.4 6.8-1.8 4.6-9.3 9.2-9.3 9.2z" />
+                </svg>
               ) : null}
               {option.label}
             </button>
