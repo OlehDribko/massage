@@ -286,7 +286,7 @@ export default function CatalogBrowser({ catalog }) {
 
       <div ref={listRef}>
         {results.length ? (
-          <ul className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+          <ul className="flex flex-col border-t border-black/7">
             {results.map((prestation) => {
               const initial =
                 filters.duration || filters.budget

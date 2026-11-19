@@ -300,8 +300,6 @@ const messages = {
   'offre valable jusqu’au {date}': 'offer valid until {date}',
   'Avant de réserver :': 'Before booking:',
   Populaire: 'Popular',
-  Description: 'Description',
-  'Choisir l’horaire': 'Choose a time',
   'ou dès {price} / séance en forfait':
     'or from {price} / session with a package',
   'Du {from} au {to}': '{from} to {to}',
@@ -524,6 +522,8 @@ const messages = {
   'Reprendre le défilement des avis': 'Resume the reviews slideshow',
   'Lire la vidéo': 'Play the video',
   'Mettre en pause la vidéo': 'Pause the video',
+  Choisir: 'Choose',
+  'Prix promotionnel : ': 'Sale price: ',
   'Massage Tuina': 'Tuina massage',
   'Massage sportif': 'Sports massage',
   'Endospheres therapy': 'Endospheres therapy',

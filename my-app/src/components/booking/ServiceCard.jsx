@@ -1,26 +1,15 @@
 'use client';
 
-import { useId, useState } from 'react';
-
 import ForfaitsBlock from '@/components/booking/ForfaitsBlock';
-import PriceTag from '@/components/booking/PriceTag';
-import MaskIcon from '@/components/ui/MaskIcon';
-import PillButton from '@/components/ui/PillButton';
 import { FORFAITS, bestOffer, forfaitRows } from '@/content/forfaits';
-import { CATEGORIES } from '@/content/services';
-import { variantTexts } from '@/lib/booking/catalog';
-import { useFormat, useT } from '@/i18n/client';
-import { msg } from '@/i18n/translate';
-
-const CATEGORY_LABEL = Object.fromEntries(
-  CATEGORIES.map((category) => [category.key, category.label])
-);
+import { hasActiveSale, variantTexts } from '@/lib/booking/catalog';
+import { Link, useFormat, useT } from '@/i18n/client';
 
 export function PopularBadge({ className = '' }) {
   const t = useT();
   return (
     <span
-      className={`font-montserrat bg-primary-200 text-on-gold inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[0.6875rem] font-semibold tracking-wide uppercase ${className}`}
+      className={`font-montserrat bg-primary-200 text-on-gold inline-flex h-[22px] items-center gap-1 rounded-lg px-2 text-[0.6875rem] font-semibold tracking-[0.08em] uppercase ${className}`}
     >
       <svg viewBox="0 0 24 24" aria-hidden className="size-3 fill-current">
         <path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z" />
@@ -30,16 +19,38 @@ export function PopularBadge({ className = '' }) {
   );
 }
 
+/** Price of the shown duration; during a sale, larger, with the old one. */
+function RowPrice({ service }) {
+  const t = useT();
+  const { formatPrice } = useFormat();
+  if (!hasActiveSale(service)) {
+    return (
+      <span className="text-[1.125rem] font-medium whitespace-nowrap text-gray-900">
+        {formatPrice(service.effectivePriceCents, service.currency)}
+      </span>
+    );
+  }
+  return (
+    <>
+      <span className="text-secondary-900 text-[1.375rem] font-bold whitespace-nowrap">
+        <span className="sr-only">{t('Prix promotionnel : ')}</span>
+        {formatPrice(service.effectivePriceCents, service.currency)}
+      </span>
+      <span className="text-body-sm whitespace-nowrap text-gray-800">
+        <span className="sr-only">{t('au lieu de ')} </span>
+        <s>{formatPrice(service.priceCents, service.currency)}</s>
+      </span>
+    </>
+  );
+}
+
 /**
- * One prestation of the catalogue as a card, in the site's style: category
- * eyebrow and « Populaire » badge, Faustina title, durations as pills, the
- * price and « Choisir l’horaire » under a hairline.
- * - the « Description » button opens the API text and features of the chosen
- *   duration (each duration has its own; no button when it has none);
- * - the duration pills (radios) choose the variant — id, duration, price,
- *   texts;
- *   `initialServiceId` opens the card on a duration (e.g. a filter);
- * - « Choisir l’horaire » goes to step 2 with exactly that variant.
+ * One prestation of the catalogue as a row (designer mock-up « Choix du
+ * soin »): name with its badges and the API description on the left; on
+ * the right the duration · price of the shown duration and « Choisir ».
+ * The shown duration is the shortest one, or the one matching a duration /
+ * budget filter (`initialServiceId`); the other durations are chosen on
+ * the next step (/reserver/[serviceId] lists them).
  */
 export default function ServiceCard({
   prestation,
@@ -48,142 +59,74 @@ export default function ServiceCard({
 }) {
   const t = useT();
   const { formatDuration, formatPrice } = useFormat();
-  const { name, variants, featured, category } = prestation;
-  const [open, setOpen] = useState(false);
-  const [selectedId, setSelectedId] = useState(
-    initialServiceId ?? variants[0].id
-  );
-  const id = useId();
+  const { name, variants, featured } = prestation;
   const selected =
-    variants.find((service) => service.id === selectedId) ?? variants[0];
-  const { description, features } = variantTexts(selected);
-  const hasTexts = Boolean(description) || features.length > 0;
+    variants.find((service) => service.id === initialServiceId) ?? variants[0];
+  const { description } = variantTexts(selected);
   const Heading = headingLevel;
-  // Packages make the card a promo card (content/forfaits.js).
+  // Packages: a badge with the saving and the lowest price per session
+  // (content/forfaits.js).
   const forfaits = FORFAITS[prestation.key]
     ? forfaitRows(FORFAITS[prestation.key], variants[0].priceCents)
     : null;
   const offer = forfaits ? bestOffer(forfaits) : null;
 
   return (
-    <article
-      className={`rounded-panel hover:border-primary-200 group relative flex h-full flex-col gap-6 border p-6 transition-[border-color,box-shadow] duration-200 hover:shadow-[0_18px_40px_-24px_rgba(26,15,8,0.35)] motion-reduce:transition-none sm:p-7 ${
-        offer
-          ? 'border-primary-200 to-primary-50/70 bg-linear-to-b from-white'
-          : 'border-black/7 bg-white'
-      }`}
-    >
-      <div className="flex flex-col gap-3">
-        <div className="flex min-h-7 items-center justify-between gap-3">
-          <p className="font-montserrat text-label-sm text-third-200 font-medium tracking-[0.12em] uppercase">
-            {t(CATEGORY_LABEL[category] ?? msg('Soin'))}
-          </p>
-          <span className="flex flex-wrap justify-end gap-1.5">
-            {offer?.maxPercent ? (
-              <ForfaitsBlock
-                rows={forfaits}
-                name={name}
-                percent={offer.maxPercent}
-              />
-            ) : null}
-            {featured ? <PopularBadge /> : null}
-          </span>
+    <article className="font-montserrat grid grid-cols-[minmax(0,1fr)] items-start gap-3 border-b border-black/7 py-5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-6 sm:py-6">
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
+          <Heading className="text-base leading-[1.4] font-semibold tracking-[0.01em] text-gray-900 sm:text-[1.125rem]">
+            {name}
+          </Heading>
+          {featured ? <PopularBadge /> : null}
+          {offer?.maxPercent ? (
+            <ForfaitsBlock
+              rows={forfaits}
+              name={name}
+              percent={offer.maxPercent}
+            />
+          ) : null}
         </div>
-        <Heading className="font-faustina text-third-900 text-[1.75rem] leading-[1.1] font-normal">
-          {name}
-        </Heading>
-        {hasTexts ? (
-          <>
-            <button
-              type="button"
-              aria-expanded={open}
-              aria-controls={`${id}-panel`}
-              onClick={() => setOpen((value) => !value)}
-              className="font-montserrat text-label-sm hover:text-third-200 focus-visible:outline-third-200 -m-1 flex w-fit items-center gap-1.5 p-1 font-medium text-gray-800 uppercase focus-visible:outline-2"
-            >
-              {open ? t('Masquer') : t('Description')}
-              <MaskIcon
-                src="/icons/arrow-up-right.svg"
-                className={`text-third-200 size-5 transition-transform duration-200 motion-reduce:transition-none ${open ? '' : 'rotate-90'}`}
-              />
-            </button>
-            <div
-              id={`${id}-panel`}
-              inert={!open}
-              className={`grid transition-[grid-template-rows] duration-300 ease-out motion-reduce:transition-none ${open ? 'grid-rows-[1fr]' : '-mt-3 grid-rows-[0fr]'}`}
-            >
-              <div className="font-montserrat text-body-sm flex flex-col gap-3 overflow-hidden text-gray-800">
-                {description ? <p>{description}</p> : null}
-                {features.length ? (
-                  <ul className="flex list-disc flex-col gap-1 pl-5">
-                    {features.map((feature) => (
-                      <li key={feature}>{feature}</li>
-                    ))}
-                  </ul>
-                ) : null}
-              </div>
-            </div>
-          </>
+        {description ? (
+          <p className="text-body-sm mt-1.5 max-w-[640px] tracking-[0.01em] text-gray-800">
+            {description}
+          </p>
+        ) : null}
+        {offer?.minPerSessionCents ? (
+          <p className="text-third-200 mt-1.5 text-xs font-semibold">
+            {t('ou dès {price} / séance en forfait', {
+              price: formatPrice(offer.minPerSessionCents),
+            })}
+          </p>
         ) : null}
       </div>
 
-      <fieldset className="flex flex-col gap-2.5">
-        <legend className="font-montserrat text-label-sm mb-2.5 font-medium text-gray-800 uppercase">
-          {t('Durée')}
-          <span className="sr-only"> — {name}</span>
-        </legend>
-        <div className="flex flex-wrap gap-2">
-          {variants.map((service) => (
-            <label
-              key={service.id}
-              className="rounded-pill font-montserrat text-body-sm has-checked:border-third-900 has-checked:bg-third-900 has-checked:text-cream has-focus-visible:outline-third-200 hover:border-third-200 relative flex min-h-10 cursor-pointer items-center justify-center border border-black/15 px-4 font-medium whitespace-nowrap text-gray-900 transition-colors has-focus-visible:outline-2 has-focus-visible:outline-offset-2 motion-reduce:transition-none"
-            >
-              <input
-                type="radio"
-                name={`${id}-duration`}
-                value={service.id}
-                checked={service.id === selected.id}
-                onChange={() => setSelectedId(service.id)}
-                className="sr-only"
-              />
-              {formatDuration(service.durationMinutes)}
-            </label>
-          ))}
-          {offer?.minPerSessionCents ? (
-            <span className="font-montserrat text-third-200 self-center text-xs font-semibold">
-              {t('ou dès {price} / séance en forfait', {
-                price: formatPrice(offer.minPerSessionCents),
-              })}
-            </span>
-          ) : null}
-        </div>
-      </fieldset>
-
-      <div className="mt-auto flex flex-wrap items-end justify-between gap-4 border-t border-black/7 pt-5">
-        <p aria-live="polite" className="flex flex-col gap-0.5">
-          <span className="font-montserrat text-label-sm font-medium text-gray-800 uppercase">
-            {t('Tarif')}
+      <div className="flex items-center justify-end gap-4 sm:gap-6">
+        <p className="flex flex-wrap items-baseline justify-end gap-2 text-right">
+          <span className="text-body-sm whitespace-nowrap text-gray-800 after:ml-2 after:content-['·']">
+            {formatDuration(selected.durationMinutes)}
           </span>
-          <span className="font-faustina text-third-900 text-[1.875rem] leading-none">
-            <PriceTag service={selected} />
-          </span>
+          <RowPrice service={selected} />
         </p>
-        <PillButton href={`/reserver/${selected.id}`} size="sm">
-          {t('Choisir l’horaire')}
+        <Link
+          href={`/reserver/${selected.id}`}
+          className="rounded-pill hover:border-third-200 hover:text-third-200 focus-visible:outline-third-200 inline-flex h-11 min-w-[120px] shrink-0 items-center justify-center border border-gray-900 px-6 text-[0.875rem] font-medium tracking-[0.05em] text-gray-900 uppercase transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 motion-reduce:transition-none"
+        >
+          {t('Choisir')}
           <span className="sr-only">
             {' '}
             — {name}, {formatDuration(selected.durationMinutes)}
           </span>
-        </PillButton>
+        </Link>
       </div>
     </article>
   );
 }
 
-/** Catalogue as a grid of cards: 1 → 2 → 3 columns. */
+/** Catalogue as a list of rows, one under the other. */
 export function ServiceList({ catalog, headingLevel = 'h3', initialIds }) {
   return (
-    <ul className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+    <ul className="flex flex-col border-t border-black/7">
       {catalog.map((prestation) => (
         <li key={prestation.key}>
           <ServiceCard

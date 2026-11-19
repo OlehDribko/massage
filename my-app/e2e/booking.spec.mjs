@@ -51,17 +51,20 @@ test('[real API] @mobile choose a soin and a time, book, read it in the account'
   await signInOnSite(page, user, '/reserver');
   await expect(page).toHaveURL(/\/reserver$/);
 
-  // Catalogue (server-rendered from the API): « Massage sportif », 1 h 30.
+  // Catalogue (server-rendered from the API): the « Massage sportif » row
+  // shows its shortest duration, with the API text; « Choisir » opens it.
   const card = page.getByRole('article').filter({
     has: page.getByRole('heading', { name: 'Massage sportif', exact: true }),
   });
-  await card.getByText('1 h 30', { exact: true }).click();
-  // Texts of that duration come from the API.
-  await card.getByRole('button', { name: 'Description' }).click();
-  await expect(card.getByRole('listitem').first()).toBeVisible();
-  await card.getByRole('link', { name: /Choisir l’horaire/ }).click();
+  await expect(card.getByRole('paragraph').first()).toBeVisible();
+  await card.getByRole('link', { name: /^Choisir/ }).click();
+  await expect(page).toHaveURL(new RegExp(`/reserver/${SPORTIF.min55}$`));
 
-  // The variant id of the chosen duration is kept.
+  // The other durations are chosen on that step: 1 h 30.
+  await page
+    .getByRole('navigation', { name: 'Durée' })
+    .getByRole('link', { name: /^1 h 30/ })
+    .click();
   await expect(page).toHaveURL(new RegExp(`/reserver/${SPORTIF.min90}$`));
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(
     'Massage sportif'
