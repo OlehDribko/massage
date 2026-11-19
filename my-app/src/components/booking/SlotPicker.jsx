@@ -211,7 +211,8 @@ export default function SlotPicker({
           <div
             role="group"
             aria-label={t('Jour')}
-            className="-mx-5 flex [scrollbar-width:none] gap-2 overflow-x-auto px-5 pb-1 sm:mx-0 sm:grid sm:grid-cols-7 sm:overflow-visible sm:px-0 sm:pb-0"
+            // The 7 days share the full width of the card, like the times.
+            className="grid grid-cols-7 gap-1.5 sm:gap-2"
           >
             {days.map((day) => {
               const selected = day.date === activeDate;
@@ -227,7 +228,7 @@ export default function SlotPicker({
                       : t('aucun horaire')
                   }`}
                   onClick={() => setDayChoice(day.date)}
-                  className={`font-montserrat focus-visible:outline-third-200 flex min-h-[5.5rem] min-w-14 shrink-0 flex-col items-center justify-center gap-1.5 rounded-2xl border px-1 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 motion-reduce:transition-none sm:min-w-0 ${
+                  className={`font-montserrat focus-visible:outline-third-200 flex min-h-[5.5rem] min-w-0 flex-col items-center justify-center gap-1.5 rounded-xl border px-0.5 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 motion-reduce:transition-none sm:rounded-2xl sm:px-1 ${
                     selected
                       ? 'border-third-900 bg-third-900 text-cream'
                       : count
@@ -243,7 +244,7 @@ export default function SlotPicker({
                   </span>
                   <span
                     aria-hidden
-                    className="font-faustina text-[1.625rem] leading-none"
+                    className="font-faustina text-[1.375rem] leading-none sm:text-[1.625rem]"
                   >
                     {Number(day.date.slice(8))}
                   </span>
