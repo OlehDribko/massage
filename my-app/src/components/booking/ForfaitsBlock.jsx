@@ -7,9 +7,9 @@ import { useFormat, useT } from '@/i18n/client';
 
 /**
  * Session packages of a prestation, as information (content/forfaits.js).
- * The list opens as a dropdown OVER the card (positioned against the card,
- * which is `relative`), so neither this card nor the other cards of its row
- * change height. Escape or a click outside closes
+ * The list opens as a dropdown OVER the catalogue row (positioned against
+ * the row, which is `relative`; opaque, above the rows below), so no row
+ * changes height. Phone: the row's width; from 640 px: 440 px wide. Escape or a click outside closes
  * it. Not bookable online: bought at the studio, then each session is
  * booked here.
  */
@@ -71,7 +71,7 @@ export default function ForfaitsBlock({ rows, name, percent }) {
           id={`${id}-panel`}
           role="region"
           aria-label={t('Forfaits — {name}', { name })}
-          className="absolute inset-x-3 top-16 z-30 flex flex-col gap-2 rounded-2xl border border-black/10 bg-white p-4 text-left normal-case shadow-[0_24px_48px_-20px_rgba(26,15,8,0.35)] sm:inset-x-4"
+          className="absolute inset-x-0 top-14 z-30 flex flex-col gap-2 rounded-2xl border border-black/10 bg-white p-4 text-left normal-case opacity-100 shadow-[0_24px_48px_-20px_rgba(26,15,8,0.35)] sm:right-auto sm:w-[440px]"
         >
           <ul className="flex flex-col divide-y divide-black/7">
             {rows.map((row) => (
