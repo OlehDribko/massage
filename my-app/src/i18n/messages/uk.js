@@ -35,8 +35,6 @@ const messages = {
     'Запишіться онлайн на масаж у Бордо, 23 rue Castéja: оберіть процедуру та зручний час.',
   'Réserver un massage <accent>à Bordeaux</accent>':
     'Запис на масаж <accent>у Бордо</accent>',
-  'Choisissez votre soin et sa durée, puis l’horaire qui vous convient. Le règlement se fait sur place, au cabinet, 23 rue Castéja.':
-    'Оберіть процедуру та її тривалість, а потім зручний час. Оплата на місці, у кабінеті, 23 rue Castéja.',
   'Confirmation immédiate': 'Миттєве підтвердження',
   'Paiement au cabinet': 'Оплата в кабінеті',
   'Annulation en ligne': 'Скасування онлайн',
@@ -208,29 +206,6 @@ const messages = {
   'Annulé {by}': 'Скасовано {by}',
   Modification: 'Зміна',
   vers: 'на',
-  'Filtrer les soins': 'Фільтр послуг',
-  'Type de soin': 'Тип процедури',
-  Budget: 'Бюджет',
-  Populaires: 'Популярні',
-  '<b>{n}</b> soin correspondant à vos critères|<b>{n}</b> soins correspondant à vos critères':
-    {
-      one: '<b>{n}</b> послуга відповідає вашим критеріям',
-      few: '<b>{n}</b> послуги відповідають вашим критеріям',
-      many: '<b>{n}</b> послуг відповідають вашим критеріям',
-      other: '<b>{n}</b> послуг відповідають вашим критеріям',
-    },
-  '<b>{n}</b> soin disponible|<b>{n}</b> soins disponibles': {
-    one: '<b>{n}</b> послуга доступна',
-    few: '<b>{n}</b> послуги доступні',
-    many: '<b>{n}</b> послуг доступно',
-    other: '<b>{n}</b> послуг доступно',
-  },
-  'Effacer les filtres': 'Скинути фільтри',
-  'les soins les plus demandés': 'найпопулярніші процедури',
-  'Aucun soin ne correspond': 'Немає відповідних послуг',
-  'Essayez une autre durée ou un autre budget.':
-    'Спробуйте іншу тривалість або інший бюджет.',
-  'Voir tous les soins': 'Показати всі послуги',
   'À dimanche': 'До зустрічі в неділю',
   'À lundi': 'До зустрічі в понеділок',
   'À mardi': 'До зустрічі у вівторок',
@@ -300,7 +275,6 @@ const messages = {
   'au lieu de ': 'замість ',
   'offre valable jusqu’au {date}': 'пропозиція діє до {date}',
   'Avant de réserver :': 'Перед записом:',
-  Populaire: 'Популярне',
   'ou dès {price} / séance en forfait': 'або від {price} / сеанс з абонементом',
   'Du {from} au {to}': 'З {from} до {to}',
   'Semaine précédente': 'Попередній тиждень',
@@ -608,13 +582,6 @@ const messages = {
   'Le service de compte n’est pas encore configuré.':
     'Сервіс облікових записів ще не налаштовано.',
   'Règlement sur place, au cabinet.': 'Оплата на місці, у кабінеті.',
-  '30 min': '30 хв',
-  '1 h': '1 год',
-  '1 h 30': '1 год 30 хв',
-  '2 h': '2 год',
-  'Jusqu’à 60 €': 'До 60 €',
-  '60 – 100 €': '60 – 100 €',
-  '100 € et plus': 'Від 100 €',
   'À venir': 'Заплановано',
   Terminé: 'Завершено',
   Annulé: 'Скасовано',
@@ -835,6 +802,32 @@ const messages = {
   'Choisir un horaire': 'Вибір часу',
   'E-mail': 'E-mail',
   'Indiquez le montant de la carte cadeau.': 'Вкажіть суму сертифіката.',
+  'Choisissez votre soin. Vous préciserez ensuite sa durée et l’horaire qui vous convient. Le règlement se fait sur place, au cabinet, 23 rue Castéja.':
+    'Оберіть процедуру. Далі ви вкажете її тривалість і зручний час. Оплата на місці, у кабінеті, 23 rue Castéja.',
+  Promotions: 'Акції',
+  'Toutes les prestations': 'Усі послуги',
+  'Catégories de soins': 'Категорії процедур',
+  '<b>{n}</b> prestation en promotion|<b>{n}</b> prestations en promotion': {
+    one: '<b>{n}</b> послуга за акцією',
+    few: '<b>{n}</b> послуги за акцією',
+    many: '<b>{n}</b> послуг за акцією',
+    other: '<b>{n}</b> послуг за акцією',
+  },
+  '<b>{n}</b> prestation|<b>{n}</b> prestations': {
+    one: '<b>{n}</b> послуга',
+    few: '<b>{n}</b> послуги',
+    many: '<b>{n}</b> послуг',
+    other: '<b>{n}</b> послуг',
+  },
+  'Tarif affiché pour une séance d’1 h (ou la durée indiquée). D’autres durées sont proposées à l’étape suivante.':
+    'Ціна вказана за сеанс 1 год (або зазначеної тривалості). Інші тривалості — на наступному кроці.',
+  'Aucune promotion en cours pour le moment. Découvrez toutes nos prestations.':
+    'Наразі акцій немає. Перегляньте всі наші послуги.',
+  'Promotions en cours': 'Поточні акції',
+  'Autres soins': 'Інші процедури',
+  Promotion: 'Акція',
+  'La thérapie Endosphères est une technologie de massage esthétique par micro-vibrations et compression. Elle aide à réduire la cellulite et les gonflements, améliore la tonicité de la peau et redessine les contours du corps, sans douleur.':
+    'Endospheres-терапія — це технологія естетичного масажу мікровібрацією та компресією. Вона допомагає зменшити целюліт і набряки, покращує тонус шкіри та моделює контури тіла, без болю.',
 };
 
 export default messages;

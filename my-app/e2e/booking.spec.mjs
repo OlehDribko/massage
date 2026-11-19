@@ -52,7 +52,8 @@ test('[real API] @mobile choose a soin and a time, book, read it in the account'
   await expect(page).toHaveURL(/\/reserver$/);
 
   // Catalogue (server-rendered from the API): the « Massage sportif » row
-  // shows its shortest duration, with the API text; « Choisir » opens it.
+  // shows its duration closest to 1 h (55 min), with the API text;
+  // « Choisir » opens it.
   const card = page.getByRole('article').filter({
     has: page.getByRole('heading', { name: 'Massage sportif', exact: true }),
   });
