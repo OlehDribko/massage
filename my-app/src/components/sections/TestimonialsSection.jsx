@@ -57,18 +57,6 @@ function AutoHeight({ children, className = '' }) {
   );
 }
 
-function PauseIcon({ paused }) {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden className="size-4 fill-current">
-      {paused ? (
-        <path d="M8 5v14l11-7z" />
-      ) : (
-        <path d="M7 5h4v14H7zM13 5h4v14h-4z" />
-      )}
-    </svg>
-  );
-}
-
 const arrowButton =
   'border-third-200 text-third-200 hover:bg-third-200 hover:text-on-dark focus-visible:outline-third-200 flex size-11 shrink-0 items-center sm:size-12 justify-center rounded-full border transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 motion-reduce:transition-none';
 
@@ -79,8 +67,10 @@ const arrowButton =
  * the Planity rating linking to the page with all reviews.
  *
  * Autoplay: the next review every 7 s while the section is on screen,
- * paused on hover / keyboard focus, with a pause button (WCAG 2.2.2); never
- * with reduced motion. A changed review slides in.
+ * paused on hover / keyboard focus; it stops for good once the visitor
+ * changes the review (arrows or swipe), so they read at their own pace.
+ * Never with reduced motion. No pause button (design choice). A changed
+ * review slides in.
  */
 export default function TestimonialsSection({ id }) {
   const t = useT();
@@ -99,6 +89,8 @@ export default function TestimonialsSection({ id }) {
   const [direction, setDirection] = useState('next');
   // The review leaving: kept a moment so it slides out under the new one.
   const [leaving, setLeaving] = useState(null);
+  // Set once the visitor changes the review: no more autoplay.
+  const [stopped, setStopped] = useState(false);
   const shownRef = useRef(0);
   const reducedRef = useRef(true);
   const change = (next, side) => {
@@ -113,11 +105,14 @@ export default function TestimonialsSection({ id }) {
     const timer = setTimeout(() => setLeaving(null), EXIT_MS);
     return () => clearTimeout(timer);
   }, [leaving]);
-  const go = (delta) =>
+  // Arrows and swipe: the visitor takes over, autoplay stops.
+  const go = (delta) => {
+    setStopped(true);
     change(
       (shownRef.current + delta + total) % total,
       delta < 0 ? 'prev' : 'next'
     );
+  };
 
   // Phones: a horizontal swipe on the review changes it.
   const touchStart = useRef(null);
@@ -140,7 +135,6 @@ export default function TestimonialsSection({ id }) {
   const sectionRef = useRef(null);
   const [visible, setVisible] = useState(false);
   const [hovered, setHovered] = useState(false);
-  const [paused, setPaused] = useState(false);
   const [reduced, setReduced] = useState(true);
 
   useEffect(() => {
@@ -162,7 +156,7 @@ export default function TestimonialsSection({ id }) {
     };
   }, []);
 
-  const running = visible && !hovered && !paused && !reduced;
+  const running = visible && !hovered && !stopped && !reduced;
   useEffect(() => {
     if (!running) return undefined;
     const timer = setTimeout(
@@ -221,21 +215,6 @@ export default function TestimonialsSection({ id }) {
                 </span>
               </figcaption>
               <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
-                {!reduced ? (
-                  <button
-                    type="button"
-                    onClick={() => setPaused((value) => !value)}
-                    aria-pressed={paused}
-                    aria-label={
-                      paused
-                        ? t('Reprendre le défilement des avis')
-                        : t('Mettre en pause le défilement des avis')
-                    }
-                    className="text-third-200 hover:bg-third-200/10 focus-visible:outline-third-200 flex size-10 shrink-0 items-center justify-center rounded-full transition-colors focus-visible:outline-2 focus-visible:outline-offset-2"
-                  >
-                    <PauseIcon paused={paused} />
-                  </button>
-                ) : null}
                 <button
                   type="button"
                   onClick={() => go(-1)}
