@@ -369,7 +369,11 @@ export function createAuthController({
   /**
    * Google. A guest is linked; if this Google account already has its own
    * Firebase account, nothing is switched yet: the caller gets
-   * `{ conflict }` and must ask for confirmation (guest data is not moved).
+   * `{ conflict }` and signs in to that account (guest data is not moved).
+   * Firebase answers `credential-already-in-use` when the Google account
+   * itself is taken, and `email-already-in-use` when its address belongs
+   * to another account (e.g. made with e-mail + password): both are a sign
+   * in, not a sign up — the visitor only wants to log in.
    */
   async function continueWithGoogle({ marketingConsent } = {}) {
     const syncBody = optInBody(marketingConsent);
@@ -381,7 +385,10 @@ export function createAuthController({
       await runFlow(() => fb.linkWithGoogle(current), syncBody);
       return { linked: true };
     } catch (error) {
-      if (error?.code === 'auth/credential-already-in-use') {
+      if (
+        error?.code === 'auth/credential-already-in-use' ||
+        error?.code === 'auth/email-already-in-use'
+      ) {
         const credential = fb.credentialFromError(error);
         if (credential) return { conflict: { credential } };
       }

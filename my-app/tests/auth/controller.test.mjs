@@ -23,7 +23,11 @@ function makeUser(uid, { isAnonymous = false, email = null } = {}) {
 }
 
 // Minimal stand-in for the Firebase adapter (src/lib/auth/firebase.js).
-function fakeFirebase({ persisted = null, anonymousFails = 0 } = {}) {
+function fakeFirebase({
+  persisted = null,
+  anonymousFails = 0,
+  googleLinkError = 'auth/credential-already-in-use',
+} = {}) {
   const listeners = new Set();
   let current = persisted;
   let next = 1;
@@ -76,7 +80,7 @@ function fakeFirebase({ persisted = null, anonymousFails = 0 } = {}) {
     },
     async sendEmailVerification() {},
     async linkWithGoogle() {
-      throw authError('auth/credential-already-in-use');
+      throw authError(googleLinkError);
     },
     credentialFromError: () => ({ provider: 'google.com' }),
     async signInWithCredential() {
@@ -303,6 +307,26 @@ test('Google account already in use: guest kept until confirmed', async () => {
   const snapshot = controller.getSnapshot();
   assert.equal(snapshot.user.uid, 'google-account');
   assert.equal(snapshot.profile.data, null, 'guest profile not carried over');
+  api.pending.at(-1).respond(200, profileView('client'));
+  await flow;
+  assert.equal(accountStatus(controller.getSnapshot()), 'member');
+});
+
+test('Google address of an existing account: signs in to it, no error', async () => {
+  // E-mail + password account with the same address as the Google one.
+  const { api, controller } = setup({
+    googleLinkError: 'auth/email-already-in-use',
+  });
+  controller.start();
+  await flush();
+  api.pending[0].respond(200, profileView('client', 'anonymous'));
+  await flush();
+
+  const result = await controller.continueWithGoogle();
+  assert.ok(result.conflict, 'a sign-in to that account, not an error');
+  const flow = controller.confirmExistingGoogle(result.conflict.credential);
+  await flush();
+  assert.equal(controller.getSnapshot().user.uid, 'google-account');
   api.pending.at(-1).respond(200, profileView('client'));
   await flow;
   assert.equal(accountStatus(controller.getSnapshot()), 'member');
