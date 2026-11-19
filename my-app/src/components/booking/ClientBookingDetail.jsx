@@ -70,9 +70,10 @@ const ICONS = {
 
 /**
  * "Ajouter à Google Agenda": opens a prefilled Google Calendar event in a
- * new tab (no file download). `size="sm"` for the detail actions row.
+ * new tab (no file download). `size="sm"` for the detail actions (48 px,
+ * like the other action buttons). `className` sets its width.
  */
-function AddToCalendar({ booking, size = 'md' }) {
+function AddToCalendar({ booking, size = 'md', className = '' }) {
   const t = useT();
   const serviceName = useServiceName();
   const small = size === 'sm';
@@ -89,8 +90,8 @@ function AddToCalendar({ booking, size = 'md' }) {
       target="_blank"
       rel="noopener noreferrer"
       className={`rounded-pill font-montserrat focus-visible:outline-third-200 hover:border-third-200 flex items-center justify-center gap-3 border border-black/20 bg-white font-medium text-gray-900 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 motion-reduce:transition-none ${
-        small ? 'text-body-sm min-h-11 px-5' : 'text-body min-h-[54px] px-7'
-      }`}
+        small ? 'text-body-sm min-h-12 px-5' : 'text-body min-h-[54px] px-7'
+      } ${className}`}
     >
       <GoogleLogo className={small ? 'size-[18px]' : 'size-5'} />
       {t('Ajouter à Google Agenda')}
@@ -292,26 +293,43 @@ function Detail({ bookingId, controller, enabled, firstName }) {
     </div>
   );
 
+  // Detail actions, all 48 px and full width: « Déplacer » and « Ajouter à
+  // Google Agenda » side by side from 640 px (one under the other on a
+  // phone), « Annuler le rendez-vous » below them.
+  const actionWidth = 'w-full! justify-center';
   const actions =
     booking.allowedActions.reschedule || booking.allowedActions.cancel ? (
-      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-        {booking.allowedActions.reschedule ? (
-          <PillButton
-            size="sm"
-            aria-expanded={moving}
-            onClick={() => {
-              if (moving) setMoving(false);
-              else openMove();
-            }}
-          >
-            {moving ? t('Fermer') : t('Déplacer')}
-          </PillButton>
+      <div className="flex flex-col gap-3">
+        {booking.allowedActions.reschedule || active ? (
+          <div className="grid gap-3 sm:grid-cols-[repeat(auto-fit,minmax(12rem,1fr))]">
+            {booking.allowedActions.reschedule ? (
+              <PillButton
+                size="sm"
+                aria-expanded={moving}
+                className={actionWidth}
+                onClick={() => {
+                  if (moving) setMoving(false);
+                  else openMove();
+                }}
+              >
+                {moving ? t('Fermer') : t('Déplacer')}
+              </PillButton>
+            ) : null}
+            {active ? (
+              <AddToCalendar
+                booking={booking}
+                size="sm"
+                className={actionWidth}
+              />
+            ) : null}
+          </div>
         ) : null}
         {booking.allowedActions.cancel ? (
           <PillButton
             variant="outline"
             tone="dark"
             size="sm"
+            className={actionWidth}
             onClick={() => {
               setActionError(null);
               setConfirmCancel(true);
@@ -320,7 +338,6 @@ function Detail({ bookingId, controller, enabled, firstName }) {
             {t('Annuler le rendez-vous')}
           </PillButton>
         ) : null}
-        {active ? <AddToCalendar booking={booking} size="sm" /> : null}
       </div>
     ) : null;
 
@@ -363,12 +380,14 @@ function Detail({ bookingId, controller, enabled, firstName }) {
             </p>
           </div>
           <BookingCard booking={booking}>{facts}</BookingCard>
-          <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
-            <AddToCalendar booking={booking} />
+          {/* Same width on a phone (full), side by side from 640 px. */}
+          <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
+            <AddToCalendar booking={booking} className="w-full sm:w-auto" />
             <PillButton
               href={`/compte/reservations/${booking.id}`}
               variant="outline"
               tone="dark"
+              className="w-full! sm:w-auto!"
             >
               {t('Gérer le rendez-vous')}
             </PillButton>
@@ -433,7 +452,7 @@ function Detail({ bookingId, controller, enabled, firstName }) {
                       setConfirmMove(true);
                     }}
                     disabled={!newSlot}
-                    className="self-start disabled:opacity-60"
+                    className="w-full! disabled:opacity-60 sm:w-auto! sm:self-start"
                   >
                     {t('Choisir cet horaire')}
                   </PillButton>
