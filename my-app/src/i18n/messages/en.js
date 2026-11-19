@@ -501,10 +501,6 @@ const messages = {
   'Utiliser une autre adresse': 'Use another address',
   'nom@exemple.com': 'name@example.com',
   'S’inscrire à la newsletter': 'Subscribe to the newsletter',
-  'Massage du cou, cliente allongée en cabine':
-    'Neck massage, client lying in the treatment room',
-  'Massage du dos et des épaules en cabine':
-    'Back and shoulder massage in the treatment room',
   'à partir de {price}': 'from {price}',
   min: 'min',
   'Nos soins <accent>populaires</accent>':

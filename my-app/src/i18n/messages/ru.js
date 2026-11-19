@@ -503,9 +503,6 @@ const messages = {
   'Utiliser une autre adresse': 'Использовать другой адрес',
   'nom@exemple.com': 'name@example.com',
   'S’inscrire à la newsletter': 'Подписаться на рассылку',
-  'Massage du cou, cliente allongée en cabine':
-    'Массаж шеи, клиентка лежит в кабинете',
-  'Massage du dos et des épaules en cabine': 'Массаж спины и плеч в кабинете',
   'à partir de {price}': 'от {price}',
   min: 'мин',
   'Nos soins <accent>populaires</accent>':
