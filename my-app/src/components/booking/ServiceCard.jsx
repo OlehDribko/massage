@@ -95,7 +95,7 @@ export default function ServiceCard({
   const offer = forfaits ? bestOffer(forfaits) : null;
 
   return (
-    <article className="font-montserrat grid grid-cols-[minmax(0,1fr)] items-start gap-3 border-b border-black/7 py-5 md:grid-cols-[minmax(0,1fr)_auto] md:items-center md:gap-8 md:py-6 lg:gap-6">
+    <article className="font-montserrat relative grid grid-cols-[minmax(0,1fr)] items-start gap-3 border-b border-black/7 py-5 md:grid-cols-[minmax(0,1fr)_auto] md:items-center md:gap-8 md:py-6 lg:gap-6">
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
           <Heading className="text-base leading-[1.4] font-semibold tracking-[0.01em] text-gray-900 md:text-[1.125rem]">

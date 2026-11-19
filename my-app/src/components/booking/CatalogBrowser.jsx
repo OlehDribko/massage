@@ -139,6 +139,7 @@ export default function CatalogBrowser({ catalog }) {
               delay: 0.12,
               stagger: 0.05,
               ease: 'power3.out',
+              clearProps: 'transform,opacity,visibility',
             }
           ),
       }),
@@ -155,6 +156,7 @@ export default function CatalogBrowser({ catalog }) {
         duration: 0.8,
         stagger: 0.06,
         ease: 'power3.out',
+        clearProps: 'transform,opacity,visibility',
       });
       gsap.from(listRef.current?.querySelectorAll('[data-flip-id]') ?? [], {
         y: 36,
@@ -163,6 +165,9 @@ export default function CatalogBrowser({ catalog }) {
         stagger: 0.05,
         delay: 0.15,
         ease: 'power3.out',
+        // No transform left behind: it would make each row its own layer
+        // and the rows below would cover the packages popover.
+        clearProps: 'transform,opacity,visibility',
       });
     },
     { scope: rootRef }

@@ -51,7 +51,13 @@ export default function CatalogSections({ sections }) {
             </div>
             <ul className="flex flex-col">
               {section.items.map((prestation) => (
-                <li key={prestation.key} data-flip-id={prestation.key}>
+                <li
+                  key={prestation.key}
+                  data-flip-id={prestation.key}
+                  // The row whose packages popover is open stays above the
+                  // rows below it (they may be layers while they glide).
+                  className="relative has-[[aria-expanded=true]]:z-40"
+                >
                   <ServiceCard
                     prestation={prestation}
                     categoryLabel={
