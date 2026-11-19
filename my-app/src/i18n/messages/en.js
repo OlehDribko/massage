@@ -36,8 +36,6 @@ const messages = {
     'Book your massage in Bordeaux online, 23 rue Castéja: choose the treatment and the time that suit you.',
   'Réserver un massage <accent>à Bordeaux</accent>':
     'Book a massage <accent>in Bordeaux</accent>',
-  'Choisissez votre soin et sa durée, puis l’horaire qui vous convient. Le règlement se fait sur place, au cabinet, 23 rue Castéja.':
-    'Choose your treatment and its length, then a time that suits you. Payment is made on site, at the practice, 23 rue Castéja.',
   'Confirmation immédiate': 'Instant confirmation',
   'Paiement au cabinet': 'Pay at the practice',
   'Annulation en ligne': 'Online cancellation',
@@ -210,25 +208,6 @@ const messages = {
   'Annulé {by}': 'Cancelled {by}',
   Modification: 'Change',
   vers: 'to',
-  'Filtrer les soins': 'Filter treatments',
-  'Type de soin': 'Type of treatment',
-  Budget: 'Budget',
-  Populaires: 'Popular',
-  '<b>{n}</b> soin correspondant à vos critères|<b>{n}</b> soins correspondant à vos critères':
-    {
-      one: '<b>{n}</b> treatment matching your criteria',
-      other: '<b>{n}</b> treatments matching your criteria',
-    },
-  '<b>{n}</b> soin disponible|<b>{n}</b> soins disponibles': {
-    one: '<b>{n}</b> treatment available',
-    other: '<b>{n}</b> treatments available',
-  },
-  'Effacer les filtres': 'Clear filters',
-  'les soins les plus demandés': 'most requested treatments',
-  'Aucun soin ne correspond': 'No treatment matches',
-  'Essayez une autre durée ou un autre budget.':
-    'Try another length or another budget.',
-  'Voir tous les soins': 'See all treatments',
   'À dimanche': 'See you on Sunday',
   'À lundi': 'See you on Monday',
   'À mardi': 'See you on Tuesday',
@@ -299,9 +278,6 @@ const messages = {
   'au lieu de ': 'instead of ',
   'offre valable jusqu’au {date}': 'offer valid until {date}',
   'Avant de réserver :': 'Before booking:',
-  Populaire: 'Popular',
-  Description: 'Description',
-  'Choisir l’horaire': 'Choose a time',
   'ou dès {price} / séance en forfait':
     'or from {price} / session with a package',
   'Du {from} au {to}': '{from} to {to}',
@@ -501,10 +477,6 @@ const messages = {
   'Utiliser une autre adresse': 'Use another address',
   'nom@exemple.com': 'name@example.com',
   'S’inscrire à la newsletter': 'Subscribe to the newsletter',
-  'Massage du cou, cliente allongée en cabine':
-    'Neck massage, client lying in the treatment room',
-  'Massage du dos et des épaules en cabine':
-    'Back and shoulder massage in the treatment room',
   'à partir de {price}': 'from {price}',
   min: 'min',
   'Nos soins <accent>populaires</accent>':
@@ -524,6 +496,8 @@ const messages = {
   'Reprendre le défilement des avis': 'Resume the reviews slideshow',
   'Lire la vidéo': 'Play the video',
   'Mettre en pause la vidéo': 'Pause the video',
+  Choisir: 'Choose',
+  'Prix promotionnel : ': 'Sale price: ',
   'Massage Tuina': 'Tuina massage',
   'Massage sportif': 'Sports massage',
   'Endospheres therapy': 'Endospheres therapy',
@@ -600,13 +574,6 @@ const messages = {
   'Le service de compte n’est pas encore configuré.':
     'The account service is not configured yet.',
   'Règlement sur place, au cabinet.': 'Payment on site, at the practice.',
-  '30 min': '30 min',
-  '1 h': '1 h',
-  '1 h 30': '1 h 30 min',
-  '2 h': '2 h',
-  'Jusqu’à 60 €': 'Up to €60',
-  '60 – 100 €': '€60 – €100',
-  '100 € et plus': '€100 and over',
   'À venir': 'Upcoming',
   Terminé: 'Completed',
   Annulé: 'Cancelled',
@@ -820,6 +787,29 @@ const messages = {
   'Choisir un horaire': 'Choose a time',
   'E-mail': 'Email',
   'Indiquez le montant de la carte cadeau.': 'Enter the gift card amount.',
+  'Choisissez votre soin. Vous préciserez ensuite sa durée et l’horaire qui vous convient. Le règlement se fait sur place, au cabinet, 23 rue Castéja.':
+    'Choose your treatment. You will then pick its length and a time that suits you. Payment is made on site, at the studio, 23 rue Castéja.',
+  Promotions: 'Offers',
+  'Toutes les prestations': 'All treatments',
+  'Catégories de soins': 'Treatment categories',
+  '<b>{n}</b> prestation en promotion|<b>{n}</b> prestations en promotion': {
+    one: '<b>{n}</b> treatment on offer',
+    other: '<b>{n}</b> treatments on offer',
+  },
+  '<b>{n}</b> prestation|<b>{n}</b> prestations': {
+    one: '<b>{n}</b> treatment',
+    other: '<b>{n}</b> treatments',
+  },
+  'Tarif affiché pour une séance d’1 h (ou la durée indiquée). D’autres durées sont proposées à l’étape suivante.':
+    'Price shown for a 1-hour session (or the length stated). Other lengths are offered at the next step.',
+  'Aucune promotion en cours pour le moment. Découvrez toutes nos prestations.':
+    'No offers at the moment. Discover all our treatments.',
+  'Promotions en cours': 'Current offers',
+  'Autres soins': 'Other treatments',
+  Promotion: 'Offer',
+  'La thérapie Endosphères est une technologie de massage esthétique par micro-vibrations et compression. Elle aide à réduire la cellulite et les gonflements, améliore la tonicité de la peau et redessine les contours du corps, sans douleur.':
+    'Endospheres therapy is an aesthetic massage technology using micro-vibration and compression. It helps reduce cellulite and swelling, improves skin tone and reshapes the body’s contours, painlessly.',
+  Populaires: 'Popular',
 };
 
 export default messages;

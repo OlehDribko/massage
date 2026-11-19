@@ -20,13 +20,23 @@
 
 import { msg } from '../i18n/translate.js';
 
-/** Catalogue categories, in display order (labels: French keys). */
+/**
+ * Catalogue categories, in display order (labels: French keys): the
+ * filters and sections of /reserver. `intro`: optional text under the
+ * section title (designer mock-up « Choix du soin »).
+ */
 export const CATEGORIES = [
   { key: 'chinois', label: msg('Massages chinois') },
   { key: 'detente', label: msg('Massages relaxants') },
   { key: 'specifiques', label: msg('Massages spécifiques') },
   { key: 'express', label: msg('Soins express 30 min') },
-  { key: 'endospheres', label: msg('Endosphères') },
+  {
+    key: 'endospheres',
+    label: msg('Endosphères'),
+    intro: msg(
+      'La thérapie Endosphères est une technologie de massage esthétique par micro-vibrations et compression. Elle aide à réduire la cellulite et les gonflements, améliore la tonicité de la peau et redessine les contours du corps, sans douleur.'
+    ),
+  },
   { key: 'maderotherapie', label: msg('Madérothérapie') },
 ];
 export const SERVICE_GROUPS = [

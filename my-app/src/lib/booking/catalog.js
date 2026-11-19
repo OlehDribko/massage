@@ -6,7 +6,6 @@
  */
 
 import { describeFailure } from '../api/diagnostics.js';
-import { msg } from '../../i18n/translate.js';
 
 const byDuration = (a, b) => a.durationMinutes - b.durationMinutes;
 
@@ -127,57 +126,66 @@ export function lowestPrice(group) {
 }
 
 /*
- * Filters of the booking catalogue (/reserver). A prestation matches when
- * at least one of its durations matches the duration AND budget filters,
- * so the card can open on that duration.
+ * Booking catalogue (/reserver), after the designer mock-up « Choix du
+ * soin »: one filter at a time — « Promotions », « Populaires » (the
+ * prestations marked `featured` in content/services.js), everything (null)
+ * or one category. Everything is shown in sections, one per category, in the
+ * order of CATEGORIES; prestations keep the order of content/services.js.
  */
-export const DURATION_FILTERS = [
-  { key: '30', label: msg('30 min'), min: 0, max: 40 },
-  { key: '60', label: msg('1 h'), min: 41, max: 70 },
-  { key: '90', label: msg('1 h 30'), min: 71, max: 100 },
-  { key: '120', label: msg('2 h'), min: 101, max: Infinity },
-];
+export const PROMOTIONS = 'promotions';
+export const POPULAR = 'populaires';
+/** Section of the prestations without a known category (API-only ones). */
+export const OTHERS = 'autres';
 
-export const BUDGET_FILTERS = [
-  { key: 'moins-60', label: msg('Jusqu’à 60 €'), min: 0, max: 6000 },
-  { key: '60-100', label: msg('60 – 100 €'), min: 6001, max: 10000 },
-  { key: 'plus-100', label: msg('100 € et plus'), min: 10001, max: Infinity },
-];
+/** True when one of the durations is on sale right now. */
+export function hasPromotion(prestation) {
+  return prestation.variants.some(hasActiveSale);
+}
 
-const within = (value, range) =>
-  !range || (value >= range.min && value <= range.max);
-
-/** Variants of a prestation that fit the duration and budget filters. */
-export function matchingVariants(prestation, { duration, budget } = {}) {
-  const durationRange = DURATION_FILTERS.find((item) => item.key === duration);
-  const budgetRange = BUDGET_FILTERS.find((item) => item.key === budget);
-  return prestation.variants.filter(
-    (service) =>
-      within(service.durationMinutes, durationRange) &&
-      within(service.effectivePriceCents, budgetRange)
+/**
+ * The duration a catalogue row shows: the one on sale when there is one,
+ * otherwise the one closest to 1 h (the shorter on a tie) — « Tarif
+ * affiché pour une séance d’1 h (ou la durée indiquée) ». The others are
+ * chosen on the next step.
+ */
+export function shownVariant(prestation) {
+  const sale = prestation.variants.find(hasActiveSale);
+  if (sale) return sale;
+  return prestation.variants.reduce((best, service) =>
+    Math.abs(service.durationMinutes - 60) < Math.abs(best.durationMinutes - 60)
+      ? service
+      : best
   );
 }
 
 /**
- * Catalogue → the prestations matching every active filter, popular ones
- * first (stable otherwise). Unknown filter values are ignored.
+ * Catalogue → sections `{ key, items }` for one filter (`PROMOTIONS`,
+ * `POPULAR`, a category key, or null for everything). Empty sections are left out;
+ * an unknown filter shows everything.
  */
-export function filterCatalog(
-  catalog,
-  { category, duration, budget, popular } = {}
-) {
-  return (catalog ?? [])
-    .filter((prestation) => !category || prestation.category === category)
-    .filter((prestation) => !popular || prestation.featured)
-    .filter(
-      (prestation) =>
-        matchingVariants(prestation, { duration, budget }).length > 0
-    )
-    .map((prestation, index) => ({ prestation, index }))
-    .sort(
-      (a, b) =>
-        Number(b.prestation.featured) - Number(a.prestation.featured) ||
-        a.index - b.index
-    )
-    .map(({ prestation }) => prestation);
+export function catalogSections(catalog, categories, filter = null) {
+  const list = catalog ?? [];
+  if (filter === PROMOTIONS || filter === POPULAR) {
+    const items = list.filter(
+      filter === PROMOTIONS ? hasPromotion : (prestation) => prestation.featured
+    );
+    return items.length ? [{ key: filter, items }] : [];
+  }
+  const known = categories.some((category) => category.key === filter);
+  const sections = categories
+    .filter((category) => !known || category.key === filter)
+    .map((category) => ({
+      key: category.key,
+      items: list.filter((prestation) => prestation.category === category.key),
+    }));
+  if (!known) {
+    sections.push({
+      key: OTHERS,
+      items: list.filter(
+        (prestation) =>
+          !categories.some((category) => category.key === prestation.category)
+      ),
+    });
+  }
+  return sections.filter((section) => section.items.length);
 }

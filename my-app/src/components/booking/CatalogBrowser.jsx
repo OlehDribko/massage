@@ -6,16 +6,12 @@ import { useGSAP } from '@gsap/react';
 import gsap from 'gsap';
 import { Flip } from 'gsap/Flip';
 
-import ServiceCard, { PopularBadge } from '@/components/booking/ServiceCard';
+import CatalogSections from '@/components/booking/CatalogSections';
+import { StarIcon } from '@/components/booking/ServiceCard';
 import { useT } from '@/i18n/client';
 import { rich } from '@/i18n/rich';
 import { CATEGORIES } from '@/content/services';
-import {
-  BUDGET_FILTERS,
-  DURATION_FILTERS,
-  filterCatalog,
-  matchingVariants,
-} from '@/lib/booking/catalog';
+import { POPULAR, PROMOTIONS, catalogSections } from '@/lib/booking/catalog';
 
 gsap.registerPlugin(useGSAP, Flip);
 
@@ -23,60 +19,26 @@ const motionOk = () =>
   typeof window !== 'undefined' &&
   window.matchMedia('(prefers-reduced-motion: no-preference)').matches;
 
-const chip =
-  'rounded-pill font-montserrat text-body-sm focus-visible:outline-third-200 inline-flex min-h-10 shrink-0 items-center gap-2 border px-4 font-medium whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 motion-reduce:transition-none';
-const chipOn = 'border-third-900 bg-third-900 text-cream';
-const chipOff = 'border-black/15 bg-white text-gray-900 hover:border-third-200';
-
-function ChipGroup({ label, options, value, onChange, scroll = false }) {
-  const t = useT();
-  return (
-    <div className="flex flex-col gap-2.5">
-      <p className="font-montserrat text-label-sm font-medium text-gray-800 uppercase">
-        {label}
-      </p>
-      <div
-        role="group"
-        aria-label={label}
-        className={
-          scroll
-            ? '-mx-4 flex [scrollbar-width:none] gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0'
-            : 'flex flex-wrap gap-2'
-        }
-      >
-        {options.map((option) => {
-          const active = value === option.key;
-          return (
-            <button
-              key={option.key ?? 'all'}
-              type="button"
-              aria-pressed={active}
-              onClick={() => onChange(active ? null : option.key)}
-              className={`${chip} ${active ? chipOn : chipOff}`}
-            >
-              {t(option.label)}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-const valid = (list, value) =>
-  list.some((item) => item.key === value) ? value : null;
+// Category pill of the mock-up: 44 px, sand border, dark when chosen.
+const pill =
+  'rounded-pill font-montserrat text-body-sm focus-visible:outline-primary-300 inline-flex h-11 shrink-0 items-center gap-2 border px-4 font-medium whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 motion-reduce:transition-none md:px-5';
+const pillOn = 'border-secondary-900 bg-secondary-900 text-cream';
+const pillOff = 'border-secondary-200 text-gray-900 hover:border-third-200';
 
 /**
- * /reserver catalogue with filters: category (after the studio's Planity
- * sections), duration, budget and « Populaires ». Filters live in the URL
- * (?categorie=&duree=&budget=&populaires=1) so a filtered list can be
- * shared; nothing is requested again — prices and durations come from the
- * catalogue already loaded on the server.
+ * /reserver catalogue (designer mock-up « Choix du soin »): one pill
+ * chosen at a time — « Promotions », « Populaires » (featured
+ * prestations), « Toutes les prestations » or a
+ * category (after the studio's Planity sections). Everything shows in
+ * sections, one per category; « Promotions » gathers the prestations on
+ * sale in one section. The choice lives in the URL (?categorie=) so a
+ * filtered list can be shared; nothing is requested again — prices and
+ * durations come from the catalogue already loaded on the server.
  *
  * Motion: the URL changes with history.replaceState (not a navigation, so
- * no page transition and no jump); cards then glide to their new places
- * (GSAP Flip), new ones fade in and the list height follows smoothly.
- * Cards and filters rise in on arrival. Nothing moves with reduced motion.
+ * no page transition and no jump); rows and section titles then glide to
+ * their new places (GSAP Flip), new ones fade in and the list height
+ * follows smoothly. Nothing moves with reduced motion.
  */
 export default function CatalogBrowser({ catalog }) {
   const t = useT();
@@ -87,20 +49,24 @@ export default function CatalogBrowser({ catalog }) {
   const pendingFlip = useRef(null);
   const running = useRef([]);
 
-  const filters = {
-    category: valid(CATEGORIES, searchParams.get('categorie')),
-    duration: valid(DURATION_FILTERS, searchParams.get('duree')),
-    budget: valid(BUDGET_FILTERS, searchParams.get('budget')),
-    popular: searchParams.get('populaires') === '1',
-  };
-  const active =
-    Boolean(filters.category || filters.duration || filters.budget) ||
-    filters.popular;
+  const categoriesInUse = CATEGORIES.filter((category) =>
+    catalog.some((prestation) => prestation.category === category.key)
+  );
+  const asked = searchParams.get('categorie');
+  const current =
+    asked === PROMOTIONS ||
+    asked === POPULAR ||
+    categoriesInUse.some((category) => category.key === asked)
+      ? asked
+      : null;
 
-  const results = useMemo(
-    () => filterCatalog(catalog, filters),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [catalog, searchParams]
+  const sections = useMemo(
+    () => catalogSections(catalog, CATEGORIES, current),
+    [catalog, current]
+  );
+  const shown = sections.reduce(
+    (sum, section) => sum + section.items.length,
+    0
   );
 
   // Before the list changes: remember where every card is.
@@ -125,14 +91,15 @@ export default function CatalogBrowser({ catalog }) {
     );
   };
 
-  const update = (name, value) => {
+  const choose = (value) => {
+    if (value === current) return;
     const params = new URLSearchParams(searchParams);
-    if (value) params.set(name, value);
-    else params.delete(name);
+    if (value) params.set('categorie', value);
+    else params.delete('categorie');
     navigate(params.toString());
   };
 
-  const queryKey = searchParams.toString();
+  const queryKey = current ?? '';
 
   // After the list changed: glide from the remembered places.
   useLayoutEffect(() => {
@@ -172,13 +139,14 @@ export default function CatalogBrowser({ catalog }) {
               delay: 0.12,
               stagger: 0.05,
               ease: 'power3.out',
+              clearProps: 'transform,opacity,visibility',
             }
           ),
       }),
     ];
   }, [queryKey]);
 
-  // Arrival: the filters, then the cards, rise in.
+  // Arrival: the pills, then the rows, rise in.
   useGSAP(
     () => {
       if (!motionOk()) return;
@@ -188,6 +156,7 @@ export default function CatalogBrowser({ catalog }) {
         duration: 0.8,
         stagger: 0.06,
         ease: 'power3.out',
+        clearProps: 'transform,opacity,visibility',
       });
       gsap.from(listRef.current?.querySelectorAll('[data-flip-id]') ?? [], {
         y: 36,
@@ -196,135 +165,98 @@ export default function CatalogBrowser({ catalog }) {
         stagger: 0.05,
         delay: 0.15,
         ease: 'power3.out',
+        // No transform left behind: it would make each row its own layer
+        // and the rows below would cover the packages popover.
+        clearProps: 'transform,opacity,visibility',
       });
     },
     { scope: rootRef }
   );
 
-  const categoriesInUse = CATEGORIES.filter((category) =>
-    catalog.some((prestation) => prestation.category === category.key)
-  );
+  const pills = [
+    { key: PROMOTIONS, label: t('Promotions'), icon: 'star' },
+    { key: POPULAR, label: t('Populaires'), icon: 'heart' },
+    { key: null, label: t('Toutes les prestations') },
+    ...categoriesInUse.map((category) => ({
+      key: category.key,
+      label: t(category.label),
+    })),
+  ];
 
   return (
-    <div ref={rootRef} className="flex flex-col gap-8">
-      <section
+    <div ref={rootRef} className="flex flex-col">
+      <div
         data-rise
-        aria-label={t('Filtrer les soins')}
-        className="rounded-panel flex flex-col gap-6 border border-black/7 bg-white p-5 sm:p-7"
+        role="group"
+        aria-label={t('Catégories de soins')}
+        className="flex flex-wrap gap-2"
       >
-        <ChipGroup
-          label={t('Type de soin')}
-          scroll
-          value={filters.category}
-          onChange={(value) => update('categorie', value)}
-          options={categoriesInUse}
-        />
-        <div className="grid gap-6 lg:grid-cols-[auto_auto_1fr] lg:items-start lg:gap-10">
-          <ChipGroup
-            label={t('Durée')}
-            value={filters.duration}
-            onChange={(value) => update('duree', value)}
-            options={DURATION_FILTERS}
-          />
-          <ChipGroup
-            label={t('Budget')}
-            value={filters.budget}
-            onChange={(value) => update('budget', value)}
-            options={BUDGET_FILTERS}
-          />
-          <div className="flex flex-wrap items-center gap-3 lg:justify-end lg:self-end">
+        {pills.map((option) => {
+          const active = option.key === current;
+          return (
             <button
+              key={option.key ?? 'all'}
               type="button"
-              aria-pressed={filters.popular}
-              onClick={() => update('populaires', filters.popular ? null : '1')}
-              className={`${chip} ${filters.popular ? chipOn : chipOff}`}
+              aria-pressed={active}
+              onClick={() => choose(option.key)}
+              className={`${pill} ${active ? pillOn : pillOff}`}
             >
-              <svg
-                viewBox="0 0 24 24"
-                aria-hidden
-                className={`size-4 fill-current ${filters.popular ? 'text-primary-100' : 'text-primary-200'}`}
-              >
-                <path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z" />
-              </svg>
-              {t('Populaires')}
+              {option.icon === 'star' ? (
+                <StarIcon className="text-primary-200 size-5" />
+              ) : null}
+              {option.icon === 'heart' ? (
+                <svg
+                  viewBox="0 0 24 24"
+                  aria-hidden
+                  fill="currentColor"
+                  className="text-third-200 size-5"
+                >
+                  <path d="M12 20.5s-7.5-4.6-9.3-9.2C1.5 8 3.6 4.5 7.1 4.5c2 0 3.4 1.1 4.9 2.9 1.5-1.8 2.9-2.9 4.9-2.9 3.5 0 5.6 3.5 4.4 6.8-1.8 4.6-9.3 9.2-9.3 9.2z" />
+                </svg>
+              ) : null}
+              {option.label}
             </button>
-          </div>
-        </div>
-      </section>
-
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p
-          aria-live="polite"
-          className="font-montserrat text-body text-gray-900"
-        >
-          {rich(
-            active
-              ? t(
-                  '<b>{n}</b> soin correspondant à vos critères|<b>{n}</b> soins correspondant à vos critères',
-                  { n: results.length }
-                )
-              : t('<b>{n}</b> soin disponible|<b>{n}</b> soins disponibles', {
-                  n: results.length,
-                }),
-            { b: (chunks) => <span className="font-semibold">{chunks}</span> }
-          )}
-        </p>
-        {active ? (
-          <button
-            type="button"
-            onClick={() => navigate('')}
-            className="font-montserrat text-body-sm hover:text-third-200 focus-visible:outline-third-200 min-h-10 text-gray-800 underline underline-offset-4 focus-visible:outline-2"
-          >
-            {t('Effacer les filtres')}
-          </button>
-        ) : (
-          <p className="font-montserrat text-body-sm flex items-center gap-2 text-gray-800">
-            <PopularBadge /> {t('les soins les plus demandés')}
-          </p>
-        )}
+          );
+        })}
       </div>
 
-      <div ref={listRef}>
-        {results.length ? (
-          <ul className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
-            {results.map((prestation) => {
-              const initial =
-                filters.duration || filters.budget
-                  ? matchingVariants(prestation, filters)[0]?.id
-                  : undefined;
-              return (
-                <li
-                  key={`${prestation.key}:${initial ?? ''}`}
-                  data-flip-id={prestation.key}
-                >
-                  <ServiceCard
-                    prestation={prestation}
-                    headingLevel="h2"
-                    initialServiceId={initial}
-                  />
-                </li>
-              );
-            })}
-          </ul>
+      <div
+        data-rise
+        aria-live="polite"
+        className="font-montserrat mt-6 flex flex-col gap-1 text-gray-900 md:mt-8 md:flex-row md:flex-wrap md:items-baseline md:justify-between md:gap-x-6"
+      >
+        <p className="text-body-sm">
+          {rich(
+            current === PROMOTIONS
+              ? t(
+                  '<b>{n}</b> prestation en promotion|<b>{n}</b> prestations en promotion',
+                  { n: shown }
+                )
+              : t('<b>{n}</b> prestation|<b>{n}</b> prestations', {
+                  n: shown,
+                }),
+            { b: (chunks) => <strong className="font-bold">{chunks}</strong> }
+          )}
+        </p>
+        <p className="text-xs text-gray-800">
+          {t(
+            'Tarif affiché pour une séance d’1 h (ou la durée indiquée). D’autres durées sont proposées à l’étape suivante.'
+          )}
+        </p>
+      </div>
+
+      <div ref={listRef} className="mt-10 md:mt-12">
+        {sections.length ? (
+          <CatalogSections sections={sections} />
         ) : (
-          <div
+          <p
             data-flip-id="empty"
-            className="rounded-panel bg-secondary-50 flex flex-col items-center gap-3 border border-dashed border-black/15 px-6 py-12 text-center"
+            className="rounded-panel bg-secondary-100 font-montserrat text-body p-6 text-gray-900 md:p-10"
           >
-            <p className="font-faustina text-third-900 text-2xl">
-              {t('Aucun soin ne correspond')}
-            </p>
-            <p className="font-montserrat text-body-sm max-w-md text-gray-800">
-              {t('Essayez une autre durée ou un autre budget.')}
-            </p>
-            <button
-              type="button"
-              onClick={() => navigate('')}
-              className={`${chip} ${chipOff}`}
-            >
-              {t('Voir tous les soins')}
-            </button>
-          </div>
+            {t(
+              'Aucune promotion en cours pour le moment. Découvrez toutes nos prestations.'
+            )}
+          </p>
         )}
       </div>
     </div>

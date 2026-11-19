@@ -9,13 +9,13 @@ import { SPORTIF, admin, expect, signInOnSite, test } from './fixtures.mjs';
 test('[real API] @mobile the switcher opens the same page in English, remembered on the next visit', async ({
   page,
 }) => {
-  await page.goto('/reserver?duree=60');
+  await page.goto('/reserver?categorie=specifiques');
   await expect(page.locator('html')).toHaveAttribute('lang', 'fr');
 
   await page.getByRole('button', { name: /^Langue/ }).click();
   await page.getByRole('button', { name: 'English' }).click();
 
-  await page.waitForURL(/\/en\/reserver\?duree=60$/);
+  await page.waitForURL(/\/en\/reserver\?categorie=specifiques$/);
   await expect(page.locator('html')).toHaveAttribute('lang', 'en');
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(
     'Book a massage in Bordeaux'
@@ -24,9 +24,9 @@ test('[real API] @mobile the switcher opens the same page in English, remembered
   await expect(
     page.getByRole('heading', { name: 'Sports massage' })
   ).toBeVisible();
-  // The filter from the URL is kept.
+  // The category from the URL is kept.
   await expect(
-    page.getByRole('button', { name: '1 h', pressed: true })
+    page.getByRole('button', { name: 'Specialised massages', pressed: true })
   ).toBeVisible();
 
   // Next visit to a French URL: the remembered language.

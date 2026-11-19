@@ -35,8 +35,6 @@ const messages = {
     'Запишитесь онлайн на массаж в Бордо, 23 rue Castéja: выберите процедуру и удобное время.',
   'Réserver un massage <accent>à Bordeaux</accent>':
     'Запись на массаж <accent>в Бордо</accent>',
-  'Choisissez votre soin et sa durée, puis l’horaire qui vous convient. Le règlement se fait sur place, au cabinet, 23 rue Castéja.':
-    'Выберите процедуру и её длительность, затем удобное время. Оплата на месте, в кабинете, 23 rue Castéja.',
   'Confirmation immédiate': 'Мгновенное подтверждение',
   'Paiement au cabinet': 'Оплата в кабинете',
   'Annulation en ligne': 'Отмена онлайн',
@@ -206,29 +204,6 @@ const messages = {
   'Annulé {by}': 'Отменено {by}',
   Modification: 'Изменение',
   vers: 'на',
-  'Filtrer les soins': 'Фильтр услуг',
-  'Type de soin': 'Тип процедуры',
-  Budget: 'Бюджет',
-  Populaires: 'Популярные',
-  '<b>{n}</b> soin correspondant à vos critères|<b>{n}</b> soins correspondant à vos critères':
-    {
-      one: '<b>{n}</b> услуга соответствует вашим критериям',
-      few: '<b>{n}</b> услуги соответствуют вашим критериям',
-      many: '<b>{n}</b> услуг соответствуют вашим критериям',
-      other: '<b>{n}</b> услуг соответствуют вашим критериям',
-    },
-  '<b>{n}</b> soin disponible|<b>{n}</b> soins disponibles': {
-    one: '<b>{n}</b> услуга доступна',
-    few: '<b>{n}</b> услуги доступны',
-    many: '<b>{n}</b> услуг доступно',
-    other: '<b>{n}</b> услуг доступно',
-  },
-  'Effacer les filtres': 'Сбросить фильтры',
-  'les soins les plus demandés': 'самые популярные процедуры',
-  'Aucun soin ne correspond': 'Нет подходящих услуг',
-  'Essayez une autre durée ou un autre budget.':
-    'Попробуйте другую длительность или другой бюджет.',
-  'Voir tous les soins': 'Показать все услуги',
   'À dimanche': 'До встречи в воскресенье',
   'À lundi': 'До встречи в понедельник',
   'À mardi': 'До встречи во вторник',
@@ -299,9 +274,6 @@ const messages = {
   'au lieu de ': 'вместо ',
   'offre valable jusqu’au {date}': 'предложение действует до {date}',
   'Avant de réserver :': 'Перед записью:',
-  Populaire: 'Популярное',
-  Description: 'Описание',
-  'Choisir l’horaire': 'Выбрать время',
   'ou dès {price} / séance en forfait': 'или от {price} / сеанс с абонементом',
   'Du {from} au {to}': 'С {from} по {to}',
   'Semaine précédente': 'Предыдущая неделя',
@@ -503,9 +475,6 @@ const messages = {
   'Utiliser une autre adresse': 'Использовать другой адрес',
   'nom@exemple.com': 'name@example.com',
   'S’inscrire à la newsletter': 'Подписаться на рассылку',
-  'Massage du cou, cliente allongée en cabine':
-    'Массаж шеи, клиентка лежит в кабинете',
-  'Massage du dos et des épaules en cabine': 'Массаж спины и плеч в кабинете',
   'à partir de {price}': 'от {price}',
   min: 'мин',
   'Nos soins <accent>populaires</accent>':
@@ -527,6 +496,8 @@ const messages = {
   'Reprendre le défilement des avis': 'Возобновить прокрутку отзывов',
   'Lire la vidéo': 'Воспроизвести видео',
   'Mettre en pause la vidéo': 'Приостановить видео',
+  Choisir: 'Выбрать',
+  'Prix promotionnel : ': 'Акционная цена: ',
   'Massage Tuina': 'Массаж Туйна',
   'Massage sportif': 'Спортивный массаж',
   'Endospheres therapy': 'Endospheres-терапия',
@@ -605,13 +576,6 @@ const messages = {
   'Le service de compte n’est pas encore configuré.':
     'Сервис учётных записей ещё не настроен.',
   'Règlement sur place, au cabinet.': 'Оплата на месте, в кабинете.',
-  '30 min': '30 мин',
-  '1 h': '1 ч',
-  '1 h 30': '1 ч 30 мин',
-  '2 h': '2 ч',
-  'Jusqu’à 60 €': 'До 60 €',
-  '60 – 100 €': '60 – 100 €',
-  '100 € et plus': 'От 100 €',
   'À venir': 'Запланирована',
   Terminé: 'Завершена',
   Annulé: 'Отменена',
@@ -830,6 +794,33 @@ const messages = {
   'Choisir un horaire': 'Выбор времени',
   'E-mail': 'E-mail',
   'Indiquez le montant de la carte cadeau.': 'Укажите сумму сертификата.',
+  'Choisissez votre soin. Vous préciserez ensuite sa durée et l’horaire qui vous convient. Le règlement se fait sur place, au cabinet, 23 rue Castéja.':
+    'Выберите процедуру. Затем вы укажете её длительность и удобное время. Оплата на месте, в кабинете, 23 rue Castéja.',
+  Promotions: 'Акции',
+  'Toutes les prestations': 'Все услуги',
+  'Catégories de soins': 'Категории процедур',
+  '<b>{n}</b> prestation en promotion|<b>{n}</b> prestations en promotion': {
+    one: '<b>{n}</b> услуга по акции',
+    few: '<b>{n}</b> услуги по акции',
+    many: '<b>{n}</b> услуг по акции',
+    other: '<b>{n}</b> услуг по акции',
+  },
+  '<b>{n}</b> prestation|<b>{n}</b> prestations': {
+    one: '<b>{n}</b> услуга',
+    few: '<b>{n}</b> услуги',
+    many: '<b>{n}</b> услуг',
+    other: '<b>{n}</b> услуг',
+  },
+  'Tarif affiché pour une séance d’1 h (ou la durée indiquée). D’autres durées sont proposées à l’étape suivante.':
+    'Цена указана за сеанс 1 ч (или указанной длительности). Другие длительности — на следующем шаге.',
+  'Aucune promotion en cours pour le moment. Découvrez toutes nos prestations.':
+    'Сейчас акций нет. Посмотрите все наши услуги.',
+  'Promotions en cours': 'Текущие акции',
+  'Autres soins': 'Другие процедуры',
+  Promotion: 'Акция',
+  'La thérapie Endosphères est une technologie de massage esthétique par micro-vibrations et compression. Elle aide à réduire la cellulite et les gonflements, améliore la tonicité de la peau et redessine les contours du corps, sans douleur.':
+    'Endospheres-терапия — технология эстетического массажа микровибрацией и компрессией. Она помогает уменьшить целлюлит и отёки, улучшает тонус кожи и моделирует контуры тела, без боли.',
+  Populaires: 'Популярные',
 };
 
 export default messages;

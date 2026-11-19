@@ -2,73 +2,99 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import {
-  filterCatalog,
-  matchingVariants,
+  OTHERS,
+  POPULAR,
+  PROMOTIONS,
+  catalogSections,
+  hasPromotion,
+  shownVariant,
 } from '../../src/lib/booking/catalog.js';
 
-const variant = (id, durationMinutes, effectivePriceCents) => ({
+const variant = (id, durationMinutes, priceCents, salePriceCents = null) => ({
   id,
   durationMinutes,
-  effectivePriceCents,
+  priceCents,
+  salePriceCents,
+  saleEndsAt: salePriceCents ? '2026-12-01T00:00:00.000Z' : null,
+  effectivePriceCents: salePriceCents ?? priceCents,
 });
+
+const CATEGORIES = [
+  { key: 'chinois' },
+  { key: 'specifiques' },
+  { key: 'express' },
+];
 
 const CATALOG = [
   {
     key: 'tuina',
     category: 'chinois',
-    featured: false,
-    variants: [variant('t60', 60, 8500), variant('t90', 90, 12000)],
-  },
-  {
-    key: 'dos',
-    category: 'express',
-    featured: false,
-    variants: [variant('d30', 30, 5000)],
+    variants: [
+      variant('t30', 30, 5000),
+      variant('t60', 60, 8500),
+      variant('t90', 90, 12000),
+    ],
   },
   {
     key: 'sportif',
     category: 'specifiques',
-    featured: true,
-    variants: [variant('s55', 55, 10000), variant('s120', 120, 18500)],
+    variants: [variant('s55', 55, 10000), variant('s90', 90, 14000, 12000)],
   },
+  {
+    key: 'dos',
+    category: 'express',
+    featured: true,
+    variants: [variant('d30', 30, 5000)],
+  },
+  { key: 'api-only', category: null, variants: [variant('x45', 45, 7000)] },
 ];
 
-const keys = (list) => list.map((item) => item.key);
+const shape = (sections) =>
+  sections.map((section) => [
+    section.key,
+    section.items.map((item) => item.key),
+  ]);
 
-test('no filter: everything, popular first, otherwise in order', () => {
-  assert.deepEqual(keys(filterCatalog(CATALOG)), ['sportif', 'tuina', 'dos']);
+test('everything: one section per category in order, then the others', () => {
+  assert.deepEqual(shape(catalogSections(CATALOG, CATEGORIES)), [
+    ['chinois', ['tuina']],
+    ['specifiques', ['sportif']],
+    ['express', ['dos']],
+    [OTHERS, ['api-only']],
+  ]);
+  // An unknown filter shows everything too.
+  assert.equal(catalogSections(CATALOG, CATEGORIES, 'nope').length, 4);
 });
 
-test('category and popular filters', () => {
-  assert.deepEqual(keys(filterCatalog(CATALOG, { category: 'chinois' })), [
-    'tuina',
-  ]);
-  assert.deepEqual(keys(filterCatalog(CATALOG, { popular: true })), [
-    'sportif',
+test('one category: only its section', () => {
+  assert.deepEqual(shape(catalogSections(CATALOG, CATEGORIES, 'express')), [
+    ['express', ['dos']],
   ]);
 });
 
-test('duration and budget must match the same variant', () => {
-  assert.deepEqual(keys(filterCatalog(CATALOG, { duration: '30' })), ['dos']);
-  // 55 min counts as « 1 h ».
-  assert.deepEqual(keys(filterCatalog(CATALOG, { duration: '60' })), [
-    'sportif',
-    'tuina',
+test('promotions: one section of the prestations on sale, or none', () => {
+  assert.deepEqual(shape(catalogSections(CATALOG, CATEGORIES, PROMOTIONS)), [
+    [PROMOTIONS, ['sportif']],
   ]);
-  // Sportif 1 h is 100 €: in « 60 – 100 € »; its 2 h is not.
-  assert.deepEqual(
-    keys(filterCatalog(CATALOG, { duration: '120', budget: '60-100' })),
-    []
+  assert.deepEqual(catalogSections([CATALOG[0]], CATEGORIES, PROMOTIONS), []);
+  assert.equal(hasPromotion(CATALOG[1]), true);
+  assert.equal(hasPromotion(CATALOG[0]), false);
+});
+
+test('popular: one section of the featured prestations, or none', () => {
+  assert.deepEqual(shape(catalogSections(CATALOG, CATEGORIES, POPULAR)), [
+    [POPULAR, ['dos']],
+  ]);
+  assert.deepEqual(catalogSections([CATALOG[0]], CATEGORIES, POPULAR), []);
+});
+
+test('shown duration: the one on sale, else the closest to 1 h', () => {
+  assert.equal(shownVariant(CATALOG[0]).id, 't60');
+  assert.equal(shownVariant(CATALOG[1]).id, 's90');
+  assert.equal(shownVariant(CATALOG[2]).id, 'd30');
+  // 45 and 75 min are as close to 1 h: the shorter one.
+  assert.equal(
+    shownVariant({ variants: [variant('a', 45, 1), variant('b', 75, 1)] }).id,
+    'a'
   );
-  assert.deepEqual(keys(filterCatalog(CATALOG, { budget: 'moins-60' })), [
-    'dos',
-  ]);
-});
-
-test('matching variants pick the duration to open the card on', () => {
-  assert.deepEqual(
-    matchingVariants(CATALOG[0], { duration: '90' }).map((item) => item.id),
-    ['t90']
-  );
-  assert.equal(matchingVariants(CATALOG[0], {}).length, 2);
 });
